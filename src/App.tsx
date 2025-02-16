@@ -7,6 +7,7 @@ import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsDashboard } from './components/settings/SettingsDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { QuotesDashboard } from './components/quotes/QuotesDashboard';
+import { QuoteView } from './components/quotes/QuoteView';
 import { BookingsDashboard } from './components/bookings/BookingsDashboard';
 
 interface QuickActionCardProps {
@@ -71,10 +72,8 @@ const App: React.FC = () => {
                 />
                 <Route path="/quotes" element={<QuotesDashboard />} />
                 <Route path="/quotes/new" element={<NewQuoteWizard />} />
-                <Route 
-                  path="/bookings" 
-                  element={<BookingsDashboard />}
-                />
+                <Route path="/quotes/:id" element={<QuoteView />} />
+                <Route path="/bookings" element={<BookingsDashboard />} />
                 <Route path="/customers" element={<CustomerDashboard />} />
                 <Route path="/analytics" element={<AnalyticsDashboard />} />
                 <Route path="/settings" element={<SettingsDashboard />} />
