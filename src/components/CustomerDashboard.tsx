@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, FileText, Calendar } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 interface Customer {
   id: number;
@@ -26,6 +27,7 @@ export function CustomerDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [customerStats, setCustomerStats] = useState<Record<number, CustomerStats>>({});
+  const navigate = useNavigate();
 
   console.log('CustomerDashboard rendered', { searchTerm, loading, customersCount: customers.length });
 
@@ -100,6 +102,10 @@ export function CustomerDashboard() {
     console.log('All customer stats fetched:', Object.keys(stats).length);
     setCustomerStats(stats);
   }
+
+  const handleCreateQuote = (customerId: number) => {
+    navigate(`/quotes/new?customer=${customerId}`);
+  };
 
   return (
     <div className="space-y-6">
@@ -207,7 +213,10 @@ export function CustomerDashboard() {
                       <button className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50">
                         View Profile
                       </button>
-                      <button className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700">
+                      <button 
+                        onClick={() => handleCreateQuote(customer.id)}
+                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
                         Create Quote
                       </button>
                     </div>

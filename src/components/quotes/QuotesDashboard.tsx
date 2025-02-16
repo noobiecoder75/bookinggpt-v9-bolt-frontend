@@ -8,6 +8,7 @@ interface Quote {
   quote_reference: string;
   status: 'Draft' | 'Sent' | 'Expired' | 'Converted';
   total_price: number;
+  markup: number; // Global/average markup
   created_at: string;
   customer: {
     id: number;
@@ -15,6 +16,14 @@ interface Quote {
     last_name: string;
     email: string;
   };
+  quote_items?: {
+    id: number;
+    item_type: string;
+    item_name: string;
+    cost: number;
+    markup: number;
+    markup_type: 'percentage' | 'fixed';
+  }[];
 }
 
 export function QuotesDashboard() {
@@ -38,6 +47,14 @@ export function QuotesDashboard() {
             first_name,
             last_name,
             email
+          ),
+          quote_items (
+            id,
+            item_type,
+            item_name,
+            cost,
+            markup,
+            markup_type
           )
         `)
         .order('created_at', { ascending: false });
@@ -145,58 +162,84 @@ export function QuotesDashboard() {
           <ul className="divide-y divide-gray-200">
             {filteredQuotes.map((quote) => (
               <li key={quote.id} className="hover:bg-gray-50">
-                <div className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span className="text-lg font-medium text-indigo-600">
-                              {quote.customer.first_name[0]}
-                              {quote.customer.last_name[0]}
-                            </span>
+                <Link to={`/quotes/${quote.id}`} className="block">
+                  <div className="px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-lg font-medium text-indigo-600">
+                                {quote.customer.first_name[0]}
+                                {quote.customer.last_name[0]}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="ml-4">
-                          <h2 className="text-lg font-medium text-gray-900">
-                            {quote.customer.first_name} {quote.customer.last_name}
-                          </h2>
-                          <div className="mt-1 flex items-center text-sm text-gray-500">
-                            <span className="truncate">{quote.quote_reference}</span>
-                            <span className="mx-2">•</span>
-                            <span>${quote.total_price.toLocaleString()}</span>
+                          <div className="ml-4">
+                            <h2 className="text-lg font-medium text-gray-900">
+                              {quote.customer.first_name} {quote.customer.last_name}
+                            </h2>
+                            <div className="mt-1 flex items-center text-sm text-gray-500">
+                              <span className="truncate">{quote.quote_reference}</span>
+                              <span className="mx-2">•</span>
+                              <span>${quote.total_price.toLocaleString()}</span>
+                              {quote.markup > 0 && (
+                                <>
+                                  <span className="mx-2">•</span>
+                                  <span>{quote.markup}% global markup</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          quote.status === 'Draft'
-                            ? 'bg-amber-100 text-amber-800'
-                            : quote.status === 'Sent'
-                            ? 'bg-blue-100 text-blue-800'
-                            : quote.status === 'Converted'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {quote.status}
-                      </span>
-                      <div className="flex space-x-2">
-                        <button className="p-2 text-gray-400 hover:text-gray-500">
-                          <Mail className="h-5 w-5" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-gray-500">
-                          <Download className="h-5 w-5" />
-                        </button>
-                        <button className="p-2 text-gray-400 hover:text-gray-500">
-                          <Calendar className="h-5 w-5" />
-                        </button>
+                      <div className="flex items-center space-x-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            quote.status === 'Draft'
+                              ? 'bg-amber-100 text-amber-800'
+                              : quote.status === 'Sent'
+                              ? 'bg-blue-100 text-blue-800'
+                              : quote.status === 'Converted'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {quote.status}
+                        </span>
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Add email functionality
+                            }} 
+                            className="p-2 text-gray-400 hover:text-gray-500"
+                          >
+                            <Mail className="h-5 w-5" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Add download functionality
+                            }} 
+                            className="p-2 text-gray-400 hover:text-gray-500"
+                          >
+                            <Download className="h-5 w-5" />
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Add calendar functionality
+                            }} 
+                            className="p-2 text-gray-400 hover:text-gray-500"
+                          >
+                            <Calendar className="h-5 w-5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>
