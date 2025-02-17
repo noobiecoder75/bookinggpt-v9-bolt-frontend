@@ -55,15 +55,15 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
       <div className="flex items-center">
-        <div className={`${bgColor} ${color} p-3 rounded-lg`}>
-          {React.cloneElement(icon as React.ReactElement, { className: 'w-6 h-6' })}
+        <div className={`${bgColor} ${color} p-2 sm:p-3 rounded-lg`}>
+          {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5 sm:w-6 sm:h-6' })}
         </div>
-        <div className="ml-4">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-2xl font-semibold text-gray-900 mt-1">{value}</p>
-          {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+        <div className="ml-3 sm:ml-4">
+          <p className="text-xs sm:text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-lg sm:text-2xl font-semibold text-gray-900 mt-0.5 sm:mt-1">{value}</p>
+          {subtitle && <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">{subtitle}</p>}
         </div>
       </div>
     </div>
@@ -114,21 +114,21 @@ const App: React.FC = () => {
     <Router>
       <div className="min-h-screen bg-gray-100">
         <Navbar />
-        <main className="pl-64">
-          <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-            <div className="px-4 py-6 sm:px-0">
+        <main className="pl-0 md:pl-64 transition-all duration-300">
+          <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+            <div className="sm:px-0">
               <Routes>
                 <Route 
                   path="/" 
                   element={
                     <>
-                      <div className="flex justify-between items-center mb-8">
-                        <h1 className="text-3xl font-bold text-gray-900">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-6 sm:mb-8">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                           Welcome to BookingGPT
                         </h1>
                         <Link
                           to="/quotes/new"
-                          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
+                          className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
                         >
                           <Plus className="h-5 w-5 mr-2" />
                           Create New Quote
@@ -136,7 +136,7 @@ const App: React.FC = () => {
                       </div>
 
                       {/* Stats Grid */}
-                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-5 mb-8">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5 mb-6 sm:mb-8">
                         <StatCard
                           title="Total Revenue"
                           value={`$${stats.totalRevenue.toLocaleString()}`}
@@ -179,16 +179,16 @@ const App: React.FC = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Recent Activity */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                          <h2 className="text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
+                        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+                          <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
                           <RecentActivity />
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                          <h2 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+                        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+                          <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
                           <div className="grid grid-cols-1 gap-4">
                             <QuickActionCard
                               title="Create New Quote"
