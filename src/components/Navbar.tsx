@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home,
   FileText,
@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 export function Navbar() {
+  const navigate = useNavigate();
+
   return (
     <nav className="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 shadow-lg">
       <div className="flex flex-col h-full">
@@ -41,9 +43,6 @@ export function Navbar() {
           <NavLink to="/analytics" icon={<PieChart className="w-5 h-5" />}>
             Analytics
           </NavLink>
-          <NavLink to="/settings" icon={<Settings className="w-5 h-5" />}>
-            Settings
-          </NavLink>
         </div>
         
         {/* Bottom Section */}
@@ -64,7 +63,10 @@ export function Navbar() {
               <Bell className="w-6 h-6" />
               <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
             </button>
-            <button className="p-2 rounded-full text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors">
+            <button 
+              onClick={() => navigate('/settings')} 
+              className="p-2 rounded-full text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+            >
               <Settings className="w-6 h-6" />
             </button>
           </div>
