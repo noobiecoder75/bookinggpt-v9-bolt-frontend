@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Quote Preview</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-white min-h-screen">
+    <div id="loading" class="flex items-center justify-center min-h-screen">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+    </div>
+    
+    <div id="error" class="hidden max-w-2xl mx-auto px-4 py-12">
+        <div class="bg-red-50 p-4 rounded-md">
+            <p class="text-red-700">Error loading quote. Please check the quote ID and try again.</p>
+        </div>
+    </div>
+
+    <div id="quote-content" class="hidden py-10 px-2">
+        <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+            <!-- Agent Section -->
+            <div class="flex flex-col sm:flex-row items-center gap-6 bg-gradient-to-r from-indigo-600 to-purple-600 p-8">
+                <img id="agent-avatar" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&w=256&h=256&q=80" 
+                     alt="Travel Agent" class="w-24 h-24 rounded-full border-4 border-white shadow-lg">
+                <div class="text-center sm:text-left">
+                    <h2 class="text-2xl font-bold text-white">Sarah Johnson</h2>
+                    <p class="text-indigo-100">Senior Travel Consultant</p>
+                    <p class="text-indigo-100 mt-2">sarah.johnson@travelco.com</p>
+                    <p class="text-indigo-100">+1 (555) 123-4567</p>
+                    <div class="mt-3 flex flex-col sm:flex-row gap-2">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                            ✈️ 500+ Trips Planned
+                        </span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                            ⭐ 4.9/5 Rating
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote Header -->
+            <div class="p-8 border-b border-gray-100">
+                <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div>
+                        <h1 class="text-3xl font-bold text-gray-900 mb-2">Your Dream Trip Awaits</h1>
+                        <p id="customer-name" class="text-gray-600 text-lg"></p>
+                        <p id="quote-date" class="text-gray-500 text-sm mt-1"></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold text-indigo-600" id="total-price"></div>
+                        <p class="text-gray-500 text-sm">Total Trip Cost</p>
+                        <div id="quote-status" class="mt-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trip Overview -->
+            <div class="p-8 bg-gray-50">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Trip Overview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center mb-2">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                <span class="text-blue-600">🗺️</span>
+                            </div>
+                            <h3 class="font-semibold text-gray-700">Route</h3>
+                        </div>
+                        <p id="route" class="text-gray-900 font-medium"></p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center mb-2">
+                            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                <span class="text-green-600">👥</span>
+                            </div>
+                            <h3 class="font-semibold text-gray-700">Travelers</h3>
+                        </div>
+                        <p id="travelers" class="text-gray-900 font-medium"></p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center mb-2">
+                            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                                <span class="text-purple-600">📅</span>
+                            </div>
+                            <h3 class="font-semibold text-gray-700">Valid Until</h3>
+                        </div>
+                        <p id="expiry-date" class="text-gray-900 font-medium"></p>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 shadow-sm">
+                        <div class="flex items-center mb-2">
+                            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                                <span class="text-orange-600">🎯</span>
+                            </div>
+                            <h3 class="font-semibold text-gray-700">Activities</h3>
+                        </div>
+                        <p id="activity-count" class="text-gray-900 font-medium"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Itinerary -->
+            <div class="p-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-6">Your Detailed Itinerary</h2>
+                <div id="itinerary-items" class="space-y-4"></div>
+            </div>
+
+            <!-- Additional Notes -->
+            <div id="notes-section" class="hidden p-8 bg-gray-50">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Important Information</h2>
+                <div id="notes-content" class="bg-white rounded-lg p-4 text-gray-700 whitespace-pre-wrap shadow-sm"></div>
+            </div>
+
+            <!-- Contact Section -->
+            <div class="p-8 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold mb-2">Ready to Book Your Adventure?</h2>
+                    <p class="text-indigo-100 mb-6">Contact me to secure your dates and start planning the details!</p>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <a href="mailto:sarah.johnson@travelco.com" 
+                           class="inline-flex items-center justify-center px-6 py-3 border-2 border-white text-white font-medium rounded-lg hover:bg-white hover:text-indigo-600 transition-colors">
+                            📧 Send Email
+                        </a>
+                        <a href="tel:+15551234567" 
+                           class="inline-flex items-center justify-center px-6 py-3 bg-white text-indigo-600 font-medium rounded-lg hover:bg-gray-100 transition-colors">
+                            📞 Call Now
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://nlhcgalwrxopexwriumx.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5saGNnYWx3cnhvcGV4d3JpdW14Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1OTAyOTYsImV4cCI6MjA1NTE2NjI5Nn0.ADS8TF9DLWOsKzw6_w-x4Ac3TmP4vAtCULWrP681w1g';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Get quote ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const quoteId = urlParams.get('id');
+
+        async function loadQuote() {
+            if (!quoteId) {
+                showError();
+                return;
+            }
+
+            try {
+                const { data: quote, error } = await supabase
+                    .from('quotes')
+                    .select(`
+                        *,
+                        customer:customers (id, first_name, last_name, email, phone),
+                        quote_items (id, item_type, item_name, cost, markup, markup_type, quantity, details)
+                    `)
+                    .eq('id', quoteId)
+                    .single();
+
+                if (error) throw error;
+
+                displayQuote(quote);
+            } catch (error) {
+                console.error('Error loading quote:', error);
+                showError();
+            }
+        }
+
+        function displayQuote(quote) {
+            // Hide loading, show content
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('quote-content').classList.remove('hidden');
+
+            // Customer info
+            document.getElementById('customer-name').textContent = 
+                `Prepared for ${quote.customer.first_name} ${quote.customer.last_name}`;
+            document.getElementById('quote-date').textContent = 
+                `Created on ${new Date(quote.created_at).toLocaleDateString()}`;
+
+            // Total price
+            document.getElementById('total-price').textContent = 
+                `$${quote.total_price.toLocaleString()}`;
+
+            // Status badge
+            const statusElement = document.getElementById('quote-status');
+            const statusColors = {
+                'Draft': 'bg-amber-100 text-amber-800',
+                'Sent': 'bg-blue-100 text-blue-800',
+                'Converted': 'bg-green-100 text-green-800',
+                'Expired': 'bg-red-100 text-red-800'
+            };
+            statusElement.innerHTML = `
+                <span class="px-3 py-1 rounded-full text-sm font-medium ${statusColors[quote.status] || 'bg-gray-100 text-gray-800'}">
+                    ${quote.status}
+                </span>
+            `;
+
+            // Trip overview
+            document.getElementById('route').textContent = `${quote.origin} → ${quote.destination}`;
+            
+            const travelers = quote.quote_items[0]?.details?.travelers;
+            if (travelers) {
+                document.getElementById('travelers').textContent = 
+                    `${travelers.adults || 0} Adults, ${travelers.children || 0} Children, ${travelers.seniors || 0} Seniors`;
+            }
+
+            document.getElementById('expiry-date').textContent = 
+                new Date(quote.expiry_date).toLocaleDateString();
+            document.getElementById('activity-count').textContent = 
+                `${quote.quote_items.length} Activities`;
+
+            // Itinerary items
+            const itineraryContainer = document.getElementById('itinerary-items');
+            quote.quote_items.forEach((item, index) => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg p-6 border border-indigo-100';
+                
+                const typeIcons = {
+                    'Flight': '✈️',
+                    'Hotel': '🏨',
+                    'Tour': '🎯'
+                };
+
+                itemElement.innerHTML = `
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <span class="text-2xl mr-3">${typeIcons[item.item_type] || '📍'}</span>
+                                <div>
+                                    <h3 class="text-lg font-semibold text-indigo-700">${item.item_name}</h3>
+                                    <p class="text-sm text-gray-600">${item.item_type}</p>
+                                </div>
+                            </div>
+                            ${item.details?.description ? `<p class="text-gray-700 mb-2">${item.details.description}</p>` : ''}
+                            ${item.details?.startTime || item.details?.endTime ? `
+                                <p class="text-xs text-gray-500">
+                                    ${item.details?.startTime ? new Date(item.details.startTime).toLocaleString() : ''}
+                                    ${item.details?.endTime ? ` - ${new Date(item.details.endTime).toLocaleString()}` : ''}
+                                </p>
+                            ` : ''}
+                        </div>
+                        <div class="mt-4 sm:mt-0 sm:ml-6 text-right">
+                            <div class="text-2xl font-bold text-indigo-600">$${item.cost.toFixed(2)}</div>
+                            ${item.quantity > 1 ? `<p class="text-sm text-gray-500">Quantity: ${item.quantity}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                itineraryContainer.appendChild(itemElement);
+            });
+
+            // Notes
+            if (quote.notes) {
+                document.getElementById('notes-section').classList.remove('hidden');
+                document.getElementById('notes-content').textContent = quote.notes;
+            }
+
+            // Update page title
+            document.title = `Travel Quote - ${quote.customer.first_name} ${quote.customer.last_name}`;
+        }
+
+        function showError() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.remove('hidden');
+        }
+
+        // Load quote when page loads
+        loadQuote();
+    </script>
+</body>
+</html> 

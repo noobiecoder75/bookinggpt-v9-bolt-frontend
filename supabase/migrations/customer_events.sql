@@ -65,7 +65,7 @@ BEGIN
       description
     ) VALUES (
       NEW.customer_id,
-      'QUOTE_CREATED',
+      'QUOTE_CREATED'::customer_event_type,
       NEW.id,
       'Quote ' || NEW.quote_reference || ' was created'
     );
@@ -80,10 +80,10 @@ BEGIN
       ) VALUES (
         NEW.customer_id,
         CASE
-          WHEN NEW.status = 'Sent' THEN 'QUOTE_SENT'
-          WHEN NEW.status = 'Expired' THEN 'QUOTE_EXPIRED'
-          WHEN NEW.status = 'Converted' THEN 'QUOTE_CONVERTED'
-          ELSE 'QUOTE_UPDATED'
+          WHEN NEW.status = 'Sent' THEN 'QUOTE_SENT'::customer_event_type
+          WHEN NEW.status = 'Expired' THEN 'QUOTE_EXPIRED'::customer_event_type
+          WHEN NEW.status = 'Converted' THEN 'QUOTE_CONVERTED'::customer_event_type
+          ELSE 'QUOTE_UPDATED'::customer_event_type
         END,
         NEW.id,
         'Quote ' || NEW.quote_reference || ' status changed to ' || NEW.status
@@ -107,7 +107,7 @@ BEGIN
       description
     ) VALUES (
       NEW.customer_id,
-      'BOOKING_CREATED',
+      'BOOKING_CREATED'::customer_event_type,
       NEW.id,
       'Booking ' || NEW.booking_reference || ' was created'
     );
@@ -122,9 +122,9 @@ BEGIN
       ) VALUES (
         NEW.customer_id,
         CASE
-          WHEN NEW.status = 'Confirmed' THEN 'BOOKING_CONFIRMED'
-          WHEN NEW.status = 'Cancelled' THEN 'BOOKING_CANCELLED'
-          WHEN NEW.status = 'Completed' THEN 'BOOKING_COMPLETED'
+          WHEN NEW.status = 'Confirmed' THEN 'BOOKING_CONFIRMED'::customer_event_type
+          WHEN NEW.status = 'Cancelled' THEN 'BOOKING_CANCELLED'::customer_event_type
+          WHEN NEW.status = 'Completed' THEN 'BOOKING_COMPLETED'::customer_event_type
         END,
         NEW.id,
         'Booking ' || NEW.booking_reference || ' status changed to ' || NEW.status
@@ -154,7 +154,7 @@ BEGIN
     description
   ) VALUES (
     booking_customer_id,
-    'PAYMENT_RECEIVED',
+    'PAYMENT_RECEIVED'::customer_event_type,
     NEW.booking_id,
     'Payment of $' || NEW.amount || ' received for booking #' || NEW.booking_id
   );

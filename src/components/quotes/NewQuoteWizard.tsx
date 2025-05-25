@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Calendar, Users, MapPin, Plane, Building, Car, ArrowLeft, ArrowRight, Plus, Trash2, DollarSign, Clock, Edit2, Save, AlertCircle, X, Loader, ChevronUp, ChevronDown, CheckCircle } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, Plane, Building, Car, ArrowLeft, ArrowRight, Plus, Trash2, DollarSign, Clock, Edit2, Save, AlertCircle, X, Loader, ChevronUp, ChevronDown, CheckCircle, Eye } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { QuoteServices } from './QuoteServices';
 import { QuoteReview } from './QuoteReview';
+import { Modal } from '../../components/Modal';
+import { FlightSearchModal } from './FlightSearchModal';
 
 // Interface for Customer data structure
 interface Customer {
@@ -26,6 +28,12 @@ interface TravelRequirements {
   destination: string;
   tripType: 'flight' | 'hotel' | 'flight+hotel' | 'tour' | 'custom';
   specialRequests: string;
+  travelers?: {
+    adults: number;
+    children: number;
+    seniors: number;
+  };
+  isReturnFlight?: boolean;
 }
 
 // Interface for travel service items
@@ -105,7 +113,18 @@ interface QuoteDetails {
 interface FlightSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onFlightSelect: (flight: any, isReturn: boolean) => void;
+  onFlightSelect: (flight: any, requirements: {
+    travelers: {
+      adults: number;
+      children: number;
+      seniors: number;
+    };
+    origin: string;
+    destination: string;
+    departureDate: string;
+    returnDate: string;
+    isReturnFlight: boolean;
+  }) => void;
   origin: string;
   destination: string;
   departureDate: string;
@@ -127,308 +146,23 @@ interface FlightOffer {
   numberOfBookableSeats: number;
 }
 
-// Add FlightSearchModal component
-function FlightSearchModal({
-  isOpen,
-  onClose,
-  onFlightSelect,
-  origin,
-  destination,
-  departureDate,
-  returnDate,
-  travelers,
-}: FlightSearchModalProps) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [flightOffers, setFlightOffers] = useState<FlightOffer[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isReturnFlight, setIsReturnFlight] = useState(false);
-  const [expandedFlights, setExpandedFlights] = useState<string[]>([]);
-  const flightsPerPage = 5;
-
-  const toggleFlightExpansion = (flightId: string) => {
-    setExpandedFlights(prev =>
-      prev.includes(flightId)
-        ? prev.filter(id => id !== flightId)
-        : [...prev, flightId]
-    );
-  };
-
-  const searchFlights = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // First, get the access token
-      const tokenResponse = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: import.meta.env.VITE_AMADEUS_CLIENT_ID,
-          client_secret: import.meta.env.VITE_AMADEUS_CLIENT_SECRET,
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to obtain access token');
-      }
-
-      const tokenData = await tokenResponse.json();
-
-      // Make the flight search API call
-      const searchResponse = await fetch('https://test.api.amadeus.com/v2/shopping/flight-offers', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          currencyCode: 'USD',
-          originDestinations: [
-            {
-              id: '1',
-              originLocationCode: isReturnFlight ? destination : origin,
-              destinationLocationCode: isReturnFlight ? origin : destination,
-              departureDateTimeRange: {
-                date: isReturnFlight ? returnDate : departureDate
-              }
-            }
-          ],
-          travelers: [
-            ...(Array(travelers.adults).fill({ id: '1', travelerType: 'ADULT' })),
-            ...(Array(travelers.children).fill({ id: '2', travelerType: 'CHILD' })),
-            ...(Array(travelers.seniors).fill({ id: '3', travelerType: 'SENIOR' }))
-          ],
-          sources: ['GDS'],
-          searchCriteria: {
-            maxFlightOffers: 50,
-            flightFilters: {
-              cabinRestrictions: [{
-                cabin: 'ECONOMY',
-                coverage: 'MOST_SEGMENTS',
-                originDestinationIds: ['1']
-              }]
-            }
-          }
-        })
-      });
-
-      if (!searchResponse.ok) {
-        const errorData = await searchResponse.json();
-        throw new Error(errorData.errors?.[0]?.detail || 'Failed to fetch flight offers');
-      }
-
-      const response = await searchResponse.json();
-      setFlightOffers(response.data || []);
-    } catch (error: any) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen) {
-      searchFlights();
-    }
-  }, [isOpen, isReturnFlight]);
-
-  const currentFlights = flightOffers.slice(
-    (currentPage - 1) * flightsPerPage,
-    currentPage * flightsPerPage
-  );
-
-  const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString();
-  };
-
-  const formatDuration = (duration: string) => {
-    // Convert PT2H30M to 2h 30m
-    const hours = duration.match(/(\d+)H/)?.[1] || '0';
-    const minutes = duration.match(/(\d+)M/)?.[1] || '0';
-    return `${hours}h ${minutes}m`;
-  };
-
-  const renderSegments = (segments: any[]) => {
-    return segments.map((segment, index) => (
-      <div key={index} className="border-l-2 border-gray-200 pl-4 ml-2 mt-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              {segment.departure.iataCode} → {segment.arrival.iataCode}
-            </p>
-            <p className="text-xs text-gray-500">
-              {formatDateTime(segment.departure.at)} - {formatDateTime(segment.arrival.at)}
-            </p>
-            <p className="text-xs text-gray-500">
-              Duration: {formatDuration(segment.duration)}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-600">{segment.carrierCode}</p>
-            <p className="text-xs text-gray-500">Flight {segment.number}</p>
-          </div>
-        </div>
-        {index < segments.length - 1 && (
-          <div className="my-2 ml-2 text-xs text-gray-500">
-            Layover: {formatDuration(segment.layoverDuration || 'PT0H')}
-          </div>
-        )}
-      </div>
-    ));
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-medium text-gray-900">Search Flights</h2>
-            <p className="text-sm text-gray-500">
-              {isReturnFlight ? `${destination} → ${origin}` : `${origin} → ${destination}`}
-            </p>
-          </div>
-          {returnDate && (
-            <div className="flex items-center space-x-4">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={isReturnFlight}
-                  onChange={(e) => setIsReturnFlight(e.target.checked)}
-                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="text-sm text-gray-700">Search return flight</span>
-              </label>
-            </div>
-          )}
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        
-        <div className="px-4 py-4 max-h-[60vh] overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader className="h-8 w-8 animate-spin text-indigo-600" />
-            </div>
-          ) : error ? (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          ) : currentFlights.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No flights found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {currentFlights.map((flight) => (
-                <div
-                  key={flight.id}
-                  className="border rounded-lg overflow-hidden hover:border-indigo-500 transition-colors"
-                >
-                  <div
-                    className="p-4 cursor-pointer"
-                    onClick={() => toggleFlightExpansion(flight.id)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <Plane className="h-5 w-5 text-gray-400" />
-                          <span className="text-lg font-medium text-gray-900">
-                            {flight.itineraries[0].segments[0].departure.iataCode} →{' '}
-                            {flight.itineraries[0].segments[flight.itineraries[0].segments.length - 1].arrival.iataCode}
-                          </span>
-                          {expandedFlights.includes(flight.id) ? (
-                            <ChevronUp className="h-5 w-5 text-gray-400" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5 text-gray-400" />
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500 mt-1">
-                          Total duration: {formatDuration(flight.itineraries[0].duration)}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {flight.numberOfBookableSeats} seats available
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-lg font-medium text-gray-900">
-                          {flight.price.total} {flight.price.currency}
-                        </p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onFlightSelect(flight, isReturnFlight);
-                          }}
-                          className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                        >
-                          Add to Itinerary
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {expandedFlights.includes(flight.id) && (
-                    <div className="px-4 pb-4 border-t border-gray-200">
-                      {flight.itineraries.map((itinerary, idx) => (
-                        <div key={idx} className="mt-3">
-                          <h4 className="text-sm font-medium text-gray-900">
-                            {idx === 0 ? 'Outbound' : 'Return'} Flight Details
-                          </h4>
-                          {renderSegments(itinerary.segments)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-4 py-3 border-t border-gray-200 flex justify-between items-center">
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 border rounded text-sm disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(p => p + 1)}
-              disabled={currentPage * flightsPerPage >= flightOffers.length}
-              className="px-3 py-1 border rounded text-sm disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Add new interface for ActivitySearchModal
+// Add interface for ActivitySearchModal
 interface ActivitySearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onActivitySelect: (activity: any) => void;
   selectedDay: string;
+}
+
+// Add HotelSearchModal interface and component
+interface HotelSearchModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onHotelSelect: (hotel: any) => void;
+  destination: string;
+  checkInDate: string;
+  checkOutDate: string;
+  guests: number;
 }
 
 // Add ActivitySearchModal component
@@ -441,6 +175,7 @@ function ActivitySearchModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (isOpen) {
@@ -452,10 +187,12 @@ function ActivitySearchModal({
     setLoading(true);
     setError(null);
     try {
+      // Fetch tours from the rates table
       const { data, error } = await supabase
-        .from('quote_items')
+        .from('rates')
         .select('*')
-        .eq('item_type', 'Tour');
+        .eq('rate_type', 'Tour')
+        .order('description', { ascending: true });
 
       if (error) throw error;
       setActivities(data || []);
@@ -466,19 +203,46 @@ function ActivitySearchModal({
     }
   };
 
+  // Filter activities based on search term
+  const filteredActivities = activities.filter(activity =>
+    activity.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (activity.details?.imported_from && activity.details.imported_from.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-lg font-medium text-gray-900">Select Activity</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Select Tour/Activity</h2>
+              <p className="text-sm text-gray-600 mt-1">Choose from your uploaded tour rates</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg p-2 transition-all duration-200"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search tours and activities..."
+              className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm transition-all duration-200"
+            />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+          </div>
         </div>
         
         <div className="px-4 py-4 max-h-[60vh] overflow-y-auto">
@@ -488,50 +252,105 @@ function ActivitySearchModal({
             </div>
           ) : error ? (
             <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-700">{error}</p>
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
             </div>
-          ) : activities.length === 0 ? (
+          ) : filteredActivities.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500">No activities found</p>
+              <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No tours found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm ? 'Try adjusting your search terms.' : 'Upload tour rates to see them here.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {activities.map((activity) => (
+              {filteredActivities.map((activity) => (
                 <div
                   key={activity.id}
-                  className="border rounded-lg overflow-hidden hover:border-indigo-500 transition-colors p-4"
+                  className="border border-gray-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-lg transition-all duration-300 p-6 bg-white hover:bg-gradient-to-br hover:from-white hover:to-indigo-50/30 group"
                 >
                   <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {activity.item_name}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {activity.details?.description}
-                      </p>
-                      {activity.details?.startTime && (
-                        <p className="text-sm text-gray-500">
-                          Time: {new Date(activity.details.startTime).toLocaleTimeString()}
-                          {activity.details.endTime && ` - ${new Date(activity.details.endTime).toLocaleTimeString()}`}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-medium text-gray-900">
-                        ${activity.cost.toFixed(2)}
-                      </p>
-                      <button
-                        onClick={() => onActivitySelect(activity)}
-                        className="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                      >
-                        Add to Itinerary
-                      </button>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors duration-200">
+                            {activity.description}
+                          </h3>
+                          <div className="mt-3 flex items-center space-x-3">
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 group-hover:bg-indigo-200 transition-colors duration-200">
+                              {activity.rate_type}
+                            </span>
+                            <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                              {activity.currency}
+                            </span>
+                            {activity.details?.imported_from && (
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-emerald-100 text-emerald-800">
+                                <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
+                                AI Imported
+                              </span>
+                            )}
+                          </div>
+                          {activity.valid_start && activity.valid_end && (
+                            <p className="text-sm text-gray-600 mt-2 flex items-center">
+                              <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                              Valid: {new Date(activity.valid_start).toLocaleDateString()} - {new Date(activity.valid_end).toLocaleDateString()}
+                            </p>
+                          )}
+                          {activity.details?.imported_from && (
+                            <p className="text-xs text-gray-500 mt-2 flex items-center">
+                              <span className="w-1 h-1 bg-gray-400 rounded-full mr-2"></span>
+                              Source: {activity.details.imported_from}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right ml-6">
+                          <p className="text-2xl font-bold text-gray-900 mb-3">
+                            {activity.currency} {activity.cost.toFixed(2)}
+                          </p>
+                          <button
+                            onClick={() => {
+                              // Convert rate to activity format for compatibility
+                              const activityItem = {
+                                id: activity.id,
+                                name: activity.description,
+                                cost: activity.cost,
+                                markup: 0,
+                                markup_type: 'percentage',
+                                details: {
+                                  description: activity.description,
+                                  currency: activity.currency,
+                                  validStart: activity.valid_start,
+                                  validEnd: activity.valid_end,
+                                  imported_from: activity.details?.imported_from,
+                                  extraction_method: activity.details?.extraction_method
+                                }
+                              };
+                              onActivitySelect(activityItem);
+                            }}
+                            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add to Itinerary
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
+        </div>
+        
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+          <p className="text-sm text-gray-500">
+            Showing {filteredActivities.length} of {activities.length} tours
+          </p>
         </div>
       </div>
     </div>
@@ -564,6 +383,194 @@ function SuccessScreen({ quoteId, onViewQuote }: { quoteId: string; onViewQuote:
         >
           Return to Quotes
         </button>
+      </div>
+    </div>
+  );
+}
+
+// Add this function before the NewQuoteWizard component
+const formatDateTime = (dateTime: string) => {
+  return new Date(dateTime).toLocaleString();
+};
+
+// Add HotelSearchModal interface and component
+function HotelSearchModal({ isOpen, onClose, onHotelSelect, destination, checkInDate, checkOutDate, guests }: HotelSearchModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hotels, setHotels] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchHotels();
+    }
+  }, [isOpen]);
+
+  const fetchHotels = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch hotels from the rates table
+      const { data, error } = await supabase
+        .from('rates')
+        .select('*')
+        .eq('rate_type', 'Hotel')
+        .order('description', { ascending: true });
+
+      if (error) throw error;
+      setHotels(data || []);
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter hotels based on search term
+  const filteredHotels = hotels.filter(hotel =>
+    hotel.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (hotel.details?.imported_from && hotel.details.imported_from.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[85vh] overflow-hidden shadow-2xl border border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-blue-50">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Select Hotel</h2>
+              <p className="text-sm text-gray-600 mt-1">Choose from your uploaded hotel rates</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg p-2 transition-all duration-200"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="px-6 py-4 bg-gray-50/50 border-b border-gray-100">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search hotels..."
+              className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white shadow-sm transition-all duration-200"
+            />
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+          </div>
+        </div>
+        
+        <div className="px-4 py-4 max-h-[60vh] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader className="h-8 w-8 animate-spin text-indigo-600" />
+            </div>
+          ) : error ? (
+            <div className="rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <AlertCircle className="h-5 w-5 text-red-400" />
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              </div>
+            </div>
+          ) : filteredHotels.length === 0 ? (
+            <div className="text-center py-8">
+              <Building className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No hotels found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm ? 'Try adjusting your search terms.' : 'Upload hotel rates to see them here.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredHotels.map((hotel) => (
+                <div
+                  key={hotel.id}
+                  className="border rounded-lg overflow-hidden hover:border-indigo-500 transition-colors p-4 bg-white shadow-sm"
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="text-lg font-medium text-gray-900">
+                            {hotel.description}
+                          </h3>
+                          <div className="mt-2 flex items-center space-x-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                              {hotel.rate_type}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {hotel.currency}
+                            </span>
+                            {hotel.details?.imported_from && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                AI Imported
+                              </span>
+                            )}
+                          </div>
+                          {hotel.valid_start && hotel.valid_end && (
+                            <p className="text-sm text-gray-500 mt-1">
+                              Valid: {new Date(hotel.valid_start).toLocaleDateString()} - {new Date(hotel.valid_end).toLocaleDateString()}
+                            </p>
+                          )}
+                          {hotel.details?.imported_from && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              Source: {hotel.details.imported_from}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-xl font-bold text-gray-900">
+                            {hotel.currency} {hotel.cost.toFixed(2)}
+                          </p>
+                          <button
+                            onClick={() => {
+                              // Convert rate to hotel format for compatibility
+                              const hotelItem = {
+                                id: hotel.id,
+                                name: hotel.description,
+                                cost: hotel.cost,
+                                markup: 0,
+                                markup_type: 'percentage',
+                                details: {
+                                  description: hotel.description,
+                                  currency: hotel.currency,
+                                  validStart: hotel.valid_start,
+                                  validEnd: hotel.valid_end,
+                                  imported_from: hotel.details?.imported_from,
+                                  extraction_method: hotel.details?.extraction_method
+                                }
+                              };
+                              onHotelSelect(hotelItem);
+                            }}
+                            className="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            Add to Itinerary
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        
+        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+          <p className="text-sm text-gray-500">
+            Showing {filteredHotels.length} of {hotels.length} hotels
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -625,6 +632,13 @@ export function NewQuoteWizard() {
   const [showActivitySearch, setShowActivitySearch] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [finalizedQuoteId, setFinalizedQuoteId] = useState<string | null>(null);
+  const [showHotelSearch, setShowHotelSearch] = useState(false);
+
+  // Add new state for delete confirmation
+  const [dayToDelete, setDayToDelete] = useState<string | null>(null);
+
+  // Add new state for expanded items
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
   // Effect to search customers when search term changes
   useEffect(() => {
@@ -934,14 +948,35 @@ export function NewQuoteWizard() {
 
   // Remove item from day
   const removeItemFromDay = (dayId: string, itemId: string) => {
-    setQuoteDetails(prev => ({
-      ...prev,
-      days: prev.days.map(day => 
-        day.id === dayId
-          ? { ...day, items: day.items.filter(item => item.id !== itemId) }
-          : day
-      )
-    }));
+    const dayToModify = quoteDetails.days.find(day => day.id === dayId);
+    const itemToRemove = dayToModify?.items.find(item => item.id === itemId);
+
+    if (!itemToRemove || !dayToModify) return;
+
+    // If this is a flight and has a linked flight, remove both
+    if (itemToRemove.type === 'Flight' && itemToRemove.details.linkedFlightId) {
+      const linkedId = itemToRemove.details.linkedFlightId;
+      
+      setQuoteDetails(prev => ({
+        ...prev,
+        days: prev.days.map(day => ({
+          ...day,
+          items: day.items.filter(item => 
+            item.id !== itemId && item.id !== linkedId
+          )
+        }))
+      }));
+    } else {
+      // Regular item removal
+      setQuoteDetails(prev => ({
+        ...prev,
+        days: prev.days.map(day => 
+          day.id === dayId
+            ? { ...day, items: day.items.filter(item => item.id !== itemId) }
+            : day
+        )
+      }));
+    }
   };
 
   // Update day name
@@ -1002,10 +1037,9 @@ export function NewQuoteWizard() {
 
   // Define wizard steps
   const steps = [
-    { number: 1, label: 'Customer' },
-    { number: 2, label: 'Requirements' },
-    { number: 3, label: 'Services' },
-    { number: 4, label: 'Review' },
+    { number: 1, title: 'Customer & Dates', description: 'Select customer and trip dates' },
+    { number: 2, title: 'Services', description: 'Build itinerary' },
+    { number: 3, title: 'Review', description: 'Finalize quote' },
   ];
 
   // Handler for clicking on step indicators
@@ -1017,96 +1051,74 @@ export function NewQuoteWizard() {
   };
 
   // Add flight selection handler
-  const handleFlightSelect = (flight: any, isReturn: boolean) => {
-    if (!selectedDay) return;
+  const handleFlightSelect = (flight: any, requirements: any) => {
+    setShowFlightSearch(false);
 
-    const totalTravelers = travelRequirements.adults + travelRequirements.children + travelRequirements.seniors;
-
-    const flightItem: ItineraryItem = {
+    // Create outbound flight item
+    const outboundFlight: ItineraryItem = {
       id: `flight-${Date.now()}`,
       type: 'Flight',
-      name: `Flight ${flight.itineraries[0].segments[0].departure.iataCode} → ${flight.itineraries[0].segments[0].arrival.iataCode}`,
-      description: `Departure: ${new Date(flight.itineraries[0].segments[0].departure.at).toLocaleString()}`,
+      name: `${requirements.origin} → ${requirements.destination}`,
+      description: `Flight ${flight.itineraries[0].segments[0].carrierCode}${flight.itineraries[0].segments[0].number}`,
       startTime: flight.itineraries[0].segments[0].departure.at,
       endTime: flight.itineraries[0].segments[0].arrival.at,
-      cost: parseFloat(flight.price.total),
+      cost: parseFloat(flight.price.total) / (requirements.isReturnFlight ? 2 : 1), // Split cost for return flights
       markup: 0,
       markup_type: 'percentage',
       details: {
         ...flight,
-        travelers: {
-          adults: travelRequirements.adults,
-          children: travelRequirements.children,
-          seniors: travelRequirements.seniors,
-          total: totalTravelers
-        }
-      },
+        isOutbound: true,
+        linkedFlightId: requirements.isReturnFlight ? `return-flight-${Date.now()}` : null
+      }
     };
 
-    if (isReturn) {
-      // Create outbound flight item
-      const outboundFlight: ItineraryItem = {
-        id: `flight-${Date.now()}-outbound`,
-        type: 'Flight',
-        name: `Flight ${travelRequirements.origin} → ${travelRequirements.destination}`,
-        description: `Departure: ${new Date(flight.itineraries[0].segments[0].departure.at).toLocaleString()}`,
-        startTime: flight.itineraries[0].segments[0].departure.at,
-        endTime: flight.itineraries[0].segments[0].arrival.at,
-        cost: parseFloat(flight.price.total) / 2,
-        markup: 0,
-        markup_type: 'percentage',
-        details: {
-          ...flight,
-          itineraries: [flight.itineraries[0]],
-          travelers: {
-            adults: travelRequirements.adults,
-            children: travelRequirements.children,
-            seniors: travelRequirements.seniors,
-            total: totalTravelers
-          }
-        },
-      };
+    // Find the first and last days
+    const firstDay = quoteDetails.days.find(day => 
+      new Date(day.name).toISOString().split('T')[0] === requirements.departureDate
+    );
 
-      // Create return flight item
-      const returnFlight: ItineraryItem = {
-        id: `flight-${Date.now()}-return`,
-        type: 'Flight',
-        name: `Flight ${travelRequirements.destination} → ${travelRequirements.origin}`,
-        description: `Departure: ${new Date(flight.itineraries[1].segments[0].departure.at).toLocaleString()}`,
-        startTime: flight.itineraries[1].segments[0].departure.at,
-        endTime: flight.itineraries[1].segments[0].arrival.at,
-        cost: parseFloat(flight.price.total) / 2,
-        markup: 0,
-        markup_type: 'percentage',
-        details: {
-          ...flight,
-          itineraries: [flight.itineraries[1]],
-          travelers: {
-            adults: travelRequirements.adults,
-            children: travelRequirements.children,
-            seniors: travelRequirements.seniors,
-            total: totalTravelers
-          }
-        },
-      };
-
-      addItemToDay(quoteDetails.days[0].id, outboundFlight);
-      addItemToDay(quoteDetails.days[quoteDetails.days.length - 1].id, returnFlight);
-    } else {
-      addItemToDay(selectedDay, flightItem);
+    if (firstDay) {
+      addItemToDay(firstDay.id, outboundFlight);
     }
 
-    setShowFlightSearch(false);
+    // Handle return flight if it exists
+    if (requirements.isReturnFlight && flight.itineraries[1]) {
+      const returnFlight: ItineraryItem = {
+        id: `return-flight-${Date.now()}`,
+        type: 'Flight',
+        name: `${requirements.destination} → ${requirements.origin}`,
+        description: `Flight ${flight.itineraries[1].segments[0].carrierCode}${flight.itineraries[1].segments[0].number}`,
+        startTime: flight.itineraries[1].segments[0].departure.at,
+        endTime: flight.itineraries[1].segments[0].arrival.at,
+        cost: parseFloat(flight.price.total) / 2, // Split cost for return flights
+        markup: 0,
+        markup_type: 'percentage',
+        details: {
+          ...flight,
+          isOutbound: false,
+          linkedFlightId: outboundFlight.id
+        }
+      };
+
+      const lastDay = quoteDetails.days.find(day => 
+        new Date(day.name).toISOString().split('T')[0] === requirements.returnDate
+      );
+
+      if (lastDay) {
+        addItemToDay(lastDay.id, returnFlight);
+      }
+    }
   };
 
   // Add activity selection handler
   const handleActivitySelect = (activity: any) => {
     if (!selectedDay) return;
-
+    
+    // Create a new activity service item based on the selected activity's details
     const activityItem: ItineraryItem = {
       id: `activity-${Date.now()}`,
       type: 'Tour',
-      name: activity.item_name,
+      name: activity.name,
       description: activity.details?.description,
       startTime: activity.details?.startTime,
       endTime: activity.details?.endTime,
@@ -1128,713 +1140,858 @@ export function NewQuoteWizard() {
     setShowActivitySearch(false);
   };
 
+  // Add flight search handler
+  const handleFlightSearch = () => {
+    setShowFlightSearch(true);
+  };
+
+  // Add activity search handler
+  const handleActivitySearch = () => {
+    setShowActivitySearch(true);
+  };
+
+  // Add hotel search handler
+  const handleHotelSearch = () => {
+    setShowHotelSearch(true);
+  };
+
+  // Add success handler
+  const handleSuccess = () => {
+    setShowSuccess(true);
+  };
+
+  // Add hotel selection handler
+  const handleHotelSelect = (hotel: any) => {
+    // Implementation for hotel selection
+  };
+
+  // Add delete handler
+  const handleDelete = () => {
+    // Implementation for deleting a day
+  };
+
+  // Add expand handler
+  const handleExpand = (dayId: string) => {
+    // Implementation for expanding a day
+  };
+
+  // Add collapse handler
+  const handleCollapse = (dayId: string) => {
+    // Implementation for collapsing a day
+  };
+
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      {/* Progress Steps Navigation */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          {steps.map((s, index) => (
-            <div key={s.number} className="flex items-center">
-              <button
-                onClick={() => handleStepClick(s.number)}
-                className={`group flex flex-col items-center ${
-                  s.number < step ? 'cursor-pointer' : 'cursor-default'
-                }`}
-              >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
-                  step >= s.number ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'
-                } ${s.number < step ? 'group-hover:bg-indigo-500' : ''}`}>
-                  {s.number}
-                </div>
-                <span className={`mt-2 text-sm font-medium ${
-                  step >= s.number ? 'text-indigo-600' : 'text-gray-500'
-                } ${s.number < step ? 'group-hover:text-indigo-500' : ''}`}>
-                  {s.label}
-                </span>
-              </button>
-              {index < steps.length - 1 && (
-                <div className={`h-1 w-16 mx-4 transition-colors ${
-                  step > s.number ? 'bg-indigo-600' : 'bg-gray-200'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 1: Customer Selection */}
-      {step === 1 && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Select Customer</h2>
-          
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Search customers by name, email, or phone..."
-            />
+    <div className="max-w-7xl mx-auto p-4">
+      {showSuccess && finalizedQuoteId ? (
+        <SuccessScreen 
+          quoteId={finalizedQuoteId} 
+          onViewQuote={handleSuccess}
+        />
+      ) : (
+        <>
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">
+              {editQuoteId ? 'Edit Quote' : 'Create New Quote'}
+            </h1>
+            <p className="text-gray-600 mt-2">
+              {editQuoteId ? 'Update your existing quote' : 'Build a custom travel quote for your client'}
+            </p>
           </div>
 
-          {/* Add New Customer Button */}
-          <div className="mt-4 flex justify-center">
-            <button
-              onClick={() => setShowNewCustomerForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100"
-            >
-              Can't find customer? Create new
-            </button>
-          </div>
-
-          {/* New Customer Form */}
-          {showNewCustomerForm && (
-            <div className="mt-6 bg-white p-6 rounded-lg shadow">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Create New Customer</h3>
-                <button
-                  onClick={() => setShowNewCustomerForm(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newCustomer.first_name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, first_name: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    value={newCustomer.last_name}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, last_name: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={newCustomer.email}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={newCustomer.phone}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Passport Number
-                  </label>
-                  <input
-                    type="text"
-                    value={newCustomer.passport_number}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, passport_number: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Nationality
-                  </label>
-                  <input
-                    type="text"
-                    value={newCustomer.nationality}
-                    onChange={(e) => setNewCustomer({ ...newCustomer, nationality: e.target.value })}
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={handleCreateCustomer}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  Create Customer
-                </button>
-              </div>
-            </div>
-          )}
-
-          {customers.length > 0 && (
-            <div className="mt-4 space-y-4">
-              {customers.map((customer) => (
-                <div
-                  key={customer.id}
-                  onClick={() => setSelectedCustomer(customer)}
-                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                    selectedCustomer?.id === customer.id
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 hover:border-indigo-300'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                        <span className="text-lg font-medium text-indigo-600">
-                          {customer.first_name[0]}
-                          {customer.last_name[0]}
-                        </span>
-                      </div>
+          {/* Progress Steps */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              {[
+                { number: 1, title: 'Customer & Dates', description: 'Select customer and trip dates' },
+                { number: 2, title: 'Services', description: 'Build itinerary' },
+                { number: 3, title: 'Review', description: 'Finalize quote' },
+              ].map((stepItem, index) => (
+                <div key={stepItem.number} className="flex items-center">
+                  <div
+                    className={`flex items-center cursor-pointer ${
+                      step >= stepItem.number ? 'text-indigo-600' : 'text-gray-400'
+                    }`}
+                    onClick={() => handleStepClick(stepItem.number)}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center border-2 ${
+                        step >= stepItem.number
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'border-gray-300 text-gray-400'
+                      }`}
+                    >
+                      {stepItem.number}
                     </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {customer.first_name} {customer.last_name}
-                      </h3>
-                      <p className="text-sm text-gray-500">{customer.email}</p>
-                      <p className="text-sm text-gray-500">{customer.phone}</p>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium">{stepItem.title}</p>
+                      <p className="text-xs">{stepItem.description}</p>
                     </div>
                   </div>
+                  {index < 2 && (
+                    <div
+                      className={`flex-1 h-0.5 mx-4 ${
+                        step > stepItem.number ? 'bg-indigo-600' : 'bg-gray-300'
+                      }`}
+                    />
+                  )}
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Step 2: Travel Requirements */}
-      {step === 2 && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">Travel Requirements</h2>
-          
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Departure Date
-              </label>
-              <input
-                type="date"
-                value={travelRequirements.departureDate}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={(e) => {
-                  const newDepartureDate = e.target.value;
-                  setTravelRequirements(prev => ({
-                    ...prev,
-                    departureDate: newDepartureDate,
-                    returnDate: prev.returnDate && prev.returnDate < newDepartureDate ? '' : prev.returnDate
-                  }));
-                }}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Return Date
-              </label>
-              <input
-                type="date"
-                value={travelRequirements.returnDate}
-                min={travelRequirements.departureDate || new Date().toISOString().split('T')[0]}
-                disabled={!travelRequirements.departureDate}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  returnDate: e.target.value
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-50 disabled:cursor-not-allowed"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Origin
-              </label>
-              <select
-                value={travelRequirements.origin}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  origin: e.target.value
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option value="">Select origin city</option>
-                {MAJOR_CITIES.map((city) => (
-                  <option key={city.iata} value={city.iata}>
-                    {city.iata} - {city.city}, {city.country}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Destination
-              </label>
-              <select
-                value={travelRequirements.destination}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  destination: e.target.value
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option value="">Select destination city</option>
-                {MAJOR_CITIES.filter(city => city.iata !== travelRequirements.origin).map((city) => (
-                  <option key={city.iata} value={city.iata}>
-                    {city.iata} - {city.city}, {city.country}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Trip Type
-              </label>
-              <select
-                value={travelRequirements.tripType}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  tripType: e.target.value as any
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              >
-                <option value="flight">Flight Only</option>
-                <option value="hotel">Hotel Only</option>
-                <option value="flight+hotel">Flight + Hotel</option>
-                <option value="tour">Tour Package</option>
-                <option value="custom">Custom Package</option>
-              </select>
-            </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Adults
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={travelRequirements.adults}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  adults: parseInt(e.target.value)
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Children
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={travelRequirements.children}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  children: parseInt(e.target.value)
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Seniors
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={travelRequirements.seniors}
-                onChange={(e) => setTravelRequirements({
-                  ...travelRequirements,
-                  seniors: parseInt(e.target.value)
-                })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-          </div>
+          {/* Step Content */}
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            {step === 1 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-6">Customer & Trip Dates</h2>
+                
+                {/* Customer Selection Section */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-medium mb-4">Select Customer</h3>
+                  
+                  {!selectedCustomer ? (
+                    <div className="space-y-4">
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            placeholder="Search customers by name, email, or phone..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        </div>
+                        <button
+                          onClick={() => setShowNewCustomerForm(true)}
+                          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                          New Customer
+                        </button>
+                      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Special Requests
-            </label>
-            <textarea
-              value={travelRequirements.specialRequests}
-              onChange={(e) => setTravelRequirements({
-                ...travelRequirements,
-                specialRequests: e.target.value
-              })}
-              rows={4}
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Any special requirements or preferences..."
-            />
-          </div>
-        </div>
-      )}
+                      {customers.length > 0 && (
+                        <div className="border border-gray-200 rounded-lg">
+                          {customers.map((customer) => (
+                            <div
+                              key={customer.id}
+                              className="p-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer"
+                              onClick={() => setSelectedCustomer(customer)}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <h3 className="font-medium">
+                                    {customer.first_name} {customer.last_name}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">{customer.email}</p>
+                                  <p className="text-sm text-gray-600">{customer.phone}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
-      {/* Step 3: Services Selection */}
-      {step === 3 && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900">Day-Wise Itinerary</h2>
-            <div className="flex items-center space-x-4">
-              {isSaving && <p className="text-sm text-gray-500">Saving...</p>}
-              {lastSaved && (
-                <p className="text-sm text-gray-500">
-                  Last saved: {lastSaved.toLocaleTimeString()}
-                </p>
-              )}
-              <button
-                onClick={saveQuoteToDatabase}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-              >
-                <Save className="h-5 w-5 mr-2" />
-                Save
-              </button>
-            </div>
-          </div>
+                      {showNewCustomerForm && (
+                        <div className="border border-gray-200 rounded-lg p-4">
+                          <h3 className="font-medium mb-4">Create New Customer</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <input
+                              type="text"
+                              placeholder="First Name"
+                              value={newCustomer.first_name}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, first_name: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Last Name"
+                              value={newCustomer.last_name}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, last_name: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="email"
+                              placeholder="Email"
+                              value={newCustomer.email}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="tel"
+                              placeholder="Phone"
+                              value={newCustomer.phone}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Passport Number"
+                              value={newCustomer.passport_number}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, passport_number: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Nationality"
+                              value={newCustomer.nationality}
+                              onChange={(e) => setNewCustomer({ ...newCustomer, nationality: e.target.value })}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <div className="flex gap-2 mt-4">
+                            <button
+                              onClick={handleCreateCustomer}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                              Create Customer
+                            </button>
+                            <button
+                              onClick={() => setShowNewCustomerForm(false)}
+                              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-medium">
+                            {selectedCustomer.first_name} {selectedCustomer.last_name}
+                          </h3>
+                          <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
+                          <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
+                        </div>
+                        <button
+                          onClick={() => setSelectedCustomer(null)}
+                          className="text-indigo-600 hover:text-indigo-800"
+                        >
+                          Change Customer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-          <div className="grid grid-cols-12 gap-6">
-            {/* Days List with Content */}
-            <div className="col-span-8 space-y-4">
-              {quoteDetails.days.map((day) => (
-                <div
-                  key={day.id}
-                  className="bg-white shadow sm:rounded-lg"
-                >
-                  <div className="px-4 py-5 sm:p-6">
-                    <div className="flex justify-between items-center mb-4">
+                {/* Trip Dates Section */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-lg font-medium mb-4">Trip Dates</h3>
+                  <div className="grid grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Departure Date
+                      </label>
+                      <input
+                        type="date"
+                        value={travelRequirements.departureDate}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          departureDate: e.target.value 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Return Date
+                      </label>
+                      <input
+                        type="date"
+                        value={travelRequirements.returnDate}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          returnDate: e.target.value 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Total Days
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="30"
+                        value={quoteDetails.totalDays}
+                        onChange={(e) => {
+                          const days = parseInt(e.target.value) || 1;
+                          setQuoteDetails({ ...quoteDetails, totalDays: days });
+                          initializeDays(days);
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quote Details Section */}
+                <div className="border-t border-gray-200 pt-6 mt-6">
+                  <h3 className="text-lg font-medium mb-4">Quote Details</h3>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quote Name
+                      </label>
                       <input
                         type="text"
-                        value={day.name}
-                        onChange={(e) => updateDayName(day.id, e.target.value)}
-                        className="text-lg font-medium text-gray-900 border-none focus:ring-0 p-0"
+                        value={quoteDetails.name}
+                        onChange={(e) => setQuoteDetails({ ...quoteDetails, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        placeholder="Enter quote name..."
                       />
-                      <div className="flex items-center space-x-4">
-                        <button
-                          onClick={() => {
-                            setSelectedDay(day.id);
-                            setShowFlightSearch(true);
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                          <Plane className="h-4 w-4 mr-2" />
-                          Add Flight
-                        </button>
-                        <button
-                          onClick={() => {/* Add hotel dialog */}}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                          <Building className="h-4 w-4 mr-2" />
-                          Add Hotel
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedDay(day.id);
-                            setShowActivitySearch(true);
-                          }}
-                          className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Add Activity
-                        </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={quoteDetails.status}
+                        onChange={(e) => setQuoteDetails({ 
+                          ...quoteDetails, 
+                          status: e.target.value as QuoteDetails['status']
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="Draft">Draft</option>
+                        <option value="Sent">Sent</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Converted">Converted</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="text-xl font-semibold">Build Itinerary</h2>
+                    <p className="text-sm text-gray-600 mt-1">Add travel requirements and services for each day</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleFlightSearch}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Add Flight
+                    </button>
+                    <button
+                      onClick={handleHotelSearch}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Add Hotel
+                    </button>
+                    <button
+                      onClick={handleActivitySearch}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      Add Activity
+                    </button>
+                  </div>
+                </div>
+
+                {/* Travel Requirements Section */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                  <h3 className="text-lg font-medium mb-4">Travel Requirements</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Trip Type
+                      </label>
+                      <select
+                        value={travelRequirements.tripType}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          tripType: e.target.value as TravelRequirements['tripType']
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        <option value="flight">Flight Only</option>
+                        <option value="hotel">Hotel Only</option>
+                        <option value="flight+hotel">Flight + Hotel</option>
+                        <option value="tour">Tour Package</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Adults
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={travelRequirements.adults}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          adults: parseInt(e.target.value) || 1 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Children
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={travelRequirements.children}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          children: parseInt(e.target.value) || 0 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Seniors
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={travelRequirements.seniors}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          seniors: parseInt(e.target.value) || 0 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Origin
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Departure city"
+                        value={travelRequirements.origin}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          origin: e.target.value 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Destination
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Destination city"
+                        value={travelRequirements.destination}
+                        onChange={(e) => setTravelRequirements({ 
+                          ...travelRequirements, 
+                          destination: e.target.value 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Special Requests
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={travelRequirements.specialRequests}
+                      onChange={(e) => setTravelRequirements({ 
+                        ...travelRequirements, 
+                        specialRequests: e.target.value 
+                      })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      placeholder="Any special requirements or preferences..."
+                    />
+                  </div>
+                </div>
+
+                {/* Day-wise Itinerary */}
+                <div className="space-y-4">
+                  {quoteDetails.days.map((day) => (
+                    <div key={day.id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center mb-4">
+                        <input
+                          type="text"
+                          value={day.name}
+                          onChange={(e) => updateDayName(day.id, e.target.value)}
+                          className="text-lg font-medium bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-2"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">
+                            {day.items.length} items
+                          </span>
+                          <button
+                            onClick={() => setDayToDelete(day.id)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            Delete Day
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {day.items.map((item) => (
+                          <div key={item.id} className="bg-gray-50 rounded-lg p-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-1 text-xs rounded-full ${
+                                    item.type === 'Flight' ? 'bg-blue-100 text-blue-800' :
+                                    item.type === 'Hotel' ? 'bg-green-100 text-green-800' :
+                                    'bg-purple-100 text-purple-800'
+                                  }`}>
+                                    {item.type}
+                                  </span>
+                                  <h4 className="font-medium">{item.name}</h4>
+                                </div>
+                                {item.description && (
+                                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                                )}
+                                {(item.startTime || item.endTime) && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    {item.startTime} - {item.endTime}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-medium">${item.cost}</p>
+                                <button
+                                  onClick={() => removeItemFromDay(day.id, item.id)}
+                                  className="text-red-600 hover:text-red-800 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {day.items.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          <p>No items added to this day yet.</p>
+                          <p className="text-sm">Use the buttons above to add flights, hotels, or activities.</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-medium">Total Price:</span>
+                    <span className="text-2xl font-bold text-indigo-600">
+                      ${calculateTotalPrice().toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div>
+                <h2 className="text-xl font-semibold mb-6">Review & Finalize</h2>
+                
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quote Name
+                      </label>
+                      <input
+                        type="text"
+                        value={quoteDetails.name}
+                        onChange={(e) => setQuoteDetails({ ...quoteDetails, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="Enter quote name..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Status
+                      </label>
+                      <select
+                        value={quoteDetails.status}
+                        onChange={(e) => setQuoteDetails({ 
+                          ...quoteDetails, 
+                          status: e.target.value as QuoteDetails['status']
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="Draft">Draft</option>
+                        <option value="Sent">Sent</option>
+                        <option value="Expired">Expired</option>
+                        <option value="Converted">Converted</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Markup (%)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={quoteDetails.markup}
+                        onChange={(e) => setQuoteDetails({ 
+                          ...quoteDetails, 
+                          markup: parseFloat(e.target.value) || 0 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Discount ($)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={quoteDetails.discount}
+                        onChange={(e) => setQuoteDetails({ 
+                          ...quoteDetails, 
+                          discount: parseFloat(e.target.value) || 0 
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notes
+                    </label>
+                    <textarea
+                      rows={4}
+                      value={quoteDetails.notes}
+                      onChange={(e) => setQuoteDetails({ ...quoteDetails, notes: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Internal notes about this quote..."
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h3 className="font-medium mb-4">Quote Summary</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span>Customer:</span>
+                        <span>{selectedCustomer?.first_name} {selectedCustomer?.last_name}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Duration:</span>
+                        <span>{quoteDetails.totalDays} days</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total Items:</span>
+                        <span>{quoteDetails.days.reduce((sum, day) => sum + day.items.length, 0)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Subtotal:</span>
+                        <span>${calculateTotalPrice().toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Markup ({quoteDetails.markup}%):</span>
+                        <span>${(calculateTotalPrice() * quoteDetails.markup / 100).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Discount:</span>
+                        <span>-${quoteDetails.discount.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-lg border-t pt-2">
+                        <span>Final Total:</span>
+                        <span>${(calculateTotalPrice() * (1 + quoteDetails.markup / 100) - quoteDetails.discount).toFixed(2)}</span>
                       </div>
                     </div>
-
-                    <DragDropContext onDragEnd={handleDragEnd}>
-                      <Droppable droppableId={day.id}>
-                        {(provided) => (
-                          <div
-                            {...provided.droppableProps}
-                            ref={provided.innerRef}
-                            className="space-y-4"
-                          >
-                            {day.items.map((item, index) => (
-                              <Draggable
-                                key={item.id}
-                                draggableId={item.id}
-                                index={index}
-                              >
-                                {(provided) => (
-                                  <div
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                                  >
-                                    <div className="flex items-center">
-                                      {item.type === 'Flight' && <Plane className="h-5 w-5 text-gray-400 mr-2" />}
-                                      {item.type === 'Hotel' && <Building className="h-5 w-5 text-gray-400 mr-2" />}
-                                      {item.type === 'Tour' && <Calendar className="h-5 w-5 text-gray-400 mr-2" />}
-                                      <div>
-                                        <p className="text-sm font-medium text-gray-900">{item.name}</p>
-                                        {item.description && (
-                                          <p className="text-sm text-gray-500">{item.description}</p>
-                                        )}
-                                        {(item.startTime || item.endTime) && (
-                                          <p className="text-xs text-gray-400">
-                                            {item.startTime} - {item.endTime}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center space-x-4">
-                                      <div className="text-right">
-                                        <p className="text-sm font-medium text-gray-900">
-                                          ${item.cost.toFixed(2)}
-                                        </p>
-                                        {item.markup > 0 && (
-                                          <p className="text-xs text-gray-500">
-                                            +{item.markup}% markup
-                                          </p>
-                                        )}
-                                      </div>
-                                      <button
-                                        onClick={() => removeItemFromDay(day.id, item.id)}
-                                        className="text-gray-400 hover:text-red-500"
-                                      >
-                                        <Trash2 className="h-5 w-5" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </Draggable>
-                            ))}
-                            {provided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    </DragDropContext>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Summary Panel */}
-            <div className="col-span-4">
-              <div className="bg-white shadow sm:rounded-lg sticky top-4">
-                <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Trip Summary</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Total Days</p>
-                      <p className="text-lg font-medium text-gray-900">{quoteDetails.days.length}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Total Items</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        {quoteDetails.days.reduce((total, day) => total + day.items.length, 0)}
-                      </p>
-                    </div>
-                    <div className="pt-4 border-t">
-                      <p className="text-sm text-gray-500">Subtotal</p>
-                      <p className="text-lg font-medium text-gray-900">
-                        ${calculateTotalPrice().toFixed(2)}
-                      </p>
-                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            )}
 
-          {/* Quote Summary */}
-          <div className="fixed bottom-0 right-0 left-0 bg-white border-t shadow-lg">
-            <div className="max-w-7xl mx-auto px-6 py-4">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center space-x-8">
-                  <div>
-                    <p className="text-sm text-gray-500">Subtotal</p>
-                    <p className="text-lg font-medium text-gray-900">
-                      ${calculateTotalPrice().toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500">Markup %</label>
-                    <input
-                      type="number"
-                      value={quoteDetails.markup}
-                      onChange={(e) => setQuoteDetails(prev => ({
-                        ...prev,
-                        markup: parseFloat(e.target.value)
-                      }))}
-                      className="ml-2 w-20 text-sm border-gray-300 rounded-md"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500">Discount %</label>
-                    <input
-                      type="number"
-                      value={quoteDetails.discount}
-                      onChange={(e) => setQuoteDetails(prev => ({
-                        ...prev,
-                        discount: parseFloat(e.target.value)
-                      }))}
-                      className="ml-2 w-20 text-sm border-gray-300 rounded-md"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
+            {/* Navigation Buttons */}
+            <div className="flex justify-between mt-8">
+              <button
+                onClick={handleBack}
+                disabled={step === 1}
+                className={`px-6 py-2 rounded-lg ${
+                  step === 1
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-gray-600 text-white hover:bg-gray-700'
+                }`}
+              >
+                Back
+              </button>
+
+              <div className="flex gap-2">
+                {step < 3 ? (
                   <button
-                    onClick={() => setStep(4)}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    onClick={handleNext}
+                    disabled={
+                      (step === 1 && (!selectedCustomer || !travelRequirements.departureDate || !travelRequirements.returnDate)) ||
+                      (step === 2 && quoteDetails.days.every(day => day.items.length === 0))
+                    }
+                    className={`px-6 py-2 rounded-lg ${
+                      (step === 1 && (!selectedCustomer || !travelRequirements.departureDate || !travelRequirements.returnDate)) ||
+                      (step === 2 && quoteDetails.days.every(day => day.items.length === 0))
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                    }`}
                   >
-                    Review Quote
+                    Next
                   </button>
-                </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={saveQuoteToDatabase}
+                      disabled={isSaving || !quoteDetails.name}
+                      className={`px-6 py-2 rounded-lg ${
+                        isSaving || !quoteDetails.name
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                    >
+                      {isSaving ? 'Saving...' : 'Save Quote'}
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Quote Review (step 4) */}
-      {step === 4 && !showSuccess && (
-        <QuoteReview
-          quoteDetails={quoteDetails}
-          travelers={{
-            adults: travelRequirements.adults,
-            children: travelRequirements.children,
-            seniors: travelRequirements.seniors,
-          }}
-          travelRequirements={travelRequirements}
-          onQuoteFinalize={async (quoteData) => {
-            if (!selectedCustomer) return;
-
-            const { data: quote } = await supabase
-              .from('quotes')
-              .insert([{
-                customer_id: selectedCustomer.id,
-                status: 'Sent',
-                total_price: calculateTotalPrice(),
-                origin: travelRequirements.origin,
-                destination: travelRequirements.destination,
-                markup: quoteDetails.markup,
-                discount: quoteDetails.discount,
-                notes: quoteDetails.notes,
-                expiry_date: quoteData.expiry_date,
-              }])
-              .select()
-              .single();
-
-            if (quote) {
-              // Add quote items from day-wise itinerary with updated schema
-              const quoteItems = quoteDetails.days.flatMap(day => 
-                day.items.map(item => ({
-                  quote_id: quote.id,
-                  item_type: item.type,
-                  item_name: item.name,
-                  cost: item.cost,
-                  markup: item.markup,
-                  markup_type: item.markup_type,
-                  quantity: 1,
+          {/* Modals */}
+          {showFlightSearch && (
+            <FlightSearchModal
+              isOpen={showFlightSearch}
+              onClose={() => setShowFlightSearch(false)}
+              onFlightSelect={(flight, requirements) => {
+                console.log('Flight selected:', flight, requirements);
+                // Add the flight to the first day's itinerary
+                const newFlight: ItineraryItem = {
+                  id: Date.now().toString(),
+                  type: 'Flight',
+                  name: `Flight from ${requirements.origin} to ${requirements.destination}`,
+                  description: `${requirements.travelers.adults + requirements.travelers.children + requirements.travelers.seniors} travelers`,
+                  startTime: requirements.departureDate,
+                  endTime: requirements.departureDate,
+                  cost: flight.price?.total ? parseFloat(flight.price.total) : 500,
+                  markup: 0,
+                  markup_type: 'percentage',
                   details: {
-                    ...item.details,
-                    day: {
-                      name: day.name,
-                      index: day.dayIndex,
-                    },
-                    description: item.description,
-                    startTime: item.startTime,
-                    endTime: item.endTime,
-                    travelers: {
-                      adults: travelRequirements.adults,
-                      children: travelRequirements.children,
-                      seniors: travelRequirements.seniors,
-                      total: travelRequirements.adults + travelRequirements.children + travelRequirements.seniors
-                    }
-                  },
-                }))
-              );
+                    airline: flight.itineraries?.[0]?.segments?.[0]?.carrierCode || 'Unknown',
+                    flightNumber: flight.itineraries?.[0]?.segments?.[0]?.number || 'N/A',
+                    origin: requirements.origin,
+                    destination: requirements.destination,
+                    departureTime: flight.itineraries?.[0]?.segments?.[0]?.departure?.at || requirements.departureDate,
+                    arrivalTime: flight.itineraries?.[0]?.segments?.[0]?.arrival?.at || requirements.departureDate,
+                    travelers: requirements.travelers
+                  }
+                };
+                
+                // Add to the first day if it exists, otherwise create a new day
+                setQuoteDetails(prev => {
+                  const updatedDays = [...prev.days];
+                  if (updatedDays.length === 0) {
+                    updatedDays.push({
+                      id: '1',
+                      dayIndex: 1,
+                      name: 'Day 1',
+                      items: [newFlight],
+                      isComplete: false
+                    });
+                  } else {
+                    updatedDays[0] = {
+                      ...updatedDays[0],
+                      items: [...updatedDays[0].items, newFlight]
+                    };
+                  }
+                  return { ...prev, days: updatedDays };
+                });
+                setShowFlightSearch(false);
+              }}
+            />
+          )}
 
-              await supabase
-                .from('quote_items')
-                .insert(quoteItems);
+          {showActivitySearch && selectedDay && (
+            <ActivitySearchModal
+              isOpen={showActivitySearch}
+              onClose={() => setShowActivitySearch(false)}
+              onActivitySelect={handleActivitySelect}
+              selectedDay={selectedDay}
+            />
+          )}
 
-              setFinalizedQuoteId(quote.id);
-              setShowSuccess(true);
-            }
-          }}
-        />
-      )}
-
-      {/* Success Screen */}
-      {showSuccess && finalizedQuoteId && (
-        <SuccessScreen
-          quoteId={finalizedQuoteId}
-          onViewQuote={() => navigate(`/quotes/${finalizedQuoteId}`)}
-        />
-      )}
-
-      <div className="mt-6 flex justify-between">
-        {step > 1 && (
-          <button
-            onClick={handleBack}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-          >
-            <ArrowLeft className="h-5 w-5 mr-2" />
-            Back
-          </button>
-        )}
-        
-        {step < 4 && (
-          <button
-            onClick={handleNext}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 ml-auto"
-          >
-            Next
-            <ArrowRight className="h-5 w-5 ml-2" />
-          </button>
-        )}
-      </div>
-
-      {/* Add the modal components */}
-      {showFlightSearch && (
-        <FlightSearchModal
-          isOpen={showFlightSearch}
-          onClose={() => setShowFlightSearch(false)}
-          onFlightSelect={handleFlightSelect}
-          origin={travelRequirements.origin}
-          destination={travelRequirements.destination}
-          departureDate={travelRequirements.departureDate}
-          returnDate={travelRequirements.returnDate}
-          travelers={{
-            adults: travelRequirements.adults,
-            children: travelRequirements.children,
-            seniors: travelRequirements.seniors,
-          }}
-        />
-      )}
-
-      {showActivitySearch && (
-        <ActivitySearchModal
-          isOpen={showActivitySearch}
-          onClose={() => setShowActivitySearch(false)}
-          onActivitySelect={handleActivitySelect}
-          selectedDay={selectedDay || ''}
-        />
+          {showHotelSearch && (
+            <HotelSearchModal
+              isOpen={showHotelSearch}
+              onClose={() => setShowHotelSearch(false)}
+              destination={travelRequirements.destination}
+              onHotelSelect={(hotel) => {
+                console.log('Hotel selected:', hotel);
+                // Add the hotel to the first day's itinerary
+                const newHotel: ItineraryItem = {
+                  id: Date.now().toString(),
+                  type: 'Hotel',
+                  name: hotel.description || 'Hotel Booking',
+                  description: 'Accommodation',
+                  startTime: new Date().toISOString().split('T')[0],
+                  endTime: new Date().toISOString().split('T')[0],
+                  cost: hotel.cost || 150,
+                  markup: 0,
+                  markup_type: 'percentage',
+                  details: {
+                    rating: hotel.details?.rating || 4,
+                    amenities: hotel.details?.amenities || ['WiFi', 'Breakfast'],
+                    checkIn: hotel.details?.checkIn || new Date().toISOString().split('T')[0],
+                    checkOut: hotel.details?.checkOut || new Date(Date.now() + 86400000).toISOString().split('T')[0]
+                  }
+                };
+                
+                // Add to the first day if it exists, otherwise create a new day
+                setQuoteDetails(prev => {
+                  const updatedDays = [...prev.days];
+                  if (updatedDays.length === 0) {
+                    updatedDays.push({
+                      id: '1',
+                      dayIndex: 1,
+                      name: 'Day 1',
+                      items: [newHotel],
+                      isComplete: false
+                    });
+                  } else {
+                    updatedDays[0] = {
+                      ...updatedDays[0],
+                      items: [...updatedDays[0].items, newHotel]
+                    };
+                  }
+                  return { ...prev, days: updatedDays };
+                });
+                setShowHotelSearch(false);
+              }}
+              checkInDate={new Date().toISOString().split('T')[0]}
+              checkOutDate={new Date(Date.now() + 86400000).toISOString().split('T')[0]}
+              guests={1}
+            />
+          )}
+        </>
       )}
     </div>
   );
