@@ -108,45 +108,52 @@ export function CustomerDashboard() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Customers</h1>
-        <button className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Customer
-        </button>
+    <div className="space-y-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Customers</h1>
+            <p className="text-gray-600 text-lg">Manage your customer relationships</p>
+          </div>
+          <button className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl">
+            <Plus className="h-5 w-5 mr-2" />
+            Add Customer
+          </button>
+        </div>
       </div>
 
       {/* Search Bar */}
-      <div className="flex-1 max-w-lg">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+        <div className="max-w-lg">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => {
+                console.log('Search term changed:', e.target.value);
+                setSearchTerm(e.target.value);
+                if (e.target.value === '') {
+                  fetchCustomers();
+                }
+              }}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  console.log('Search initiated with term:', searchTerm);
+                  fetchCustomers();
+                }
+              }}
+            />
           </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            placeholder="Search customers..."
-            value={searchTerm}
-            onChange={(e) => {
-              console.log('Search term changed:', e.target.value);
-              setSearchTerm(e.target.value);
-              if (e.target.value === '') {
-                fetchCustomers();
-              }
-            }}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                console.log('Search initiated with term:', searchTerm);
-                fetchCustomers();
-              }
-            }}
-          />
         </div>
       </div>
 
       {/* Customer List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-md">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <ul className="divide-y divide-gray-200">
           {loading ? (
             <li className="px-6 py-4 text-center text-gray-500">Loading customers...</li>
@@ -154,8 +161,8 @@ export function CustomerDashboard() {
             <li className="px-6 py-4 text-center text-gray-500">No customers found</li>
           ) : (
             customers.map((customer) => (
-              <li key={customer.id} className="hover:bg-gray-50">
-                <div className="px-6 py-4">
+              <li key={customer.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
+                <div className="px-6 py-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center">

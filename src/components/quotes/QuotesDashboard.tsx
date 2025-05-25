@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Download, Mail, Calendar } from 'lucide-react';
+import { Search, Plus, Download, Mail, Calendar, FileText } from 'lucide-react';
 
 interface Quote {
   id: number;
@@ -86,70 +86,105 @@ export function QuotesDashboard() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Quotes</h1>
-        <Link
-          to="/quotes/new"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Create New Quote
-        </Link>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Quotes</h1>
+            <p className="text-gray-600 text-lg">Manage and track your travel quotes</p>
+          </div>
+          <Link
+            to="/quotes/new"
+            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Create New Quote
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-gray-500">Total Quotes</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">{stats.total}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center">
+            <div className="bg-gray-100 text-gray-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div className="ml-4 flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Quotes</p>
+              <p className="text-2xl font-bold text-gray-900 tracking-tight">{stats.total}</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-gray-500">Draft</p>
-          <p className="mt-2 text-3xl font-bold text-amber-600">{stats.draft}</p>
+        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-amber-200/50 transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center">
+            <div className="bg-amber-100 text-amber-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <FileText className="w-6 h-6" />
+            </div>
+            <div className="ml-4 flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">Draft</p>
+              <p className="text-2xl font-bold text-amber-600 tracking-tight">{stats.draft}</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-gray-500">Sent</p>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{stats.sent}</p>
+        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center">
+            <div className="bg-blue-100 text-blue-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <Mail className="w-6 h-6" />
+            </div>
+            <div className="ml-4 flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">Sent</p>
+              <p className="text-2xl font-bold text-blue-600 tracking-tight">{stats.sent}</p>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm font-medium text-gray-500">Converted</p>
-          <p className="mt-2 text-3xl font-bold text-green-600">{stats.converted}</p>
+        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-green-200/50 transition-all duration-300 hover:-translate-y-1 group">
+          <div className="flex items-center">
+            <div className="bg-green-100 text-green-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div className="ml-4 flex-1">
+              <p className="text-sm font-medium text-gray-600 mb-1">Converted</p>
+              <p className="text-2xl font-bold text-green-600 tracking-tight">{stats.converted}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex space-x-4">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+          <div className="flex-1 max-w-md">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                placeholder="Search quotes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="Search quotes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
           </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="block w-full sm:w-48 pl-3 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl transition-all duration-200"
+          >
+            <option value="all">All Status</option>
+            <option value="Draft">Draft</option>
+            <option value="Sent">Sent</option>
+            <option value="Converted">Converted</option>
+            <option value="Expired">Expired</option>
+          </select>
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          <option value="all">All Status</option>
-          <option value="Draft">Draft</option>
-          <option value="Sent">Sent</option>
-          <option value="Converted">Converted</option>
-          <option value="Expired">Expired</option>
-        </select>
       </div>
 
       {/* Quotes List */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         {loading ? (
           <div className="text-center py-12">
             <div className="spinner">Loading...</div>
@@ -161,9 +196,9 @@ export function QuotesDashboard() {
         ) : (
           <ul className="divide-y divide-gray-200">
             {filteredQuotes.map((quote) => (
-              <li key={quote.id} className="hover:bg-gray-50">
+              <li key={quote.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
                 <Link to={`/quotes/${quote.id}`} className="block">
-                  <div className="px-6 py-4">
+                  <div className="px-6 py-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center">

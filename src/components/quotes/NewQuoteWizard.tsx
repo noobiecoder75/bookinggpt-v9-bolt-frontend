@@ -220,12 +220,12 @@ function ActivitySearchModal({
               <h2 className="text-xl font-bold text-gray-900">Select Tour/Activity</h2>
               <p className="text-sm text-gray-600 mt-1">Choose from your uploaded tour rates</p>
             </div>
-            <button
-              onClick={onClose}
+          <button
+            onClick={onClose}
               className="text-gray-400 hover:text-gray-600 hover:bg-white/50 rounded-lg p-2 transition-all duration-200"
-            >
-              <X className="h-5 w-5" />
-            </button>
+          >
+            <X className="h-5 w-5" />
+          </button>
           </div>
         </div>
         
@@ -255,8 +255,8 @@ function ActivitySearchModal({
               <div className="flex">
                 <AlertCircle className="h-5 w-5 text-red-400" />
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
               </div>
             </div>
           ) : filteredActivities.length === 0 ? (
@@ -280,7 +280,7 @@ function ActivitySearchModal({
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors duration-200">
                             {activity.description}
-                          </h3>
+                      </h3>
                           <div className="mt-3 flex items-center space-x-3">
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 group-hover:bg-indigo-200 transition-colors duration-200">
                               {activity.rate_type}
@@ -305,14 +305,14 @@ function ActivitySearchModal({
                             <p className="text-xs text-gray-500 mt-2 flex items-center">
                               <span className="w-1 h-1 bg-gray-400 rounded-full mr-2"></span>
                               Source: {activity.details.imported_from}
-                            </p>
-                          )}
-                        </div>
+                        </p>
+                      )}
+                    </div>
                         <div className="text-right ml-6">
                           <p className="text-2xl font-bold text-gray-900 mb-3">
                             {activity.currency} {activity.cost.toFixed(2)}
-                          </p>
-                          <button
+                      </p>
+                      <button
                             onClick={() => {
                               // Convert rate to activity format for compatibility
                               const activityItem = {
@@ -335,8 +335,8 @@ function ActivitySearchModal({
                             className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5"
                           >
                             <Plus className="w-4 h-4 mr-2" />
-                            Add to Itinerary
-                          </button>
+                        Add to Itinerary
+                      </button>
                         </div>
                       </div>
                     </div>
@@ -582,6 +582,8 @@ export function NewQuoteWizard() {
   const [searchParams] = useSearchParams();
   const customerId = searchParams.get('customer');
   const editQuoteId = searchParams.get('edit');
+  const tripId = searchParams.get('tripId');
+  const itineraryId = searchParams.get('itineraryId');
 
   // State management for wizard steps and form data
   const [step, setStep] = useState(1);
@@ -1113,7 +1115,7 @@ export function NewQuoteWizard() {
   // Add activity selection handler
   const handleActivitySelect = (activity: any) => {
     if (!selectedDay) return;
-    
+
     // Create a new activity service item based on the selected activity's details
     const activityItem: ItineraryItem = {
       id: `activity-${Date.now()}`,
@@ -1191,12 +1193,29 @@ export function NewQuoteWizard() {
         <>
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">
-              {editQuoteId ? 'Edit Quote' : 'Create New Quote'}
-            </h1>
-            <p className="text-gray-600 mt-2">
-              {editQuoteId ? 'Update your existing quote' : 'Build a custom travel quote for your client'}
-            </p>
+            <div className="flex items-center justify-between">
+            <div>
+                <div className="flex items-center space-x-4">
+                  {tripId && (
+              <button
+                      onClick={() => navigate(`/trips/${tripId}`)}
+                      className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                  >
+                      <ArrowLeft className="h-5 w-5 mr-2" />
+                      Back to Trip Overview
+              </button>
+                  )}
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {editQuoteId ? 'Edit Quote' : tripId ? 'Create Itinerary' : 'Create New Quote'}
+                    </h1>
+                    <p className="text-gray-600 mt-2">
+                      {editQuoteId ? 'Update your existing quote' : tripId ? 'Build an itinerary for this trip' : 'Build a custom travel quote for your client'}
+                    </p>
+            </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Progress Steps */}
@@ -1222,7 +1241,7 @@ export function NewQuoteWizard() {
                       }`}
                     >
                       {stepItem.number}
-                    </div>
+            </div>
                     <div className="ml-3">
                       <p className="text-sm font-medium">{stepItem.title}</p>
                       <p className="text-xs">{stepItem.description}</p>
@@ -1254,43 +1273,43 @@ export function NewQuoteWizard() {
                     <div className="space-y-4">
                       <div className="flex gap-4">
                         <div className="flex-1">
-                          <input
-                            type="text"
+            <input
+              type="text"
                             placeholder="Search customers by name, email, or phone..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                        </div>
-                        <button
-                          onClick={() => setShowNewCustomerForm(true)}
+            />
+                    </div>
+            <button
+              onClick={() => setShowNewCustomerForm(true)}
                           className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                        >
+            >
                           New Customer
-                        </button>
-                      </div>
+            </button>
+          </div>
 
-                      {customers.length > 0 && (
+          {customers.length > 0 && (
                         <div className="border border-gray-200 rounded-lg">
-                          {customers.map((customer) => (
-                            <div
-                              key={customer.id}
+              {customers.map((customer) => (
+                <div
+                  key={customer.id}
                               className="p-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer"
-                              onClick={() => setSelectedCustomer(customer)}
+                  onClick={() => setSelectedCustomer(customer)}
                             >
                               <div className="flex justify-between items-center">
                                 <div>
                                   <h3 className="font-medium">
-                                    {customer.first_name} {customer.last_name}
+                        {customer.first_name} {customer.last_name}
                                   </h3>
                                   <p className="text-sm text-gray-600">{customer.email}</p>
                                   <p className="text-sm text-gray-600">{customer.phone}</p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
                       {showNewCustomerForm && (
                         <div className="border border-gray-200 rounded-lg p-4">
@@ -1338,24 +1357,24 @@ export function NewQuoteWizard() {
                               onChange={(e) => setNewCustomer({ ...newCustomer, nationality: e.target.value })}
                               className="px-3 py-2 border border-gray-300 rounded-lg"
                             />
-                          </div>
+        </div>
                           <div className="flex gap-2 mt-4">
-                            <button
+              <button
                               onClick={handleCreateCustomer}
                               className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                            >
+              >
                               Create Customer
-                            </button>
-                            <button
+              </button>
+              <button
                               onClick={() => setShowNewCustomerForm(false)}
                               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                            >
+              >
                               Cancel
-                            </button>
-                          </div>
-                        </div>
+              </button>
+            </div>
+          </div>
                       )}
-                    </div>
+        </div>
                   ) : (
                     <div className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-center">
@@ -1365,14 +1384,14 @@ export function NewQuoteWizard() {
                           </h3>
                           <p className="text-sm text-gray-600">{selectedCustomer.email}</p>
                           <p className="text-sm text-gray-600">{selectedCustomer.phone}</p>
-                        </div>
-                        <button
+            </div>
+                  <button
                           onClick={() => setSelectedCustomer(null)}
                           className="text-indigo-600 hover:text-indigo-800"
-                        >
+                  >
                           Change Customer
-                        </button>
-                      </div>
+                  </button>
+                </div>
                     </div>
                   )}
                 </div>
@@ -1483,23 +1502,23 @@ export function NewQuoteWizard() {
                       onClick={handleFlightSearch}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                      Add Flight
-                    </button>
-                    <button
+                    Add Flight
+                  </button>
+                  <button
                       onClick={handleHotelSearch}
                       className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Add Hotel
-                    </button>
-                    <button
+                  >
+                    Add Hotel
+                  </button>
+                  <button
                       onClick={handleActivitySearch}
                       className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                    >
-                      Add Activity
-                    </button>
-                  </div>
+                  >
+                    Add Activity
+                  </button>
                 </div>
-
+              </div>
+            
                 {/* Travel Requirements Section */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <h3 className="text-lg font-medium mb-4">Travel Requirements</h3>
@@ -1623,14 +1642,14 @@ export function NewQuoteWizard() {
                 </div>
 
                 {/* Day-wise Itinerary */}
-                <div className="space-y-4">
-                  {quoteDetails.days.map((day) => (
+              <div className="space-y-4">
+                {quoteDetails.days.map((day) => (
                     <div key={day.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-center mb-4">
-                        <input
-                          type="text"
-                          value={day.name}
-                          onChange={(e) => updateDayName(day.id, e.target.value)}
+                          <input
+                            type="text"
+                            value={day.name}
+                            onChange={(e) => updateDayName(day.id, e.target.value)}
                           className="text-lg font-medium bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded px-2"
                         />
                         <div className="flex items-center gap-2">
@@ -1658,41 +1677,41 @@ export function NewQuoteWizard() {
                                     'bg-purple-100 text-purple-800'
                                   }`}>
                                     {item.type}
-                                  </span>
+                                            </span>
                                   <h4 className="font-medium">{item.name}</h4>
-                                </div>
-                                {item.description && (
+                                        </div>
+                                        {item.description && (
                                   <p className="text-sm text-gray-600 mt-1">{item.description}</p>
                                 )}
                                 {(item.startTime || item.endTime) && (
                                   <p className="text-sm text-gray-500 mt-1">
                                     {item.startTime} - {item.endTime}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="text-right">
+                                          </p>
+                                        )}
+                                      </div>
+                                    <div className="text-right">
                                 <p className="font-medium">${item.cost}</p>
-                                <button
-                                  onClick={() => removeItemFromDay(day.id, item.id)}
+                                    <button
+                                      onClick={() => removeItemFromDay(day.id, item.id)}
                                   className="text-red-600 hover:text-red-800 text-sm"
-                                >
+                                    >
                                   Remove
-                                </button>
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
                         ))}
-                      </div>
-
+                            </div>
+                            
                       {day.items.length === 0 && (
                         <div className="text-center py-8 text-gray-500">
                           <p>No items added to this day yet.</p>
                           <p className="text-sm">Use the buttons above to add flights, hotels, or activities.</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
 
                 <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                   <div className="flex justify-between items-center">
@@ -1700,8 +1719,8 @@ export function NewQuoteWizard() {
                     <span className="text-2xl font-bold text-indigo-600">
                       ${calculateTotalPrice().toFixed(2)}
                     </span>
+                    </div>
                   </div>
-                </div>
               </div>
             )}
 
@@ -1722,8 +1741,8 @@ export function NewQuoteWizard() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         placeholder="Enter quote name..."
                       />
-                    </div>
-
+            </div>
+            
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Status
@@ -1741,41 +1760,41 @@ export function NewQuoteWizard() {
                         <option value="Expired">Expired</option>
                         <option value="Converted">Converted</option>
                       </select>
-                    </div>
+                </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Markup (%)
                       </label>
-                      <input
-                        type="number"
+              <input
+                type="number"
                         min="0"
                         max="100"
-                        value={quoteDetails.markup}
+                      value={quoteDetails.markup}
                         onChange={(e) => setQuoteDetails({ 
                           ...quoteDetails, 
                           markup: parseFloat(e.target.value) || 0 
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       />
-                    </div>
+            </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Discount ($)
                       </label>
-                      <input
-                        type="number"
+              <input
+                type="number"
                         min="0"
-                        value={quoteDetails.discount}
+                      value={quoteDetails.discount}
                         onChange={(e) => setQuoteDetails({ 
                           ...quoteDetails, 
                           discount: parseFloat(e.target.value) || 0 
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       />
-                    </div>
                   </div>
+                </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1793,26 +1812,26 @@ export function NewQuoteWizard() {
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h3 className="font-medium mb-4">Quote Summary</h3>
                     <div className="space-y-2">
-                      <div className="flex justify-between">
+                  <div className="flex justify-between">
                         <span>Customer:</span>
                         <span>{selectedCustomer?.first_name} {selectedCustomer?.last_name}</span>
-                      </div>
+                  </div>
                       <div className="flex justify-between">
                         <span>Duration:</span>
                         <span>{quoteDetails.totalDays} days</span>
-                      </div>
+                </div>
                       <div className="flex justify-between">
                         <span>Total Items:</span>
                         <span>{quoteDetails.days.reduce((sum, day) => sum + day.items.length, 0)}</span>
-                      </div>
+              </div>
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
                         <span>${calculateTotalPrice().toFixed(2)}</span>
-                      </div>
+            </div>
                       <div className="flex justify-between">
                         <span>Markup ({quoteDetails.markup}%):</span>
                         <span>${(calculateTotalPrice() * quoteDetails.markup / 100).toFixed(2)}</span>
-                      </div>
+          </div>
                       <div className="flex justify-between">
                         <span>Discount:</span>
                         <span>-${quoteDetails.discount.toFixed(2)}</span>
@@ -1871,35 +1890,35 @@ export function NewQuoteWizard() {
                     >
                       {isSaving ? 'Saving...' : 'Save Quote'}
                     </button>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
+                )}
+        </div>
+        </div>
+      </div>
 
-          {/* Modals */}
-          {showFlightSearch && (
-            <FlightSearchModal
-              isOpen={showFlightSearch}
+      {/* Modals */}
+      {showFlightSearch && (
+        <FlightSearchModal
+          isOpen={showFlightSearch}
               onClose={() => setShowFlightSearch(false)}
-              onFlightSelect={(flight, requirements) => {
+          onFlightSelect={(flight, requirements) => {
                 console.log('Flight selected:', flight, requirements);
                 // Add the flight to the first day's itinerary
                 const newFlight: ItineraryItem = {
                   id: Date.now().toString(),
-                  type: 'Flight',
+                type: 'Flight',
                   name: `Flight from ${requirements.origin} to ${requirements.destination}`,
                   description: `${requirements.travelers.adults + requirements.travelers.children + requirements.travelers.seniors} travelers`,
                   startTime: requirements.departureDate,
                   endTime: requirements.departureDate,
                   cost: flight.price?.total ? parseFloat(flight.price.total) : 500,
-                  markup: 0,
-                  markup_type: 'percentage',
-                  details: {
+                markup: 0,
+                markup_type: 'percentage',
+                details: {
                     airline: flight.itineraries?.[0]?.segments?.[0]?.carrierCode || 'Unknown',
                     flightNumber: flight.itineraries?.[0]?.segments?.[0]?.number || 'N/A',
-                    origin: requirements.origin,
-                    destination: requirements.destination,
+                  origin: requirements.origin,
+                  destination: requirements.destination,
                     departureTime: flight.itineraries?.[0]?.segments?.[0]?.departure?.at || requirements.departureDate,
                     arrivalTime: flight.itineraries?.[0]?.segments?.[0]?.arrival?.at || requirements.departureDate,
                     travelers: requirements.travelers
@@ -1917,7 +1936,7 @@ export function NewQuoteWizard() {
                       items: [newFlight],
                       isComplete: false
                     });
-                  } else {
+            } else {
                     updatedDays[0] = {
                       ...updatedDays[0],
                       items: [...updatedDays[0].items, newFlight]
@@ -1925,24 +1944,24 @@ export function NewQuoteWizard() {
                   }
                   return { ...prev, days: updatedDays };
                 });
-                setShowFlightSearch(false);
-              }}
-            />
-          )}
+            setShowFlightSearch(false);
+          }}
+        />
+      )}
 
           {showActivitySearch && selectedDay && (
-            <ActivitySearchModal
-              isOpen={showActivitySearch}
-              onClose={() => setShowActivitySearch(false)}
-              onActivitySelect={handleActivitySelect}
+        <ActivitySearchModal
+          isOpen={showActivitySearch}
+          onClose={() => setShowActivitySearch(false)}
+          onActivitySelect={handleActivitySelect}
               selectedDay={selectedDay}
-            />
-          )}
+        />
+      )}
 
-          {showHotelSearch && (
-            <HotelSearchModal
-              isOpen={showHotelSearch}
-              onClose={() => setShowHotelSearch(false)}
+      {showHotelSearch && (
+        <HotelSearchModal
+          isOpen={showHotelSearch}
+          onClose={() => setShowHotelSearch(false)}
               destination={travelRequirements.destination}
               onHotelSelect={(hotel) => {
                 console.log('Hotel selected:', hotel);
@@ -1957,7 +1976,7 @@ export function NewQuoteWizard() {
                   cost: hotel.cost || 150,
                   markup: 0,
                   markup_type: 'percentage',
-                  details: {
+                    details: {
                     rating: hotel.details?.rating || 4,
                     amenities: hotel.details?.amenities || ['WiFi', 'Breakfast'],
                     checkIn: hotel.details?.checkIn || new Date().toISOString().split('T')[0],

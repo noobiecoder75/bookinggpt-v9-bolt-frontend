@@ -18,6 +18,15 @@ interface Rate {
   };
 }
 
+interface AgentMarkupSettings {
+  flight_markup: number;
+  flight_markup_type: 'percentage' | 'fixed';
+  hotel_markup: number;
+  hotel_markup_type: 'percentage' | 'fixed';
+  activity_markup: number;
+  activity_markup_type: 'percentage' | 'fixed';
+}
+
 interface UploadStatus {
   isUploading: boolean;
   progress: string;
@@ -28,6 +37,14 @@ interface UploadStatus {
 
 export function RateSettings() {
   const [rates, setRates] = useState<Rate[]>([]);
+  const [markupSettings, setMarkupSettings] = useState<AgentMarkupSettings>({
+    flight_markup: 10,
+    flight_markup_type: 'percentage',
+    hotel_markup: 15,
+    hotel_markup_type: 'percentage',
+    activity_markup: 20,
+    activity_markup_type: 'percentage',
+  });
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     isUploading: false,
     progress: '',
@@ -35,9 +52,11 @@ export function RateSettings() {
     error: null,
     importedCount: 0,
   });
+  const [savingMarkup, setSavingMarkup] = useState(false);
 
   useEffect(() => {
     fetchRates();
+    fetchMarkupSettings();
   }, []);
 
   async function fetchRates() {
@@ -48,6 +67,56 @@ export function RateSettings() {
     
     if (data) {
       setRates(data);
+    }
+  }
+
+  async function fetchMarkupSettings() {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { data, error } = await supabase
+        .from('user_settings')
+        .select('setting_value')
+        .eq('user_id', user.user.id)
+        .eq('setting_key', 'markup_settings')
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching markup settings:', error);
+        return;
+      }
+
+      if (data?.setting_value) {
+        setMarkupSettings(data.setting_value);
+      }
+    } catch (error) {
+      console.error('Error fetching markup settings:', error);
+    }
+  }
+
+  async function saveMarkupSettings() {
+    setSavingMarkup(true);
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.user.id,
+          setting_key: 'markup_settings',
+          setting_value: markupSettings
+        });
+
+      if (error) throw error;
+
+      alert('Markup settings saved successfully!');
+    } catch (error: any) {
+      console.error('Error saving markup settings:', error);
+      alert('Failed to save markup settings: ' + error.message);
+    } finally {
+      setSavingMarkup(false);
     }
   }
 
@@ -266,6 +335,136 @@ export function RateSettings() {
           <li>• AI will automatically extract rate information from your files</li>
           <li>• Ensure your files contain clear pricing and rate information</li>
         </ul>
+      </div>
+
+      {/* Global Markup Settings */}
+      <div className="bg-white border border-gray-200 rounded-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-medium text-gray-900">Global Markup Settings</h3>
+          <button
+            onClick={saveMarkupSettings}
+            disabled={savingMarkup}
+            className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+              savingMarkup 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-indigo-600 hover:bg-indigo-700'
+            }`}
+          >
+            {savingMarkup ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : null}
+            {savingMarkup ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
+        <p className="text-sm text-gray-600 mb-6">
+          Set default markup percentages that will be automatically applied when adding items to trip itineraries.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Flight Markup */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Flight Markup
+            </label>
+            <div className="flex space-x-2">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={markupSettings.flight_markup}
+                  onChange={(e) => setMarkupSettings(prev => ({
+                    ...prev,
+                    flight_markup: parseFloat(e.target.value) || 0
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="10"
+                />
+              </div>
+              <select
+                value={markupSettings.flight_markup_type}
+                onChange={(e) => setMarkupSettings(prev => ({
+                  ...prev,
+                  flight_markup_type: e.target.value as 'percentage' | 'fixed'
+                }))}
+                className="block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="percentage">%</option>
+                <option value="fixed">$</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Hotel Markup */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Hotel Markup
+            </label>
+            <div className="flex space-x-2">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={markupSettings.hotel_markup}
+                  onChange={(e) => setMarkupSettings(prev => ({
+                    ...prev,
+                    hotel_markup: parseFloat(e.target.value) || 0
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="15"
+                />
+              </div>
+              <select
+                value={markupSettings.hotel_markup_type}
+                onChange={(e) => setMarkupSettings(prev => ({
+                  ...prev,
+                  hotel_markup_type: e.target.value as 'percentage' | 'fixed'
+                }))}
+                className="block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="percentage">%</option>
+                <option value="fixed">$</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Activity Markup */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Activity Markup
+            </label>
+            <div className="flex space-x-2">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  value={markupSettings.activity_markup}
+                  onChange={(e) => setMarkupSettings(prev => ({
+                    ...prev,
+                    activity_markup: parseFloat(e.target.value) || 0
+                  }))}
+                  className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  placeholder="20"
+                />
+              </div>
+              <select
+                value={markupSettings.activity_markup_type}
+                onChange={(e) => setMarkupSettings(prev => ({
+                  ...prev,
+                  activity_markup_type: e.target.value as 'percentage' | 'fixed'
+                }))}
+                className="block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              >
+                <option value="percentage">%</option>
+                <option value="fixed">$</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 bg-blue-50 rounded-md">
+          <p className="text-sm text-blue-700">
+            <strong>Preview:</strong> Flight: {markupSettings.flight_markup}{markupSettings.flight_markup_type === 'percentage' ? '%' : '$'} • 
+            Hotel: {markupSettings.hotel_markup}{markupSettings.hotel_markup_type === 'percentage' ? '%' : '$'} • 
+            Activity: {markupSettings.activity_markup}{markupSettings.activity_markup_type === 'percentage' ? '%' : '$'}
+          </p>
+        </div>
       </div>
 
       {/* Rate List */}

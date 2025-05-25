@@ -34,11 +34,12 @@ interface Quote {
       description?: string;
       startTime?: string;
       endTime?: string;
-      day: {
+      day_index?: number;
+      day?: {
         name: string;
         index: number;
       };
-      travelers: {
+      travelers?: {
         adults: number;
         children: number;
         seniors: number;
@@ -141,8 +142,8 @@ export function QuoteView() {
     if (!quote) return;
 
     if (quote.status === 'Draft') {
-      // For draft quotes, navigate directly to edit mode
-      navigate(`/quotes/new?edit=${quote.id}`);
+      // For draft quotes, navigate directly to trip overview edit mode
+      navigate(`/trips/${quote.id}`);
     } else {
       // For sent quotes, create a copy
       try {
@@ -169,15 +170,21 @@ export function QuoteView() {
           .from('quote_items')
           .insert(
             quote.quote_items.map(item => ({
-              ...item,
               quote_id: newQuote.id,
+              item_type: item.item_type,
+              item_name: item.item_name,
+              cost: item.cost,
+              markup: item.markup,
+              markup_type: item.markup_type,
+              quantity: item.quantity,
+              details: item.details,
             }))
           );
 
         if (itemsError) throw itemsError;
 
-        // Navigate to edit mode with new quote ID
-        navigate(`/quotes/new?edit=${newQuote.id}`);
+        // Navigate to trip overview with new quote ID
+        navigate(`/trips/${newQuote.id}`);
       } catch (error) {
         console.error('Error copying quote:', error);
       }
@@ -222,10 +229,13 @@ export function QuoteView() {
 
   // Group items by day
   const itemsByDay = quote.quote_items.reduce((acc, item) => {
-    const dayIndex = item.details.day.index;
+    // Handle both old and new data structures
+    const dayIndex = item.details.day_index ?? item.details.day?.index ?? 0;
+    const dayName = item.details.day?.name ?? `Day ${dayIndex + 1}`;
+    
     if (!acc[dayIndex]) {
       acc[dayIndex] = {
-        name: item.details.day.name,
+        name: dayName,
         items: []
       };
     }
@@ -314,9 +324,9 @@ export function QuoteView() {
               <div>
                 <p className="text-sm text-gray-500">Travelers</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {quote.quote_items[0]?.details.travelers.adults || 0} Adults,{' '}
-                  {quote.quote_items[0]?.details.travelers.children || 0} Children,{' '}
-                  {quote.quote_items[0]?.details.travelers.seniors || 0} Seniors
+                  {quote.quote_items[0]?.details?.travelers?.adults || 0} Adults,{' '}
+                  {quote.quote_items[0]?.details?.travelers?.children || 0} Children,{' '}
+                  {quote.quote_items[0]?.details?.travelers?.seniors || 0} Seniors
                 </p>
               </div>
             </div>

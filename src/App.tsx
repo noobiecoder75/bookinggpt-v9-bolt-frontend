@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { NewQuoteWizard } from './components/quotes/NewQuoteWizard';
+import { TripOverviewRefactored } from './components/quotes/TripOverviewRefactored';
+import { CreateTripDialog } from './components/quotes/CreateTripDialog';
 import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsDashboard } from './components/settings/SettingsDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
@@ -110,6 +112,7 @@ const App: React.FC = () => {
     conversionRate: 0,
   });
   const [kanbanQuotes, setKanbanQuotes] = useState<any[]>([]);
+  const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
 
   // Function to fetch quotes
   const fetchQuotes = async () => {
@@ -155,8 +158,9 @@ const App: React.FC = () => {
   return (
     <Router>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-        <Navbar />
-        <main className="pl-0 md:pl-64 transition-all duration-300">
+        <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+
+        <main className="transition-all duration-300">
           <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
             <div className="sm:px-0">
               <Routes>
@@ -164,20 +168,17 @@ const App: React.FC = () => {
                   path="/" 
                   element={
                     <>
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 mb-8">
-                        <div>
-                          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                            Welcome to BookingGPT
-                          </h1>
-                          <p className="text-gray-600 text-lg">Manage your travel bookings with AI-powered efficiency</p>
+                      <div className="mb-8">
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+                          <div className="text-center">
+                            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                              Welcome to BookingGPT
+                            </h1>
+                            <p className="text-gray-600 text-xl leading-relaxed max-w-2xl mx-auto">
+                              Manage your travel bookings with AI-powered efficiency and streamlined workflows
+                            </p>
+                          </div>
                         </div>
-                        <Link
-                          to="/quotes/new"
-                          className="w-full sm:w-auto inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:-translate-y-0.5"
-                        >
-                          <Plus className="h-5 w-5 mr-2" />
-                          Create New Quote
-                        </Link>
                       </div>
 
                       {/* Stats Grid */}
@@ -258,15 +259,41 @@ const App: React.FC = () => {
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Recent Activity */}
-                        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-                          <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Recent Activity</h2>
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                          <div className="border-b border-gray-100 pb-4 mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
+                            <p className="text-sm text-gray-600 mt-1">Latest updates and changes</p>
+                          </div>
                           <RecentActivity />
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
-                          <h2 className="text-base sm:text-lg font-medium text-gray-900 mb-4">Quick Actions</h2>
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                          <div className="border-b border-gray-100 pb-4 mb-6">
+                            <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+                            <p className="text-sm text-gray-600 mt-1">Get started with common tasks</p>
+                          </div>
                           <div className="grid grid-cols-1 gap-4">
+                            <button
+                              onClick={() => setShowCreateTripDialog(true)}
+                              className="text-left p-6 border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300 hover:-translate-y-1 group bg-white"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Create New Trip</h3>
+                                  <p className="mt-2 text-sm text-gray-600 leading-relaxed">Start planning a new trip with comprehensive overview</p>
+                                </div>
+                                <div className="ml-4 flex-shrink-0">
+                                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg flex items-center justify-center group-hover:from-indigo-500 group-hover:to-indigo-600 transition-all duration-300">
+                                    <span className="text-indigo-600 group-hover:text-white transition-colors duration-300 text-lg font-bold">→</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="mt-4 flex items-center text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
+                                <span>Get started</span>
+                                <span className="ml-2 transform group-hover:translate-x-1 transition-transform duration-200">→</span>
+                              </div>
+                            </button>
                             <QuickActionCard
                               title="Create New Quote"
                               description="Generate a new travel quote for a customer"
@@ -288,6 +315,8 @@ const App: React.FC = () => {
                     </>
                   }
                 />
+                <Route path="/trips/new" element={<TripOverviewRefactored />} />
+                <Route path="/trips/:tripId" element={<TripOverviewRefactored />} />
                 <Route path="/quotes" element={<QuotesDashboard />} />
                 <Route path="/quotes/new" element={<NewQuoteWizard />} />
                 <Route path="/quotes/:id" element={<QuoteView />} />
@@ -300,6 +329,12 @@ const App: React.FC = () => {
             </div>
           </div>
         </main>
+
+        {/* Create Trip Dialog */}
+        <CreateTripDialog 
+          isOpen={showCreateTripDialog}
+          onClose={() => setShowCreateTripDialog(false)}
+        />
       </div>
     </Router>
   );
