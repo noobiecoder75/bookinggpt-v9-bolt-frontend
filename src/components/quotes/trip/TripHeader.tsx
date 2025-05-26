@@ -59,7 +59,10 @@ export function TripHeader({
 
   const getDayCount = () => {
     if (trip.startDate && trip.endDate) {
-      return Math.ceil((new Date(trip.endDate).getTime() - new Date(trip.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      // Create dates in local timezone to avoid timezone offset issues
+      const start = new Date(trip.startDate + 'T00:00:00');
+      const end = new Date(trip.endDate + 'T00:00:00');
+      return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }
     return 0;
   };
@@ -131,7 +134,7 @@ export function TripHeader({
                   </div>
                   {editingData.startDate && editingData.endDate && (
                     <div className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                      {Math.ceil((new Date(editingData.endDate).getTime() - new Date(editingData.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days
+                      {Math.ceil((new Date(editingData.endDate + 'T00:00:00').getTime() - new Date(editingData.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)) + 1} days
                     </div>
                   )}
                 </div>
@@ -165,7 +168,7 @@ export function TripHeader({
                   <div className="flex items-center space-x-2 mt-1">
                     <Calendar className="h-3 w-3 text-gray-500" />
                     <span className="text-sm text-gray-600">
-                      {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
+                      {new Date(trip.startDate + 'T00:00:00').toLocaleDateString()} - {new Date(trip.endDate + 'T00:00:00').toLocaleDateString()}
                     </span>
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                       {getDayCount()} days

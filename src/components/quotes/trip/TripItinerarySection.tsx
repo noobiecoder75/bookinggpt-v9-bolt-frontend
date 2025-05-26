@@ -1,6 +1,49 @@
 import React, { useState } from 'react';
 import { Calendar, Plus, Plane, Building, Car, MapPin, Trash2, Move } from 'lucide-react';
 
+/**
+ * Utility function to create linked flight items for return flights
+ * This should be called from the parent component when processing flight search results
+ * 
+ * Example usage:
+ * const createLinkedFlightItems = (flightData: any, isReturnFlight: boolean) => {
+ *   if (!isReturnFlight) {
+ *     return [createSingleFlightItem(flightData)];
+ *   }
+ *   
+ *   const outboundId = generateId();
+ *   const returnId = generateId();
+ *   
+ *   const outboundFlight = {
+ *     id: outboundId,
+ *     type: 'Flight' as const,
+ *     name: `${flightData.origin} → ${flightData.destination}`,
+ *     cost: flightData.cost / 2, // Split cost between segments
+ *     linkedItemId: returnId,
+ *     isReturnFlight: true,
+ *     flightDirection: 'outbound' as const,
+ *     startTime: flightData.departureTime,
+ *     endTime: flightData.arrivalTime,
+ *     // ... other properties
+ *   };
+ *   
+ *   const returnFlight = {
+ *     id: returnId,
+ *     type: 'Flight' as const,
+ *     name: `${flightData.destination} → ${flightData.origin}`,
+ *     cost: flightData.cost / 2,
+ *     linkedItemId: outboundId,
+ *     isReturnFlight: true,
+ *     flightDirection: 'return' as const,
+ *     startTime: flightData.returnDepartureTime,
+ *     endTime: flightData.returnArrivalTime,
+ *     // ... other properties
+ *   };
+ *   
+ *   return [outboundFlight, returnFlight];
+ * };
+ */
+
 interface ItineraryItem {
   id: string;
   type: 'Flight' | 'Hotel' | 'Tour' | 'Transfer';
@@ -12,6 +55,10 @@ interface ItineraryItem {
   markup: number;
   markup_type: 'percentage' | 'fixed';
   details: any;
+  // For linked flight items (return flights)
+  linkedItemId?: string;
+  isReturnFlight?: boolean;
+  flightDirection?: 'outbound' | 'return';
 }
 
 interface DayPlan {
@@ -41,6 +88,7 @@ interface TripItinerarySectionProps {
   onRemoveItem: (dayId: string, itemId: string) => void;
   onMoveItem: (fromDayId: string, toDayId: string, itemId: string) => void;
   calculateTotalPrice: () => number;
+  onRemoveLinkedFlights: (itemId: string) => void;
 }
 
 export function TripItinerarySection({
@@ -56,7 +104,8 @@ export function TripItinerarySection({
   onAddCustomItem,
   onRemoveItem,
   onMoveItem,
-  calculateTotalPrice
+  calculateTotalPrice,
+  onRemoveLinkedFlights
 }: TripItinerarySectionProps) {
 
 
@@ -66,6 +115,29 @@ export function TripItinerarySection({
     fromDayId: string;
   } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+
+  // Helper function to find linked flight
+  const findLinkedFlight = (itemId: string): ItineraryItem | null => {
+    for (const day of days) {
+      const linkedItem = day.items.find(item => 
+        item.linkedItemId === itemId || 
+        (item.id !== itemId && item.linkedItemId && item.linkedItemId === itemId)
+      );
+      if (linkedItem) return linkedItem;
+    }
+    return null;
+  };
+
+  // Helper function to check if an item is part of a return flight
+  const isPartOfReturnFlight = (item: ItineraryItem): boolean => {
+    return item.type === 'Flight' && (item.isReturnFlight || !!item.linkedItemId);
+  };
+
+  // Helper function to get flight direction display
+  const getFlightDirectionDisplay = (item: ItineraryItem): string => {
+    if (!isPartOfReturnFlight(item)) return '';
+    return item.flightDirection === 'outbound' ? ' (Departure)' : ' (Return)';
+  };
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, item: ItineraryItem, dayId: string) => {
@@ -101,6 +173,12 @@ export function TripItinerarySection({
     setDragOverDay(null);
     
     if (draggedItem && draggedItem.fromDayId !== toDayId) {
+      // Check if this is a linked flight - if so, prevent moving
+      if (isPartOfReturnFlight(draggedItem.item)) {
+        alert('Return flight segments cannot be moved individually. Please remove and re-add the entire return flight if needed.');
+        setDraggedItem(null);
+        return;
+      }
       onMoveItem(draggedItem.fromDayId, toDayId, draggedItem.item.id);
     }
     setDraggedItem(null);
@@ -118,7 +196,8 @@ export function TripItinerarySection({
         <div className="flex gap-4 overflow-x-auto pb-4" style={{ minWidth: 'fit-content' }}>
           <div className="flex gap-4" style={{ minWidth: `${days.length * 320}px` }}>
             {days.map((day, index) => {
-              const dayDate = new Date(trip.startDate);
+              // Create date in local timezone to avoid timezone offset issues
+              const dayDate = new Date(trip.startDate + 'T00:00:00');
               dayDate.setDate(dayDate.getDate() + index);
               const formattedDate = dayDate.toLocaleDateString('en-US', {
                 weekday: 'short',
@@ -245,17 +324,34 @@ export function TripItinerarySection({
                     {day.items.map((item) => (
                       <div
                         key={item.id}
-                        className={`bg-gray-50 rounded-lg p-3 border border-gray-200 hover:shadow-sm transition-all duration-200 cursor-move ${
-                          draggedItem?.item.id === item.id ? 'opacity-50 scale-95' : 'hover:border-indigo-300'
+                        className={`bg-gray-50 rounded-lg p-3 border transition-all duration-200 ${
+                          isPartOfReturnFlight(item) 
+                            ? 'border-blue-300 bg-blue-50 cursor-not-allowed' 
+                            : 'border-gray-200 cursor-move hover:border-indigo-300'
+                        } hover:shadow-sm ${
+                          draggedItem?.item.id === item.id ? 'opacity-50 scale-95' : ''
                         }`}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, item, day.id)}
+                        draggable={!isPartOfReturnFlight(item)}
+                        onDragStart={(e) => {
+                          if (isPartOfReturnFlight(item)) {
+                            e.preventDefault();
+                            return;
+                          }
+                          handleDragStart(e, item, day.id);
+                        }}
                         onDragEnd={handleDragEnd}
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <Move className="h-3 w-3 text-gray-400 cursor-grab" />
+                              {!isPartOfReturnFlight(item) && (
+                                <Move className="h-3 w-3 text-gray-400 cursor-grab" />
+                              )}
+                              {isPartOfReturnFlight(item) && (
+                                <div className="h-3 w-3 flex items-center justify-center">
+                                  <div className="h-2 w-2 bg-blue-400 rounded-full"></div>
+                                </div>
+                              )}
                               <span className={`px-2 py-1 text-xs rounded-full font-medium ${
                                 item.type === 'Flight' ? 'bg-blue-100 text-blue-800' :
                                 item.type === 'Hotel' ? 'bg-green-100 text-green-800' :
@@ -265,8 +361,15 @@ export function TripItinerarySection({
                               }`}>
                                 {item.type}
                               </span>
+                              {isPartOfReturnFlight(item) && (
+                                <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-200 text-blue-900">
+                                  Linked
+                                </span>
+                              )}
                             </div>
-                            <h4 className="font-medium text-sm text-gray-900 mb-1">{item.name}</h4>
+                            <h4 className="font-medium text-sm text-gray-900 mb-1">
+                              {item.name}{getFlightDirectionDisplay(item)}
+                            </h4>
                             {item.description && (
                               <p className="text-xs text-gray-600 mb-1">{item.description}</p>
                             )}
@@ -291,11 +394,20 @@ export function TripItinerarySection({
                               </p>
                             </div>
                             <button
-                              onClick={() => onRemoveItem(day.id, item.id)}
+                              onClick={() => {
+                                if (isPartOfReturnFlight(item)) {
+                                  // For return flights, remove both segments
+                                  onRemoveLinkedFlights(item.id);
+                                } else {
+                                  // For regular items, remove normally
+                                  onRemoveItem(day.id, item.id);
+                                }
+                              }}
                               className="text-red-500 hover:text-red-700 text-xs mt-1 flex items-center"
+                              title={isPartOfReturnFlight(item) ? 'Remove both flight segments' : 'Remove item'}
                             >
                               <Trash2 className="h-3 w-3 mr-1" />
-                              Remove
+                              {isPartOfReturnFlight(item) ? 'Remove Flight' : 'Remove'}
                             </button>
                           </div>
                         </div>
@@ -320,7 +432,7 @@ export function TripItinerarySection({
             Your trip calendar will appear here automatically based on your trip dates.
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Trip dates: {trip.startDate ? new Date(trip.startDate).toLocaleDateString() : 'Not set'} - {trip.endDate ? new Date(trip.endDate).toLocaleDateString() : 'Not set'}
+            Trip dates: {trip.startDate ? new Date(trip.startDate + 'T00:00:00').toLocaleDateString() : 'Not set'} - {trip.endDate ? new Date(trip.endDate + 'T00:00:00').toLocaleDateString() : 'Not set'}
           </p>
           {(!trip.startDate || !trip.endDate) && (
             <p className="text-xs text-amber-600 mt-2">

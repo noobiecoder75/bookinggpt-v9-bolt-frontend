@@ -76,6 +76,10 @@ export interface ItineraryItem {
   markup: number;
   markup_type: 'percentage' | 'fixed';
   details: any;
+  // For linked flight items (return flights)
+  linkedItemId?: string;
+  isReturnFlight?: boolean;
+  flightDirection?: 'outbound' | 'return';
 }
 
 export interface DayPlan {

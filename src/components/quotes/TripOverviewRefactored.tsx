@@ -14,6 +14,9 @@ import { TripOverviewSection } from './trip/TripOverviewSection';
 import { TripItinerarySection } from './trip/TripItinerarySection';
 import { TripRightSidebar } from './trip/TripRightSidebar';
 
+// Import flight utilities for linked flights
+import { createFlightItems, getFlightDayIndex } from './trip/flightUtils';
+
 // Import types
 import { 
   Trip, 
@@ -64,6 +67,7 @@ export function TripOverviewRefactored() {
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showAddItemMenu, setShowAddItemMenu] = useState<string | null>(null);
   const [agentMarkupSettings, setAgentMarkupSettings] = useState<AgentMarkupSettings | null>(null);
+  const [itemsLoaded, setItemsLoaded] = useState(false);
 
   const [trip, setTrip] = useState<Trip>({
     id: tripId || 'new',
@@ -197,8 +201,9 @@ export function TripOverviewRefactored() {
 
   // Helper functions
   const initializeDays = (startDate: string, endDate: string) => {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Create dates in local timezone to avoid timezone offset issues
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
     const dayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     
     if (dayCount > 0 && dayCount <= 30) {
@@ -357,17 +362,29 @@ export function TripOverviewRefactored() {
             cost: dbItem.cost,
             markup: dbItem.markup || 0,
             markup_type: dbItem.markup_type || 'percentage',
-            details: dbItem.details || {}
+            details: dbItem.details || {},
+            // Include linked flight properties
+            linkedItemId: dbItem.details?.linkedItemId,
+            isReturnFlight: dbItem.details?.isReturnFlight,
+            flightDirection: dbItem.details?.flightDirection
           };
 
           itemsByDay[dayIndex].push(item);
         });
 
         // Update days with loaded items
-        setDays(prev => prev.map((day, index) => ({
-          ...day,
-          items: itemsByDay[index] || []
-        })));
+        setDays(prev => {
+          console.log('loadItemsFromDatabase: Setting days with items from database:', {
+            totalItemsLoaded: data.length,
+            itemsByDay,
+            currentDaysItemCounts: prev.map((d, i) => ({ day: i, currentCount: d.items.length }))
+          });
+          
+          return prev.map((day, index) => ({
+            ...day,
+            items: itemsByDay[index] || []
+          }));
+        });
       }
     } catch (error) {
       console.error('Error loading items from database:', error);
@@ -376,10 +393,13 @@ export function TripOverviewRefactored() {
 
   // Load items from database when days are initialized
   useEffect(() => {
-    if (days.length > 0 && tripId) {
-      loadItemsFromDatabase();
+    if (days.length > 0 && tripId && !itemsLoaded) {
+      console.log('Loading items from database for trip:', tripId);
+      loadItemsFromDatabase().then(() => {
+        setItemsLoaded(true);
+      });
     }
-  }, [days.length, tripId]);
+  }, [days.length, tripId, itemsLoaded]);
 
   // Load agent markup settings
   useEffect(() => {
@@ -510,66 +530,166 @@ export function TripOverviewRefactored() {
     });
   };
 
+  const handleRemoveLinkedFlights = async (itemId: string) => {
+    try {
+      // Find all linked flight items
+      const linkedItemIds: string[] = [];
+      
+      for (const day of days) {
+        for (const item of day.items) {
+          if (item.id === itemId || item.linkedItemId === itemId) {
+            linkedItemIds.push(item.id);
+          }
+        }
+      }
+
+      // Remove from database
+      if (tripId && linkedItemIds.length > 0) {
+        const { error } = await supabase
+          .from('quote_items')
+          .delete()
+          .in('id', linkedItemIds);
+
+        if (error) throw error;
+      }
+
+      // Remove from local state
+      setDays(prev => prev.map(day => ({
+        ...day,
+        items: day.items.filter(item => 
+          !linkedItemIds.includes(item.id)
+        )
+      })));
+    } catch (error) {
+      console.error('Error removing linked flights:', error);
+    }
+  };
+
+
+
   const handleFlightSelect = async (flight: any, requirements: any) => {
-    if (!selectedDay || !agentMarkupSettings) {
+    if (!agentMarkupSettings) {
       return;
     }
 
-    const dayIndex = days.findIndex(day => day.id === selectedDay);
     const markupInfo = getMarkupForItemType('Flight', agentMarkupSettings);
     
-    const flightItem: ItineraryItem = {
-      id: `flight-${Date.now()}`,
-      type: 'Flight',
+    // Determine if this is a return flight
+    const isReturnFlight = requirements.isReturnFlight && flight.itineraries && flight.itineraries.length > 1;
+    
+    console.log('Processing Amadeus flight data:', {
+      isReturnFlight,
+      itinerariesCount: flight.itineraries?.length,
+      outboundDeparture: flight.itineraries[0]?.segments[0]?.departure?.at,
+      returnDeparture: isReturnFlight ? flight.itineraries[1]?.segments[0]?.departure?.at : 'N/A',
+      tripStartDate: trip.startDate
+    });
+    
+    // Create flight items using the utility function
+    const flightItems = createFlightItems({
       name: `${requirements.origin} → ${requirements.destination}`,
-      description: `Flight for ${requirements.travelers.adults + requirements.travelers.children + requirements.travelers.seniors} passengers`,
+      origin: requirements.origin,
+      destination: requirements.destination,
       cost: parseFloat(flight.price?.total || '0'),
       markup: markupInfo.markup,
       markup_type: markupInfo.markup_type,
+      departureTime: flight.itineraries[0]?.segments[0]?.departure?.at,
+      arrivalTime: flight.itineraries[0]?.segments[flight.itineraries[0].segments.length - 1]?.arrival?.at,
+      returnDepartureTime: isReturnFlight ? flight.itineraries[1]?.segments[0]?.departure?.at : undefined,
+      returnArrivalTime: isReturnFlight ? flight.itineraries[1]?.segments[flight.itineraries[1].segments.length - 1]?.arrival?.at : undefined,
+      description: `Flight for ${requirements.travelers.adults + requirements.travelers.children + requirements.travelers.seniors} passengers`,
       details: { ...flight, travelers: requirements.travelers }
-    };
+    }, isReturnFlight);
 
-    // Save to database
+    // Save to database and add to appropriate days
     if (!tripId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('quote_items')
-        .insert([{
-          quote_id: tripId,
-          item_type: flightItem.type,
-          item_name: flightItem.name,
-          cost: flightItem.cost,
-          quantity: 1,
-          markup: flightItem.markup,
-          markup_type: flightItem.markup_type,
-          details: {
-            ...flightItem.details,
-            description: flightItem.description,
-            startTime: flightItem.startTime,
-            endTime: flightItem.endTime,
-            day_index: dayIndex,
-            local_id: flightItem.id
-          }
-        }])
-        .select()
-        .single();
+      for (const flightItem of flightItems) {
+        // Calculate which day this flight should be placed on
+        const rawDayIndex = getFlightDayIndex(flightItem, trip.startDate);
+        let dayIndex = rawDayIndex;
+        
+        // Handle edge cases for day placement
+        if (dayIndex < 0) {
+          console.warn('Flight date is before trip start, placing on day 0');
+          dayIndex = 0;
+        } else if (dayIndex >= days.length) {
+          console.warn(`Flight date is after trip end (day ${dayIndex}), placing on last day (${days.length - 1})`);
+          dayIndex = days.length - 1;
+        }
+        
+        const targetDay = days[dayIndex];
+        
+        console.log('Adding flight to day:', {
+          flightName: flightItem.name,
+          flightDirection: flightItem.flightDirection,
+          flightStartTime: flightItem.startTime,
+          tripStartDate: trip.startDate,
+          rawDayIndex,
+          finalDayIndex: dayIndex,
+          totalDays: days.length,
+          targetDayExists: !!targetDay,
+          targetDayName: targetDay?.name
+        });
+        
+        // Save to database
+        const { data, error } = await supabase
+          .from('quote_items')
+          .insert([{
+            quote_id: tripId,
+            item_type: flightItem.type,
+            item_name: flightItem.name,
+            cost: flightItem.cost,
+            quantity: 1,
+            markup: flightItem.markup,
+            markup_type: flightItem.markup_type,
+            details: {
+              ...flightItem.details,
+              description: flightItem.description,
+              startTime: flightItem.startTime,
+              endTime: flightItem.endTime,
+              day_index: dayIndex,
+              local_id: flightItem.id,
+              linkedItemId: flightItem.linkedItemId,
+              isReturnFlight: flightItem.isReturnFlight,
+              flightDirection: flightItem.flightDirection
+            }
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Update the local item with the database ID
-      if (data) {
-        flightItem.id = data.id.toString();
+        // Update the local item with the database ID
+        if (data) {
+          flightItem.id = data.id.toString();
+        }
+
+        // Add to the appropriate day using dayIndex
+        setDays(prev => {
+          const newDays = prev.map((day, index) => 
+            index === dayIndex
+              ? { ...day, items: [...day.items, flightItem] }
+              : day
+          );
+          
+          console.log('Updated days after adding flight:', {
+            dayIndex,
+            flightName: flightItem.name,
+            flightDirection: flightItem.flightDirection,
+            dayItemsCount: newDays[dayIndex]?.items.length,
+            allDaysItemCounts: newDays.map((d, i) => ({ day: i, count: d.items.length }))
+          });
+          
+          return newDays;
+        });
       }
+      
     } catch (error) {
-      console.error('Error saving item to database:', error);
+      console.error('Error saving flight items to database:', error);
     }
 
-    setDays(prev => prev.map(day => 
-      day.id === selectedDay
-        ? { ...day, items: [...day.items, flightItem] }
-        : day
-    ));
     setShowFlightSearch(false);
     setSelectedDay(null);
   };
@@ -803,6 +923,7 @@ export function TripOverviewRefactored() {
                 onRemoveItem={handleRemoveItem}
                 onMoveItem={handleMoveItem}
                 calculateTotalPrice={calculateTotalPrice}
+                onRemoveLinkedFlights={handleRemoveLinkedFlights}
               />
             )}
 

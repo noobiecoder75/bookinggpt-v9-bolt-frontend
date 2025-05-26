@@ -109,6 +109,19 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
     setSearchError(null);
 
     try {
+      // Debug: Check environment variables
+      console.log('Environment variables check:', {
+        hasClientId: !!import.meta.env.VITE_AMADEUS_CLIENT_ID,
+        hasClientSecret: !!import.meta.env.VITE_AMADEUS_CLIENT_SECRET,
+        clientIdLength: import.meta.env.VITE_AMADEUS_CLIENT_ID?.length || 0,
+        clientSecretLength: import.meta.env.VITE_AMADEUS_CLIENT_SECRET?.length || 0
+      });
+
+      // Validate credentials before making request
+      if (!import.meta.env.VITE_AMADEUS_CLIENT_ID || !import.meta.env.VITE_AMADEUS_CLIENT_SECRET) {
+        throw new Error('Amadeus API credentials are missing. Please check your .env file.');
+      }
+
       // Format dates to YYYY-MM-DD as required by Amadeus
       const formatDate = (date: string) => {
         const d = new Date(date);
@@ -116,6 +129,7 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
       };
 
       // First, get the access token
+      console.log('Requesting access token from Amadeus...');
       const tokenResponse = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
         method: 'POST',
         headers: {
@@ -128,8 +142,16 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
         }),
       });
 
+      console.log('Token response status:', tokenResponse.status);
+
       if (!tokenResponse.ok) {
-        throw new Error('Failed to obtain access token');
+        const errorData = await tokenResponse.json().catch(() => ({}));
+        console.error('Token request failed:', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorData
+        });
+        throw new Error(`Failed to obtain access token: ${tokenResponse.status} ${tokenResponse.statusText}`);
       }
 
       const tokenData = await tokenResponse.json();
