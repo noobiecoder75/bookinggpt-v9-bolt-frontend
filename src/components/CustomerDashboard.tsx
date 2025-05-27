@@ -146,77 +146,102 @@ export function CustomerDashboard() {
           ) : (
             customers.map((customer) => (
               <li key={customer.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
-                <div className="px-4 sm:px-6 py-4 sm:py-6">
+                <div 
+                  className="px-4 sm:px-6 py-4 sm:py-6 cursor-pointer"
+                  onClick={() => navigate(`/customers/${customer.id}`)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center">
                         <div className="flex items-center mb-3 sm:mb-0">
                           <div className="flex-shrink-0">
                             <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                              <span className="text-base sm:text-lg font-medium text-indigo-600">
+                              <span className="text-sm sm:text-lg font-medium text-indigo-600">
                                 {customer.first_name[0]}
                                 {customer.last_name[0]}
                               </span>
                             </div>
                           </div>
-                          <div className="ml-3 sm:ml-4">
-                            <h2 className="text-base sm:text-lg font-medium text-gray-900">
+                          <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                            <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                               {customer.first_name} {customer.last_name}
                             </h2>
-                          </div>
-                        </div>
-                        <div className="sm:ml-auto">
-                          <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0 sm:space-x-4">
-                            <span className="break-all">{customer.email}</span>
-                            <span className="hidden sm:inline">•</span>
-                            <span>{customer.phone}</span>
+                            {/* Show email only on desktop */}
+                            <div className="hidden sm:block mt-1">
+                              <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0 sm:space-x-4">
+                                <span className="break-all">{customer.email}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span>{customer.phone}</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="flex space-x-4">
+                    <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 ml-4">
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">Lifetime Value</p>
-                        <p className="mt-1 text-lg text-green-600">
+                        <p className="text-xs sm:text-sm font-medium text-gray-900">Lifetime Value</p>
+                        <p className="mt-1 text-base sm:text-lg text-green-600 font-semibold">
                           ${customerStats[customer.id]?.lifetimeValue.toLocaleString() || '0'}
                         </p>
                       </div>
-                      <div className="text-right">
+                      {/* Show potential value only on desktop */}
+                      <div className="hidden sm:block text-right">
                         <p className="text-sm font-medium text-gray-900">Potential Value</p>
-                        <p className="mt-1 text-lg text-blue-600">
+                        <p className="mt-1 text-lg text-blue-600 font-semibold">
                           ${customerStats[customer.id]?.potentialValue.toLocaleString() || '0'}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex justify-between items-center">
-                    <div className="flex space-x-6">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <Calendar className="h-5 w-5 mr-1.5 text-gray-400" />
-                        <span>
-                          {customerStats[customer.id]?.totalBookings || 0} Bookings
-                        </span>
+                  
+                  {/* Mobile-only contact info and actions */}
+                  <div className="mt-3 sm:hidden">
+                    <div className="flex justify-between items-center">
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <div className="truncate">{customer.email}</div>
+                        <div>{customer.phone}</div>
                       </div>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <FileText className="h-5 w-5 mr-1.5 text-gray-400" />
-                        <span>
-                          {customerStats[customer.id]?.activeQuotes || 0} Active Quotes
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2">
                       <button 
-                        onClick={() => navigate(`/customers/${customer.id}`)}
-                        className="inline-flex items-center px-3 py-1.5 border border-indigo-600 text-xs font-medium rounded text-indigo-600 bg-white hover:bg-indigo-50"
-                      >
-                        View Profile
-                      </button>
-                      <button 
-                        onClick={() => handleCreateQuote(customer.id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click
+                          handleCreateQuote(customer.id);
+                        }}
                         className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
                       >
                         Create Quote
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Desktop-only stats and actions */}
+                  <div className="hidden sm:block mt-4">
+                    <div className="flex justify-between items-center">
+                      <div className="flex space-x-6">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Calendar className="h-5 w-5 mr-1.5 text-gray-400" />
+                          <span>
+                            {customerStats[customer.id]?.totalBookings || 0} Bookings
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <FileText className="h-5 w-5 mr-1.5 text-gray-400" />
+                          <span>
+                            {customerStats[customer.id]?.activeQuotes || 0} Active Quotes
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click
+                            handleCreateQuote(customer.id);
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                        >
+                          Create Quote
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

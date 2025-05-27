@@ -198,39 +198,40 @@ export function QuotesDashboard() {
             {filteredQuotes.map((quote) => (
               <li key={quote.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
                 <Link to={`/quotes/${quote.id}`} className="block">
-                  <div className="px-6 py-6">
+                  <div className="px-4 sm:px-6 py-4 sm:py-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center">
                           <div className="flex-shrink-0">
-                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                              <span className="text-lg font-medium text-indigo-600">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-sm sm:text-lg font-medium text-indigo-600">
                                 {quote.customer.first_name[0]}
                                 {quote.customer.last_name[0]}
                               </span>
                             </div>
                           </div>
-                          <div className="ml-4">
-                            <h2 className="text-lg font-medium text-gray-900">
+                          <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+                            <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                               {quote.customer.first_name} {quote.customer.last_name}
                             </h2>
-                            <div className="mt-1 flex items-center text-sm text-gray-500">
-                              <span className="truncate">{quote.quote_reference}</span>
-                              <span className="mx-2">•</span>
-                              <span>${quote.total_price.toLocaleString()}</span>
+                            <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0">
+                              {/* Show quote reference only on desktop */}
+                              <span className="hidden sm:inline truncate">{quote.quote_reference}</span>
+                              <span className="hidden sm:inline mx-2">•</span>
+                              <span className="font-medium">${quote.total_price.toLocaleString()}</span>
                               {quote.markup > 0 && (
                                 <>
-                                  <span className="mx-2">•</span>
-                                  <span>{quote.markup}% global markup</span>
+                                  <span className="hidden sm:inline mx-2">•</span>
+                                  <span className="text-xs sm:text-sm">{quote.markup}% markup</span>
                                 </>
                               )}
                             </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
+                      <div className="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 ml-4">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          className={`px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                             quote.status === 'Draft'
                               ? 'bg-amber-100 text-amber-800'
                               : quote.status === 'Sent'
@@ -242,7 +243,7 @@ export function QuotesDashboard() {
                         >
                           {quote.status}
                         </span>
-                        <div className="flex space-x-2">
+                        <div className="hidden sm:flex space-x-2">
                           <button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -272,6 +273,10 @@ export function QuotesDashboard() {
                           </button>
                         </div>
                       </div>
+                    </div>
+                    {/* Mobile-only quote reference */}
+                    <div className="mt-2 sm:hidden">
+                      <span className="text-xs text-gray-500">{quote.quote_reference}</span>
                     </div>
                   </div>
                 </Link>
