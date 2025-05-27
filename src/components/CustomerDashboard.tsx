@@ -108,14 +108,14 @@ export function CustomerDashboard() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-        <div className="flex justify-between items-center">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Customers</h1>
-            <p className="text-gray-600 text-lg">Manage your customer relationships</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Customers</h1>
+            <p className="text-gray-600 text-base sm:text-lg">Manage your customer relationships</p>
           </div>
-          <button className="inline-flex items-center px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl">
+          <button className="inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl">
             <Plus className="h-5 w-5 mr-2" />
             Add Customer
           </button>
@@ -123,32 +123,16 @@ export function CustomerDashboard() {
       </div>
 
       {/* Search Bar */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-        <div className="max-w-lg">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
-              placeholder="Search customers..."
-              value={searchTerm}
-              onChange={(e) => {
-                console.log('Search term changed:', e.target.value);
-                setSearchTerm(e.target.value);
-                if (e.target.value === '') {
-                  fetchCustomers();
-                }
-              }}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  console.log('Search initiated with term:', searchTerm);
-                  fetchCustomers();
-                }
-              }}
-            />
-          </div>
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+          <input
+            type="text"
+            placeholder="Search customers by name, email, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
+          />
         </div>
       </div>
 
@@ -156,31 +140,35 @@ export function CustomerDashboard() {
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
         <ul className="divide-y divide-gray-200">
           {loading ? (
-            <li className="px-6 py-4 text-center text-gray-500">Loading customers...</li>
+            <li className="px-4 sm:px-6 py-4 text-center text-gray-500">Loading customers...</li>
           ) : customers.length === 0 ? (
-            <li className="px-6 py-4 text-center text-gray-500">No customers found</li>
+            <li className="px-4 sm:px-6 py-4 text-center text-gray-500">No customers found</li>
           ) : (
             customers.map((customer) => (
               <li key={customer.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
-                <div className="px-6 py-6">
+                <div className="px-4 sm:px-6 py-4 sm:py-6">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <span className="text-lg font-medium text-indigo-600">
-                              {customer.first_name[0]}
-                              {customer.last_name[0]}
-                            </span>
+                      <div className="flex flex-col sm:flex-row sm:items-center">
+                        <div className="flex items-center mb-3 sm:mb-0">
+                          <div className="flex-shrink-0">
+                            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                              <span className="text-base sm:text-lg font-medium text-indigo-600">
+                                {customer.first_name[0]}
+                                {customer.last_name[0]}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="ml-3 sm:ml-4">
+                            <h2 className="text-base sm:text-lg font-medium text-gray-900">
+                              {customer.first_name} {customer.last_name}
+                            </h2>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <h2 className="text-lg font-medium text-gray-900">
-                            {customer.first_name} {customer.last_name}
-                          </h2>
-                          <div className="mt-1 flex items-center text-sm text-gray-500">
-                            <span>{customer.email}</span>
-                            <span className="mx-2">•</span>
+                        <div className="sm:ml-auto">
+                          <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0 sm:space-x-4">
+                            <span className="break-all">{customer.email}</span>
+                            <span className="hidden sm:inline">•</span>
                             <span>{customer.phone}</span>
                           </div>
                         </div>

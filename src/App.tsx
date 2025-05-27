@@ -68,20 +68,20 @@ function StatCard({
   subtitle?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 group">
+    <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 group">
       <div className="flex items-center">
-        <div className={`${bgColor} ${color} p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300`}>
-          {React.cloneElement(icon as React.ReactElement, { className: 'w-6 h-6' })}
+        <div className={`${bgColor} ${color} p-2 sm:p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300`}>
+          {React.cloneElement(icon as React.ReactElement, { className: 'w-5 h-5 sm:w-6 sm:h-6' })}
         </div>
-        <div className="ml-4 flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 tracking-tight">{value}</p>
+        <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">{title}</p>
+          <p className="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight truncate">{value}</p>
           {subtitle && (
-            <p className="text-sm text-gray-500 mt-1 leading-relaxed">{subtitle}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">{subtitle}</p>
           )}
         </div>
       </div>
-      <div className="mt-4 h-1 bg-gradient-to-r from-gray-100 to-gray-50 rounded-full">
+      <div className="mt-3 sm:mt-4 h-1 bg-gradient-to-r from-gray-100 to-gray-50 rounded-full">
         <div className={`h-full w-3/4 ${bgColor.replace('bg-', 'bg-gradient-to-r from-').replace('-100', '-400 to-').replace('-100', '-300')} rounded-full transition-all duration-500 group-hover:w-full`}></div>
       </div>
     </div>
@@ -161,7 +161,7 @@ const App: React.FC = () => {
         <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
 
         <main className="transition-all duration-300">
-          <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
             <div className="sm:px-0">
               <Routes>
                 <Route 
@@ -169,12 +169,12 @@ const App: React.FC = () => {
                   element={
                     <>
                       <div className="mb-8">
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
                           <div className="text-center">
-                            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
                               Welcome to BookingGPT
                             </h1>
-                            <p className="text-gray-600 text-xl leading-relaxed max-w-2xl mx-auto">
+                            <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed max-w-2xl mx-auto">
                               Manage your travel bookings with AI-powered efficiency and streamlined workflows
                             </p>
                           </div>
@@ -182,7 +182,7 @@ const App: React.FC = () => {
                       </div>
 
                       {/* Stats Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-10">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-8 sm:mb-10">
                         <StatCard
                           title="Total Revenue"
                           value={`$${stats.totalRevenue.toLocaleString()}`}
@@ -259,18 +259,18 @@ const App: React.FC = () => {
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                         {/* Recent Activity */}
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                          <div className="border-b border-gray-100 pb-4 mb-6">
-                            <h2 className="text-xl font-bold text-gray-900">Recent Activity</h2>
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+                          <div className="border-b border-gray-100 pb-4 mb-4 sm:mb-6">
+                            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Recent Activity</h2>
                             <p className="text-sm text-gray-600 mt-1">Latest updates and changes</p>
                           </div>
                           <RecentActivity />
                         </div>
 
                         {/* Quick Actions */}
-                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-                          <div className="border-b border-gray-100 pb-4 mb-6">
-                            <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+                        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
+                          <div className="border-b border-gray-100 pb-4 mb-4 sm:mb-6">
+                            <h2 className="text-lg sm:text-xl font-bold text-gray-900">Quick Actions</h2>
                             <p className="text-sm text-gray-600 mt-1">Get started with common tasks</p>
                           </div>
                           <div className="grid grid-cols-1 gap-4">

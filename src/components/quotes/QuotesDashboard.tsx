@@ -86,17 +86,17 @@ export function QuotesDashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
-        <div className="flex justify-between items-center">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Quotes</h1>
-            <p className="text-gray-600 text-lg">Manage and track your travel quotes</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Quotes</h1>
+            <p className="text-gray-600 text-base sm:text-lg">Manage and track your travel quotes</p>
           </div>
           <Link
             to="/quotes/new"
-            className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-semibold rounded-xl shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl"
+            className="inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent text-sm font-semibold rounded-xl shadow-lg text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl"
           >
             <Plus className="h-5 w-5 mr-2" />
             Create New Quote
@@ -105,55 +105,55 @@ export function QuotesDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 group">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center">
-            <div className="bg-gray-100 text-gray-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
-              <FileText className="w-6 h-6" />
+            <div className="bg-gray-100 text-gray-600 p-2 sm:p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="ml-4 flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Quotes</p>
-              <p className="text-2xl font-bold text-gray-900 tracking-tight">{stats.total}</p>
+            <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Total Quotes</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900 tracking-tight">{stats.total}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-amber-200/50 transition-all duration-300 hover:-translate-y-1 group">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 hover:shadow-lg hover:shadow-amber-200/50 transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center">
-            <div className="bg-amber-100 text-amber-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
-              <FileText className="w-6 h-6" />
+            <div className="bg-amber-100 text-amber-600 p-2 sm:p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="ml-4 flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">Draft</p>
-              <p className="text-2xl font-bold text-amber-600 tracking-tight">{stats.draft}</p>
+            <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Draft</p>
+              <p className="text-lg sm:text-2xl font-bold text-amber-600 tracking-tight">{stats.draft}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300 hover:-translate-y-1 group">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 hover:shadow-lg hover:shadow-blue-200/50 transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center">
-            <div className="bg-blue-100 text-blue-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
-              <Mail className="w-6 h-6" />
+            <div className="bg-blue-100 text-blue-600 p-2 sm:p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <Mail className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="ml-4 flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">Sent</p>
-              <p className="text-2xl font-bold text-blue-600 tracking-tight">{stats.sent}</p>
+            <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Sent</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600 tracking-tight">{stats.sent}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-green-200/50 transition-all duration-300 hover:-translate-y-1 group">
+        <div className="bg-white rounded-xl border border-gray-100 p-4 sm:p-6 hover:shadow-lg hover:shadow-green-200/50 transition-all duration-300 hover:-translate-y-1 group">
           <div className="flex items-center">
-            <div className="bg-green-100 text-green-600 p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
-              <Calendar className="w-6 h-6" />
+            <div className="bg-green-100 text-green-600 p-2 sm:p-3 rounded-xl shadow-sm group-hover:shadow-md transition-shadow duration-300">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <div className="ml-4 flex-1">
-              <p className="text-sm font-medium text-gray-600 mb-1">Converted</p>
-              <p className="text-2xl font-bold text-green-600 tracking-tight">{stats.converted}</p>
+            <div className="ml-3 sm:ml-4 flex-1 min-w-0">
+              <p className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Converted</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600 tracking-tight">{stats.converted}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
           <div className="flex-1 max-w-md">
             <div className="relative">
@@ -162,7 +162,7 @@ export function QuotesDashboard() {
               </div>
               <input
                 type="text"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 text-sm sm:text-base"
                 placeholder="Search quotes..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -172,7 +172,7 @@ export function QuotesDashboard() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="block w-full sm:w-48 pl-3 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl transition-all duration-200"
+            className="block w-full sm:w-48 pl-3 pr-10 py-3 text-sm sm:text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl transition-all duration-200"
           >
             <option value="all">All Status</option>
             <option value="Draft">Draft</option>

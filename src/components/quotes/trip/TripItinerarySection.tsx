@@ -186,15 +186,15 @@ export function TripItinerarySection({
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">Trip Itinerary</h2>
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold">Trip Itinerary</h2>
         <p className="text-sm text-gray-600 mt-1">Drag and drop items between days or add new items to each day</p>
       </div>
 
       {/* Calendar-Kanban Grid */}
       {days.length > 0 ? (
-        <div className="flex gap-4 overflow-x-auto pb-4" style={{ minWidth: 'fit-content' }}>
-          <div className="flex gap-4" style={{ minWidth: `${days.length * 320}px` }}>
+        <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4" style={{ minWidth: 'fit-content' }}>
+          <div className="flex gap-3 sm:gap-4">
             {days.map((day, index) => {
               // Create date in local timezone to avoid timezone offset issues
               const dayDate = new Date(trip.startDate + 'T00:00:00');
@@ -208,20 +208,19 @@ export function TripItinerarySection({
               return (
                 <div 
                   key={day.id} 
-                  className={`bg-white rounded-lg shadow-sm border border-gray-200 min-h-[600px] flex flex-col flex-shrink-0 transition-all duration-200 ${
+                  className={`bg-white rounded-lg shadow-sm border border-gray-200 min-h-[500px] sm:min-h-[600px] flex flex-col flex-shrink-0 transition-all duration-200 w-64 sm:w-72 lg:w-80 ${
                     dragOverDay === day.id ? 'border-indigo-400 bg-indigo-50 shadow-lg' : ''
                   }`}
-                  style={{ width: '300px' }}
                   onDragOver={(e) => handleDragOver(e, day.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, day.id)}
                 >
                   {/* Day Header */}
-                  <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
+                  <div className="p-3 sm:p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{day.name}</h3>
-                        <p className="text-sm text-gray-600">{formattedDate}</p>
+                        <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{day.name}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600">{formattedDate}</p>
                       </div>
                       <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full">
                         {day.items.length} items
@@ -235,9 +234,9 @@ export function TripItinerarySection({
                           const newMenuState = showAddItemMenu === day.id ? null : day.id;
                           onAddItemMenuToggle(newMenuState);
                         }}
-                        className="add-item-button w-full flex items-center justify-center px-3 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-md hover:shadow-lg"
+                        className="add-item-button w-full flex items-center justify-center px-2 sm:px-3 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-md hover:shadow-lg"
                       >
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         Add Item
                       </button>
                       

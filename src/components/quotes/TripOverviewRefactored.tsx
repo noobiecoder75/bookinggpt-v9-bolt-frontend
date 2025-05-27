@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { FlightSearchModal } from './FlightSearchModal';
 import { HotelSearchModal } from './trip/HotelSearchModal';
 import { ActivitySearchModal } from './trip/ActivitySearchModal';
-import { Calendar, Plus, Loader, AlertCircle } from 'lucide-react';
+import { Calendar, Plus, Loader, AlertCircle, Menu, X } from 'lucide-react';
 import { getAgentMarkupSettings, getMarkupForItemType, AgentMarkupSettings } from '../../utils/markupUtils';
+import { Navbar } from '../Navbar';
 
 // Import the new components
 import { TripHeader } from './trip/TripHeader';
@@ -33,12 +34,13 @@ import {
 
 export function TripOverviewRefactored() {
   const navigate = useNavigate();
-  const { tripId } = useParams();
+  const { tripId } = useParams<{ tripId: string }>();
   const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState('overview');
   const [isEditingName, setIsEditingName] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Get URL parameters
   const customerId = searchParams.get('customer');
@@ -877,119 +879,149 @@ export function TripOverviewRefactored() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Left Sidebar */}
-      <TripSidebar 
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-      />
+    <>
+      <Navbar />
+      <div className="flex min-h-screen bg-gray-50" style={{ minHeight: 'calc(100vh - 4rem)' }}>
+        {/* Mobile Sidebar Backdrop */}
+        {isMobileSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        )}
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header Bar */}
-        <TripHeader
-          trip={trip}
-          isEditingName={isEditingName}
-          setIsEditingName={setIsEditingName}
-          onTripUpdate={handleTripUpdate}
-          onTripDatesUpdate={updateTripDates}
-          activeSection={activeSection}
-        />
+        {/* Left Sidebar */}
+        <div className={`${
+          isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+          <TripSidebar 
+            activeSection={activeSection}
+            onSectionChange={(section) => {
+              setActiveSection(section);
+              setIsMobileSidebarOpen(false);
+            }}
+          />
+        </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex">
-          <div className="flex-1 p-6 space-y-6">
-            {activeSection === 'overview' && (
-              <TripOverviewSection
-                bookings={bookings}
-                upcomingActivity={upcomingActivity}
-                pastActivity={pastActivity}
-                onCreateItinerary={handleCreateItinerary}
-              />
-            )}
-
-            {activeSection === 'itinerary' && (
-              <TripItinerarySection
-                trip={trip}
-                days={days}
-                showAddItemMenu={showAddItemMenu}
-                onTripDatesUpdate={updateTripDates}
-                onAddItemMenuToggle={setShowAddItemMenu}
-                onAddFlight={handleAddFlight}
-                onAddHotel={handleAddHotel}
-                onAddTransfer={handleAddTransfer}
-                onAddActivity={handleAddActivity}
-                onAddCustomItem={handleAddCustomItem}
-                onRemoveItem={handleRemoveItem}
-                onMoveItem={handleMoveItem}
-                calculateTotalPrice={calculateTotalPrice}
-                onRemoveLinkedFlights={handleRemoveLinkedFlights}
-              />
-            )}
-
-            {/* Other sections */}
-            {activeSection !== 'overview' && activeSection !== 'itinerary' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-                </h3>
-                <p className="text-gray-500">This section is coming soon...</p>
-              </div>
-            )}
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile Header with Menu Button */}
+          <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900 truncate">{trip.name}</h1>
+            <div className="w-10" /> {/* Spacer for centering */}
           </div>
 
-          {/* Right Sidebar - Hidden for Itinerary View */}
-          {activeSection !== 'itinerary' && (
-            <TripRightSidebar
-              trip={trip}
-              travelers={travelers}
-              itineraryOptions={itineraryOptions}
-              onTripUpdate={handleTripUpdate}
-              onCreateItinerary={handleCreateItinerary}
-              onEditItinerary={handleEditItinerary}
-            />
-          )}
+          {/* Header Bar */}
+          <TripHeader
+            trip={trip}
+            isEditingName={isEditingName}
+            setIsEditingName={setIsEditingName}
+            onTripUpdate={handleTripUpdate}
+            onTripDatesUpdate={updateTripDates}
+            activeSection={activeSection}
+          />
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
+              {activeSection === 'overview' && (
+                <TripOverviewSection
+                  bookings={bookings}
+                  upcomingActivity={upcomingActivity}
+                  pastActivity={pastActivity}
+                  onCreateItinerary={handleCreateItinerary}
+                />
+              )}
+
+              {activeSection === 'itinerary' && (
+                <TripItinerarySection
+                  trip={trip}
+                  days={days}
+                  showAddItemMenu={showAddItemMenu}
+                  onTripDatesUpdate={updateTripDates}
+                  onAddItemMenuToggle={setShowAddItemMenu}
+                  onAddFlight={handleAddFlight}
+                  onAddHotel={handleAddHotel}
+                  onAddTransfer={handleAddTransfer}
+                  onAddActivity={handleAddActivity}
+                  onAddCustomItem={handleAddCustomItem}
+                  onRemoveItem={handleRemoveItem}
+                  onMoveItem={handleMoveItem}
+                  calculateTotalPrice={calculateTotalPrice}
+                  onRemoveLinkedFlights={handleRemoveLinkedFlights}
+                />
+              )}
+
+              {/* Other sections */}
+              {activeSection !== 'overview' && activeSection !== 'itinerary' && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+                  </h3>
+                  <p className="text-gray-500">This section is coming soon...</p>
+                </div>
+              )}
+            </div>
+
+            {/* Right Sidebar - Hidden for Itinerary View */}
+            {activeSection !== 'itinerary' && (
+              <TripRightSidebar
+                trip={trip}
+                travelers={travelers}
+                itineraryOptions={itineraryOptions}
+                onTripUpdate={handleTripUpdate}
+                onCreateItinerary={handleCreateItinerary}
+                onEditItinerary={handleEditItinerary}
+              />
+            )}
+          </div>
         </div>
+
+        {/* Modals */}
+        {showFlightSearch && (
+          <FlightSearchModal
+            isOpen={showFlightSearch}
+            onClose={() => {
+              setShowFlightSearch(false);
+              setSelectedDay(null);
+            }}
+            onFlightSelect={handleFlightSelect}
+          />
+        )}
+
+        {showHotelSearch && (
+          <HotelSearchModal
+            isOpen={showHotelSearch}
+            onClose={() => {
+              setShowHotelSearch(false);
+              setSelectedDay(null);
+            }}
+            onHotelSelect={handleHotelSelect}
+            destination={travelRequirements.destination || 'Destination'}
+            checkInDate={trip.startDate}
+            checkOutDate={trip.endDate}
+            guests={travelRequirements.adults + travelRequirements.children + travelRequirements.seniors}
+          />
+        )}
+
+        {showActivitySearch && selectedDay && (
+          <ActivitySearchModal
+            isOpen={showActivitySearch}
+            onClose={() => {
+              setShowActivitySearch(false);
+              setSelectedDay(null);
+            }}
+            onActivitySelect={handleActivitySelect}
+            selectedDay={selectedDay}
+          />
+        )}
       </div>
-
-      {/* Modals */}
-      {showFlightSearch && (
-        <FlightSearchModal
-          isOpen={showFlightSearch}
-          onClose={() => {
-            setShowFlightSearch(false);
-            setSelectedDay(null);
-          }}
-          onFlightSelect={handleFlightSelect}
-        />
-      )}
-
-      {showHotelSearch && (
-        <HotelSearchModal
-          isOpen={showHotelSearch}
-          onClose={() => {
-            setShowHotelSearch(false);
-            setSelectedDay(null);
-          }}
-          onHotelSelect={handleHotelSelect}
-          destination={travelRequirements.destination || 'Destination'}
-          checkInDate={trip.startDate}
-          checkOutDate={trip.endDate}
-          guests={travelRequirements.adults + travelRequirements.children + travelRequirements.seniors}
-        />
-      )}
-
-      {showActivitySearch && selectedDay && (
-        <ActivitySearchModal
-          isOpen={showActivitySearch}
-          onClose={() => {
-            setShowActivitySearch(false);
-            setSelectedDay(null);
-          }}
-          onActivitySelect={handleActivitySelect}
-          selectedDay={selectedDay}
-        />
-      )}
-    </div>
+    </>
   );
 }
