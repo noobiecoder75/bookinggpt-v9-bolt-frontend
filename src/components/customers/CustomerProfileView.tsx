@@ -18,16 +18,16 @@ interface StatCardProps {
 function StatCard({ title, value, icon, color, subtitle }: StatCardProps) {
   return (
     <div className="bg-white overflow-hidden shadow-lg rounded-xl hover:shadow-xl transition-shadow duration-300">
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="flex items-center">
-          <div className={`flex-shrink-0 rounded-lg p-3 bg-gradient-to-br ${color} shadow-lg`}>
-            {icon}
+          <div className={`flex-shrink-0 rounded-lg p-2 sm:p-3 bg-gradient-to-br ${color} shadow-lg`}>
+            {React.cloneElement(icon as React.ReactElement, { className: 'h-5 w-5 sm:h-6 sm:w-6 text-white' })}
           </div>
-          <div className="ml-5 w-0 flex-1">
+          <div className="ml-3 sm:ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-gray-500 truncate mb-1">{title}</dt>
-              <dd className="text-xl font-bold text-gray-900">{value}</dd>
-              <dd className="text-sm text-gray-500 mt-1">{subtitle}</dd>
+              <dt className="text-xs sm:text-sm font-medium text-gray-500 truncate mb-1">{title}</dt>
+              <dd className="text-lg sm:text-xl font-bold text-gray-900">{value}</dd>
+              <dd className="text-xs sm:text-sm text-gray-500 mt-1">{subtitle}</dd>
             </dl>
           </div>
         </div>
@@ -234,22 +234,22 @@ export function CustomerProfileView() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex justify-between items-start">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-4 sm:space-y-0">
           <div className="flex items-center">
-            <div className="h-16 w-16 rounded-full bg-indigo-100 flex items-center justify-center">
-              <span className="text-2xl font-medium text-indigo-600">
+            <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-indigo-100 flex items-center justify-center">
+              <span className="text-lg sm:text-2xl font-medium text-indigo-600">
                 {customer.first_name[0]}
                 {customer.last_name[0]}
               </span>
             </div>
-            <div className="ml-4">
-              <h1 className="text-3xl font-bold text-gray-900">
+            <div className="ml-3 sm:ml-4">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
                 {customer.first_name} {customer.last_name}
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-xs sm:text-sm text-gray-500">
                 Customer since {new Date(customer.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -257,7 +257,7 @@ export function CustomerProfileView() {
           <div className="flex space-x-4">
             <button
               onClick={() => navigate(`/quotes/new?customer=${customer.id}`)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
             >
               Create Quote
             </button>
@@ -266,8 +266,8 @@ export function CustomerProfileView() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-8">
-        <nav className="-mb-px flex space-x-8">
+      <div className="border-b border-gray-200 mb-6 sm:mb-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           {[
             { id: 'overview', name: 'Overview & Timeline' },
             { id: 'quotes', name: 'Quotes' },
@@ -278,7 +278,7 @@ export function CustomerProfileView() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`
-                whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+                whitespace-nowrap py-3 sm:py-4 px-1 border-b-2 font-medium text-sm
                 ${activeTab === tab.id
                   ? 'border-indigo-500 text-indigo-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
@@ -291,11 +291,11 @@ export function CustomerProfileView() {
       </div>
 
       {/* Content */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {activeTab === 'overview' && (
           <>
             {/* Statistics Cards */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 sm:gap-6 mb-4 sm:mb-6">
               <StatCard
                 title="Total Quotes Value"
                 value={`$${quotes.reduce((total, quote) => total + quote.total_price, 0).toLocaleString()}`}
@@ -331,13 +331,13 @@ export function CustomerProfileView() {
             </div>
 
             {/* Existing grid with customer info and timeline */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Customer Information Card */}
-              <div className="col-span-1">
+              <div className="lg:col-span-1">
                 <div className="bg-white shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-lg font-medium text-gray-900">Customer Information</h2>
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 space-y-2 sm:space-y-0">
+                      <h2 className="text-base sm:text-lg font-medium text-gray-900">Customer Information</h2>
                       {!isEditing ? (
                         <button
                           onClick={() => setIsEditing(true)}
@@ -460,7 +460,7 @@ export function CustomerProfileView() {
               </div>
 
               {/* Timeline Card */}
-              <div className="col-span-2">
+              <div className="lg:col-span-2">
                 <div className="bg-white shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
                     <h2 className="text-lg font-medium text-gray-900 mb-6">Activity Timeline</h2>

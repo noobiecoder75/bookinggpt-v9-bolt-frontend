@@ -17,19 +17,21 @@ export function AnalyticsDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="space-y-8">
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
-            <p className="text-gray-600 text-lg">Insights and performance metrics</p>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Analytics Dashboard</h1>
+            <p className="text-gray-600 text-base sm:text-lg">Insights and performance metrics</p>
           </div>
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <div className="w-full sm:w-auto">
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+          </div>
         </div>
       </div>
 
       {error && (
-        <div className="bg-white rounded-2xl shadow-lg border border-red-200 p-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-red-200 p-4 sm:p-6">
           <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -45,15 +47,15 @@ export function AnalyticsDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         <AgentPerformance dateRange={dateRange} />
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <RevenueBreakdown dateRange={dateRange} />
           <ConversionFunnel dateRange={dateRange} />
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           <TopProducts dateRange={dateRange} />
           <DestinationAnalysis dateRange={dateRange} />
         </div>
