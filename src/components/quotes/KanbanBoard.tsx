@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 interface KanbanQuote {
   id: number;
   quote_reference: string;
-  status: 'Draft' | 'Sent' | 'Expired' | 'Converted';
+  status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   total_price: number;
   created_at: string;
   customer: {
@@ -34,6 +34,7 @@ const STAGES = [
   { key: 'Draft', label: 'Draft', description: 'Quotes being prepared' },
   { key: 'Sent', label: 'Sent', description: 'Quotes sent to customers' },
   { key: 'Converted', label: 'Converted', description: 'Quotes converted to bookings' },
+  { key: 'Published', label: 'Published', description: 'Quotes published publicly' },
   { key: 'Expired', label: 'Expired', description: 'Expired quotes' },
 ];
 
@@ -43,7 +44,7 @@ function getKanbanStage(status: string): string {
 }
 
 // Map Kanban stage back to quote status for database updates
-function getQuoteStatus(stage: string): 'Draft' | 'Sent' | 'Expired' | 'Converted' {
+function getQuoteStatus(stage: string): 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published' {
   switch (stage) {
     case 'Draft':
       return 'Draft';
@@ -51,6 +52,8 @@ function getQuoteStatus(stage: string): 'Draft' | 'Sent' | 'Expired' | 'Converte
       return 'Sent';
     case 'Converted':
       return 'Converted';
+    case 'Published':
+      return 'Published';
     case 'Expired':
       return 'Expired';
     default:
@@ -119,6 +122,8 @@ export const KanbanBoard: React.FC<{
         return 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200';
       case 'Converted':
         return 'bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200';
+      case 'Published':
+        return 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200';
       case 'Expired':
         return 'bg-gradient-to-br from-red-50 to-red-100 border-red-200';
       default:
@@ -134,6 +139,8 @@ export const KanbanBoard: React.FC<{
         return 'text-blue-700';
       case 'Converted':
         return 'text-emerald-700';
+      case 'Published':
+        return 'text-yellow-700';
       case 'Expired':
         return 'text-red-700';
       default:
@@ -149,6 +156,8 @@ export const KanbanBoard: React.FC<{
         return 'bg-blue-500';
       case 'Converted':
         return 'bg-emerald-500';
+      case 'Published':
+        return 'bg-yellow-500';
       case 'Expired':
         return 'bg-red-500';
       default:
@@ -246,6 +255,7 @@ export const KanbanBoard: React.FC<{
                                 quote.status === 'Draft' ? 'bg-gray-100 text-gray-800' :
                                 quote.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
                                 quote.status === 'Converted' ? 'bg-green-100 text-green-800' :
+                                quote.status === 'Published' ? 'bg-yellow-100 text-yellow-800' :
                                 'bg-red-100 text-red-800'
                               }`}>
                                 {quote.status}

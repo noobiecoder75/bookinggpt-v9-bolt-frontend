@@ -182,9 +182,17 @@
             document.getElementById('quote-date').textContent = 
                 `Created on ${new Date(quote.created_at).toLocaleDateString()}`;
 
-            // Total price
-            document.getElementById('total-price').textContent = 
-                `$${quote.total_price.toLocaleString()}`;
+            // Total price - calculate from items if total_price is not set
+            let totalPrice = quote.total_price || 0;
+            if (!quote.total_price && quote.quote_items.length > 0) {
+                totalPrice = quote.quote_items.reduce((sum, item) => {
+                    const itemMarkup = item.markup_type === 'percentage' 
+                        ? item.cost * (item.markup / 100)
+                        : item.markup || 0;
+                    return sum + (item.cost + itemMarkup) * (item.quantity || 1);
+                }, 0);
+            }
+            document.getElementById('total-price').textContent = `$${totalPrice.toLocaleString()}`;
 
             // Status badge
             const statusElement = document.getElementById('quote-status');
@@ -201,16 +209,22 @@
             `;
 
             // Trip overview
-            document.getElementById('route').textContent = `${quote.origin} → ${quote.destination}`;
+            const origin = quote.origin || 'Origin';
+            const destination = quote.destination || 'Destination';
+            document.getElementById('route').textContent = `${origin} → ${destination}`;
             
             const travelers = quote.quote_items[0]?.details?.travelers;
             if (travelers) {
                 document.getElementById('travelers').textContent = 
                     `${travelers.adults || 0} Adults, ${travelers.children || 0} Children, ${travelers.seniors || 0} Seniors`;
+            } else {
+                document.getElementById('travelers').textContent = 'Not specified';
             }
 
-            document.getElementById('expiry-date').textContent = 
-                new Date(quote.expiry_date).toLocaleDateString();
+            // Use expiry_date if available, otherwise use a default
+            const expiryDate = quote.expiry_date ? new Date(quote.expiry_date).toLocaleDateString() : 'Not set';
+            document.getElementById('expiry-date').textContent = expiryDate;
+
             document.getElementById('activity-count').textContent = 
                 `${quote.quote_items.length} Activities`;
 
@@ -223,8 +237,15 @@
                 const typeIcons = {
                     'Flight': '✈️',
                     'Hotel': '🏨',
-                    'Tour': '🎯'
+                    'Tour': '🎯',
+                    'Transfer': '🚗'
                 };
+
+                // Calculate total cost including markup
+                const itemMarkup = item.markup_type === 'percentage' 
+                    ? item.cost * (item.markup / 100)
+                    : item.markup || 0;
+                const totalItemCost = (item.cost + itemMarkup) * (item.quantity || 1);
 
                 itemElement.innerHTML = `
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between">
@@ -243,10 +264,18 @@
                                     ${item.details?.endTime ? ` - ${new Date(item.details.endTime).toLocaleString()}` : ''}
                                 </p>
                             ` : ''}
+                            ${item.details?.checkInDate && item.details?.checkOutDate ? `
+                                <p class="text-xs text-gray-500">
+                                    Check-in: ${new Date(item.details.checkInDate).toLocaleDateString()} - 
+                                    Check-out: ${new Date(item.details.checkOutDate).toLocaleDateString()}
+                                    ${item.details.nights ? ` (${item.details.nights} nights)` : ''}
+                                </p>
+                            ` : ''}
                         </div>
                         <div class="mt-4 sm:mt-0 sm:ml-6 text-right">
-                            <div class="text-2xl font-bold text-indigo-600">$${item.cost.toFixed(2)}</div>
+                            <div class="text-2xl font-bold text-indigo-600">$${totalItemCost.toFixed(2)}</div>
                             ${item.quantity > 1 ? `<p class="text-sm text-gray-500">Quantity: ${item.quantity}</p>` : ''}
+                            ${item.markup > 0 ? `<p class="text-xs text-gray-500">Base: $${item.cost.toFixed(2)} + ${item.markup}${item.markup_type === 'percentage' ? '%' : '$'} markup</p>` : ''}
                         </div>
                     </div>
                 `;

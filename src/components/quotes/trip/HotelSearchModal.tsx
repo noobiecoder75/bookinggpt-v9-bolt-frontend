@@ -10,6 +10,13 @@ interface HotelSearchModalProps {
   checkInDate: string;
   checkOutDate: string;
   guests: number;
+  searchCriteria?: {
+    hotelName: string;
+    checkInDate: string;
+    checkOutDate: string;
+    country: string;
+    selectedDayId: string;
+  };
 }
 
 interface HotelRate {
@@ -37,7 +44,8 @@ export function HotelSearchModal({
   destination, 
   checkInDate, 
   checkOutDate, 
-  guests 
+  guests, 
+  searchCriteria 
 }: HotelSearchModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,11 +77,23 @@ export function HotelSearchModal({
     }
   };
 
-  const filteredHotels = hotels.filter(hotel =>
-    hotel.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (hotel.details?.imported_from && hotel.details.imported_from.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (hotel.details?.chain && hotel.details.chain.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredHotels = hotels.filter(hotel => {
+    // Text search filter
+    const matchesSearch = hotel.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (hotel.details?.imported_from && hotel.details.imported_from.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (hotel.details?.chain && hotel.details.chain.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Hotel name filter from search criteria
+    const matchesHotelName = !searchCriteria?.hotelName || 
+      hotel.description.toLowerCase().includes(searchCriteria.hotelName.toLowerCase());
+    
+    // Country filter from search criteria
+    const matchesCountry = !searchCriteria?.country || 
+      hotel.description.toLowerCase().includes(searchCriteria.country.toLowerCase()) ||
+      (hotel.details?.imported_from && hotel.details.imported_from.toLowerCase().includes(searchCriteria.country.toLowerCase()));
+    
+    return matchesSearch && matchesHotelName && matchesCountry;
+  });
 
   const handleHotelSelect = (hotel: HotelRate) => {
     const hotelItem = {
@@ -108,11 +128,16 @@ export function HotelSearchModal({
             <div>
               <h2 className="text-xl font-bold text-gray-900">Select Hotel</h2>
               <p className="text-sm text-gray-600 mt-1">
-                Choose from your uploaded hotel rates for {destination}
+                Choose from your uploaded hotel rates{destination && ` for ${destination}`}
               </p>
               {checkInDate && checkOutDate && (
                 <p className="text-xs text-gray-500 mt-1">
                   {new Date(checkInDate).toLocaleDateString()} - {new Date(checkOutDate).toLocaleDateString()} • {guests} guests
+                </p>
+              )}
+              {searchCriteria?.hotelName && (
+                <p className="text-xs text-green-600 mt-1">
+                  Searching for: {searchCriteria.hotelName}
                 </p>
               )}
             </div>

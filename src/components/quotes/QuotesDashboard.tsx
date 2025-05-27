@@ -6,7 +6,7 @@ import { Search, Plus, Download, Mail, Calendar, FileText } from 'lucide-react';
 interface Quote {
   id: number;
   quote_reference: string;
-  status: 'Draft' | 'Sent' | 'Expired' | 'Converted';
+  status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   total_price: number;
   markup: number; // Global/average markup
   created_at: string;
@@ -83,6 +83,7 @@ export function QuotesDashboard() {
     draft: quotes.filter(q => q.status === 'Draft').length,
     sent: quotes.filter(q => q.status === 'Sent').length,
     converted: quotes.filter(q => q.status === 'Converted').length,
+    published: quotes.filter(q => q.status === 'Published').length,
   };
 
   return (
@@ -179,6 +180,7 @@ export function QuotesDashboard() {
             <option value="Sent">Sent</option>
             <option value="Converted">Converted</option>
             <option value="Expired">Expired</option>
+            <option value="Published">Published</option>
           </select>
         </div>
       </div>
@@ -238,6 +240,8 @@ export function QuotesDashboard() {
                               ? 'bg-blue-100 text-blue-800'
                               : quote.status === 'Converted'
                               ? 'bg-green-100 text-green-800'
+                              : quote.status === 'Published'
+                              ? 'bg-emerald-100 text-emerald-800'
                               : 'bg-gray-100 text-gray-800'
                           }`}
                         >

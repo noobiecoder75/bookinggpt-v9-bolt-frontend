@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Edit3, Eye, Send, Users, Calendar, Check, X } from 'lucide-react';
+import { supabase } from '../../../lib/supabase';
 
 interface TripHeaderProps {
   trip: {
@@ -31,6 +32,7 @@ export function TripHeader({
   activeSection
 }: TripHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [editingData, setEditingData] = useState({
     name: trip.name,
     startDate: trip.startDate,
@@ -53,6 +55,7 @@ export function TripHeader({
       case 'In Progress': return 'bg-yellow-100 text-yellow-800';
       case 'Completed': return 'bg-gray-100 text-gray-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Published': return 'bg-emerald-100 text-emerald-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -93,6 +96,90 @@ export function TripHeader({
       startDate: trip.startDate,
       endDate: trip.endDate
     });
+  };
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      // Validate trip ID
+      if (!trip.id || trip.id === 'new') {
+        throw new Error('Cannot publish a trip that hasn\'t been saved yet. Please save the trip first.');
+      }
+
+      console.log('Publishing quote with ID:', trip.id);
+
+      // Check if Supabase is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY) or start your local Supabase instance.');
+      }
+
+      // Check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('Authentication error:', authError);
+        throw new Error('Authentication required. Please log in and try again.');
+      }
+      
+      if (!user) {
+        throw new Error('You must be logged in to publish a quote.');
+      }
+
+      console.log('User authenticated, updating quote status...');
+
+      const { error } = await supabase
+        .from('quotes')
+        .update({ status: 'Published' })
+        .eq('id', trip.id);
+
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
+      }
+
+      console.log('Quote published successfully');
+
+      // Update local state
+      onTripUpdate({ status: 'Published' });
+      
+      // Create the public URL
+      const publicUrl = `${window.location.origin}/quote-preview.html?id=${trip.id}`;
+      
+      // Show success message with URL
+      const message = `Quote published successfully! 
+
+Public URL: ${publicUrl}
+
+This link can be shared with anyone - no login required.`;
+      
+      if (navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(publicUrl);
+          alert(message + '\n\nURL has been copied to your clipboard!');
+        } catch (clipboardError) {
+          alert(message);
+        }
+      } else {
+        alert(message);
+      }
+      
+    } catch (error: any) {
+      console.error('Error publishing quote:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to publish quote. Please try again.';
+      
+      if (error?.message) {
+        errorMessage = `Failed to publish quote: ${error.message}`;
+      } else if (error?.code) {
+        errorMessage = `Failed to publish quote (Error code: ${error.code}). Please try again.`;
+      } else if (typeof error === 'string') {
+        errorMessage = `Failed to publish quote: ${error}`;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   return (
@@ -203,13 +290,31 @@ export function TripHeader({
         
         {!isEditing && (
           <div className="flex items-center space-x-3">
-            <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center">
+            <button 
+              onClick={() => {
+                const previewUrl = `/quote-preview.html?id=${trip.id}`;
+                window.open(previewUrl, '_blank');
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center"
+            >
               <Eye className="h-4 w-4 mr-2" />
               Preview
             </button>
-            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center">
+            <button 
+              onClick={trip.status === 'Published' ? () => {
+                const publicUrl = `${window.location.origin}/quote-preview.html?id=${trip.id}`;
+                navigator.clipboard?.writeText(publicUrl);
+                alert(`Public URL copied to clipboard!\n\n${publicUrl}`);
+              } : handlePublish}
+              disabled={isPublishing}
+              className={`px-4 py-2 rounded-lg disabled:cursor-not-allowed flex items-center ${
+                trip.status === 'Published' 
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-400'
+              }`}
+            >
               <Send className="h-4 w-4 mr-2" />
-              Publish
+              {isPublishing ? 'Publishing...' : trip.status === 'Published' ? 'Copy Link' : 'Publish'}
             </button>
           </div>
         )}

@@ -1,7 +1,7 @@
 export interface Trip {
   id: string;
   name: string;
-  status: 'Planning' | 'Confirmed' | 'In Progress' | 'Completed' | 'Cancelled';
+  status: 'Planning' | 'Confirmed' | 'In Progress' | 'Completed' | 'Cancelled' | 'Published';
   type: 'Regular Trip' | 'Group Trip' | 'Corporate Trip' | 'Luxury Trip';
   startDate: string;
   endDate: string;

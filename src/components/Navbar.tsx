@@ -51,25 +51,28 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 <NavLink to="/" icon={<Home className="w-4 h-4" />}>
                   Dashboard
                 </NavLink>
+                <NavLink to="/customers" icon={<Users className="w-4 h-4" />}>
+                  Customers
+                </NavLink>
                 <NavLink to="/quotes" icon={<FileText className="w-4 h-4" />}>
                   Quotes
                 </NavLink>
-                {/* Highlighted Create New Trip Button */}
+                {/* Highlighted Create Quote Button */}
                 <button
                   onClick={onCreateTrip}
                   className="flex items-center px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 mx-2"
                 >
-                  <PlusCircle className="w-4 h-4 mr-2" />
-                  Create New Trip
+                  <PlusCircle className="w-5 h-5 mr-2" />
+                  Quote
                 </button>
                 <NavLink to="/bookings" icon={<Calendar className="w-4 h-4" />}>
                   Bookings
                 </NavLink>
-                <NavLink to="/customers" icon={<Users className="w-4 h-4" />}>
-                  Customers
-                </NavLink>
                 <NavLink to="/analytics" icon={<PieChart className="w-4 h-4" />}>
                   Analytics
+                </NavLink>
+                <NavLink to="/settings" icon={<Settings className="w-4 h-4" />}>
+                  Settings
                 </NavLink>
               </div>
             </div>
@@ -103,19 +106,15 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 {/* User Dropdown Menu */}
                 {isUserMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">Sarah Johnson</p>
-                      <p className="text-xs text-gray-500">sarah@bookinggpt.com</p>
-                    </div>
                     <button
                       onClick={() => {
-                        navigate('/settings');
+                        navigate('/settings/profile');
                         setIsUserMenuOpen(false);
                       }}
-                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
                     >
-                      <Settings className="w-4 h-4 mr-3" />
-                      Settings
+                      <p className="text-sm font-medium text-gray-900">Sarah Johnson</p>
+                      <p className="text-xs text-gray-500">sarah@bookinggpt.com</p>
                     </button>
                     <hr className="my-1" />
                     <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -143,11 +142,14 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
               <MobileNavLink to="/" icon={<Home className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Dashboard
               </MobileNavLink>
+              <MobileNavLink to="/customers" icon={<Users className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
+                Customers
+              </MobileNavLink>
               <MobileNavLink to="/quotes" icon={<FileText className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Quotes
               </MobileNavLink>
               
-              {/* Highlighted Mobile Create New Trip Button */}
+              {/* Highlighted Mobile Create Quote Button */}
               <button
                 onClick={() => {
                   onCreateTrip?.();
@@ -155,24 +157,30 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 }}
                 className="flex items-center px-4 py-3 text-base font-semibold rounded-lg transition-all duration-200 text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-lg my-2 w-full"
               >
-                <PlusCircle className="w-5 h-5 mr-3" />
-                Create New Trip
+                <PlusCircle className="w-6 h-6 mr-3" />
+                Quote
               </button>
               
               <MobileNavLink to="/bookings" icon={<Calendar className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Bookings
               </MobileNavLink>
-              <MobileNavLink to="/customers" icon={<Users className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
-                Customers
-              </MobileNavLink>
               <MobileNavLink to="/analytics" icon={<PieChart className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Analytics
+              </MobileNavLink>
+              <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
+                Settings
               </MobileNavLink>
             </div>
             
             {/* Mobile User Info */}
             <div className="border-t border-gray-200 pt-4 pb-3">
-              <div className="flex items-center px-4">
+              <button
+                onClick={() => {
+                  navigate('/settings/profile');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="flex items-center px-4 w-full hover:bg-gray-50 transition-colors text-left"
+              >
                 <img
                   className="h-10 w-10 rounded-full ring-2 ring-indigo-600 ring-offset-2"
                   src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
@@ -183,18 +191,8 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                   <div className="text-sm text-gray-500">Travel Agent</div>
                   <div className="text-sm text-gray-500">sarah@bookinggpt.com</div>
                 </div>
-              </div>
+              </button>
               <div className="mt-3 px-2 space-y-1">
-                <button
-                  onClick={() => {
-                    navigate('/settings');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="flex items-center w-full px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-                >
-                  <Settings className="w-5 h-5 mr-3" />
-                  Settings
-                </button>
                 <button className="flex items-center w-full px-3 py-2 text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
                   Sign out
                 </button>

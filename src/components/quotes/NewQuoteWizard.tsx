@@ -101,7 +101,7 @@ interface DayPlan {
 interface QuoteDetails {
   id?: string;
   name: string;
-  status: 'Draft' | 'Sent' | 'Expired' | 'Converted';
+  status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   totalDays: number;
   markup: number;
   discount: number;
@@ -1483,6 +1483,7 @@ export function NewQuoteWizard() {
                         <option value="Sent">Sent</option>
                         <option value="Expired">Expired</option>
                         <option value="Converted">Converted</option>
+                        <option value="Published">Published</option>
                       </select>
                     </div>
                   </div>
@@ -1759,6 +1760,7 @@ export function NewQuoteWizard() {
                         <option value="Sent">Sent</option>
                         <option value="Expired">Expired</option>
                         <option value="Converted">Converted</option>
+                        <option value="Published">Published</option>
                       </select>
                 </div>
 

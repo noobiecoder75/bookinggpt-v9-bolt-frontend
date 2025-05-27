@@ -14,6 +14,7 @@ import { TripSidebar } from './trip/TripSidebar';
 import { TripOverviewSection } from './trip/TripOverviewSection';
 import { TripItinerarySection } from './trip/TripItinerarySection';
 import { TripRightSidebar } from './trip/TripRightSidebar';
+import { HotelSearchForm } from './trip/HotelSearchForm';
 
 // Import flight utilities for linked flights
 import { createFlightItems, getFlightDayIndex } from './trip/flightUtils';
@@ -65,6 +66,14 @@ export function TripOverviewRefactored() {
   const [showFlightSearch, setShowFlightSearch] = useState(false);
   const [showActivitySearch, setShowActivitySearch] = useState(false);
   const [showHotelSearch, setShowHotelSearch] = useState(false);
+  const [showHotelSearchForm, setShowHotelSearchForm] = useState(false);
+  const [hotelSearchCriteria, setHotelSearchCriteria] = useState({
+    hotelName: '',
+    checkInDate: '',
+    checkOutDate: '',
+    country: '',
+    selectedDayId: ''
+  });
   const [showTransferSearch, setShowTransferSearch] = useState(false);
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showAddItemMenu, setShowAddItemMenu] = useState<string | null>(null);
@@ -137,7 +146,7 @@ export function TripOverviewRefactored() {
           setTrip({
             id: quoteData.id,
             name: tripName ? decodeURIComponent(tripName) : `Trip for ${quoteData.customer?.first_name} ${quoteData.customer?.last_name}`,
-            status: 'Planning',
+            status: quoteData.status || 'Planning',
             type: 'Regular Trip',
             startDate,
             endDate,
@@ -437,8 +446,8 @@ export function TripOverviewRefactored() {
   };
 
   const handleAddHotel = (dayId: string) => {
-    setSelectedDay(dayId);
-    setShowHotelSearch(true);
+    setHotelSearchCriteria(prev => ({ ...prev, selectedDayId: dayId }));
+    setShowHotelSearchForm(true);
     setShowAddItemMenu(null);
   };
 
@@ -697,22 +706,43 @@ export function TripOverviewRefactored() {
   };
 
   const handleHotelSelect = async (hotel: any) => {
-    if (!selectedDay || !agentMarkupSettings) {
+    if (!hotelSearchCriteria.selectedDayId || !agentMarkupSettings || !hotelSearchCriteria.checkInDate || !hotelSearchCriteria.checkOutDate) {
       return;
     }
 
-    const dayIndex = days.findIndex(day => day.id === selectedDay);
     const markupInfo = getMarkupForItemType('Hotel', agentMarkupSettings);
+    
+    // Calculate which days the hotel stay spans
+    const checkInDate = new Date(hotelSearchCriteria.checkInDate + 'T00:00:00');
+    const checkOutDate = new Date(hotelSearchCriteria.checkOutDate + 'T00:00:00');
+    const tripStartDate = new Date(trip.startDate + 'T00:00:00');
+    
+    // Calculate day indices for the hotel stay
+    const startDayIndex = Math.max(0, Math.floor((checkInDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+    const endDayIndex = Math.min(days.length - 1, Math.floor((checkOutDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)));
+    
+    // Calculate number of nights
+    const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+    const totalCost = hotel.cost * nights;
     
     const hotelItem: ItineraryItem = {
       id: `hotel-${Date.now()}`,
       type: 'Hotel',
       name: hotel.name,
-      description: `Hotel accommodation`,
-      cost: hotel.cost,
+      description: `Hotel accommodation (${nights} nights)`,
+      startTime: hotelSearchCriteria.checkInDate,
+      endTime: hotelSearchCriteria.checkOutDate,
+      cost: totalCost,
       markup: markupInfo.markup,
       markup_type: markupInfo.markup_type,
-      details: hotel.details
+      details: {
+        ...hotel.details,
+        checkInDate: hotelSearchCriteria.checkInDate,
+        checkOutDate: hotelSearchCriteria.checkOutDate,
+        nights: nights,
+        country: hotelSearchCriteria.country,
+        hotelName: hotelSearchCriteria.hotelName
+      }
     };
 
     // Save to database
@@ -732,7 +762,10 @@ export function TripOverviewRefactored() {
           details: {
             ...hotelItem.details,
             description: hotelItem.description,
-            day_index: dayIndex,
+            startTime: hotelItem.startTime,
+            endTime: hotelItem.endTime,
+            day_index: startDayIndex,
+            span_days: endDayIndex - startDayIndex + 1,
             local_id: hotelItem.id
           }
         }])
@@ -749,13 +782,23 @@ export function TripOverviewRefactored() {
       console.error('Error saving item to database:', error);
     }
 
-    setDays(prev => prev.map(day => 
-      day.id === selectedDay
-        ? { ...day, items: [...day.items, hotelItem] }
-        : day
-    ));
+    // Add hotel to all days in the date range
+    setDays(prev => prev.map((day, index) => {
+      if (index >= startDayIndex && index <= endDayIndex) {
+        return { ...day, items: [...day.items, hotelItem] };
+      }
+      return day;
+    }));
+    
     setShowHotelSearch(false);
-    setSelectedDay(null);
+    setShowHotelSearchForm(false);
+    setHotelSearchCriteria({
+      hotelName: '',
+      checkInDate: '',
+      checkOutDate: '',
+      country: '',
+      selectedDayId: ''
+    });
   };
 
   const handleActivitySelect = async (activity: any) => {
@@ -995,18 +1038,50 @@ export function TripOverviewRefactored() {
           />
         )}
 
+        {showHotelSearchForm && (
+          <HotelSearchForm
+            isOpen={showHotelSearchForm}
+            onClose={() => {
+              setShowHotelSearchForm(false);
+              setHotelSearchCriteria({
+                hotelName: '',
+                checkInDate: '',
+                checkOutDate: '',
+                country: '',
+                selectedDayId: ''
+              });
+            }}
+            onSearch={(criteria: typeof hotelSearchCriteria) => {
+              setHotelSearchCriteria(criteria);
+              setShowHotelSearchForm(false);
+              setShowHotelSearch(true);
+            }}
+            tripStartDate={trip.startDate}
+            tripEndDate={trip.endDate}
+            initialCriteria={hotelSearchCriteria}
+          />
+        )}
+
         {showHotelSearch && (
           <HotelSearchModal
             isOpen={showHotelSearch}
             onClose={() => {
               setShowHotelSearch(false);
-              setSelectedDay(null);
+              setShowHotelSearchForm(false);
+              setHotelSearchCriteria({
+                hotelName: '',
+                checkInDate: '',
+                checkOutDate: '',
+                country: '',
+                selectedDayId: ''
+              });
             }}
             onHotelSelect={handleHotelSelect}
-            destination={travelRequirements.destination || 'Destination'}
-            checkInDate={trip.startDate}
-            checkOutDate={trip.endDate}
+            destination={hotelSearchCriteria.country || 'Destination'}
+            checkInDate={hotelSearchCriteria.checkInDate}
+            checkOutDate={hotelSearchCriteria.checkOutDate}
             guests={travelRequirements.adults + travelRequirements.children + travelRequirements.seniors}
+            searchCriteria={hotelSearchCriteria}
           />
         )}
 
