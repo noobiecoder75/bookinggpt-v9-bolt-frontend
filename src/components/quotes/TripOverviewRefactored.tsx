@@ -233,6 +233,14 @@ export function TripOverviewRefactored() {
     if (!tripId) return;
     
     try {
+      // Calculate new trip duration
+      const start = new Date(startDate + 'T00:00:00');
+      const end = new Date(endDate + 'T00:00:00');
+      const newDayCount = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      
+      // Clean up items that will be out of bounds with new dates
+      await cleanupOutOfBoundsItems(newDayCount);
+      
       await supabase
         .from('quotes')
         .update({ 
@@ -245,6 +253,42 @@ export function TripOverviewRefactored() {
       initializeDays(startDate, endDate);
     } catch (error) {
       console.error('Error updating trip dates:', error);
+    }
+  };
+
+  const cleanupOutOfBoundsItems = async (maxDayIndex: number) => {
+    if (!tripId) return;
+
+    try {
+      // Find items that will be out of bounds
+      const { data: allItems, error: fetchError } = await supabase
+        .from('quote_items')
+        .select('*')
+        .eq('quote_id', tripId);
+
+      if (fetchError) throw fetchError;
+
+      const outOfBoundsItems = allItems?.filter(item => {
+        const dayIndex = item.details?.day_index ?? 0;
+        return dayIndex < 0 || dayIndex >= maxDayIndex;
+      }) || [];
+
+      if (outOfBoundsItems.length > 0) {
+        console.log(`Cleaning up ${outOfBoundsItems.length} out-of-bounds items:`, outOfBoundsItems);
+        
+        const itemIds = outOfBoundsItems.map(item => item.id);
+        
+        const { error: deleteError } = await supabase
+          .from('quote_items')
+          .delete()
+          .in('id', itemIds);
+
+        if (deleteError) throw deleteError;
+        
+        console.log(`Successfully cleaned up ${itemIds.length} out-of-bounds items`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up out-of-bounds items:', error);
     }
   };
 
@@ -356,9 +400,18 @@ export function TripOverviewRefactored() {
       if (data && data.length > 0) {
         // Group items by day_index and populate the days
         const itemsByDay: { [key: number]: ItineraryItem[] } = {};
+        const outOfBoundsItems: any[] = [];
         
         data.forEach(dbItem => {
           const dayIndex = dbItem.details?.day_index ?? 0;
+          
+          // Check if item is within trip boundaries
+          if (dayIndex < 0 || dayIndex >= days.length) {
+            console.warn(`Item "${dbItem.item_name}" (ID: ${dbItem.id}) has day_index ${dayIndex} which is outside trip boundaries (0-${days.length - 1}). Skipping.`);
+            outOfBoundsItems.push(dbItem);
+            return;
+          }
+          
           if (!itemsByDay[dayIndex]) {
             itemsByDay[dayIndex] = [];
           }
@@ -383,10 +436,16 @@ export function TripOverviewRefactored() {
           itemsByDay[dayIndex].push(item);
         });
 
+        // Log out-of-bounds items for debugging
+        if (outOfBoundsItems.length > 0) {
+          console.warn(`Found ${outOfBoundsItems.length} out-of-bounds items:`, outOfBoundsItems);
+        }
+
         // Update days with loaded items
         setDays(prev => {
           console.log('loadItemsFromDatabase: Setting days with items from database:', {
             totalItemsLoaded: data.length,
+            outOfBoundsItemsCount: outOfBoundsItems.length,
             itemsByDay,
             currentDaysItemCounts: prev.map((d, i) => ({ day: i, currentCount: d.items.length }))
           });

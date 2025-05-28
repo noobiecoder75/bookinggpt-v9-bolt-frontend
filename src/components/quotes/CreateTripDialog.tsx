@@ -128,12 +128,9 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
           total_price: 0,
           markup: 0,
           discount: 0,
-          notes: JSON.stringify({
-            tripLength: tripLength,
-            departureDate: departureDate,
-            returnDate: returnDate,
-            description: `Trip length: ${tripLength} days`
-          }),
+          trip_start_date: departureDate,
+          trip_end_date: returnDate,
+          notes: `Trip for ${selectedCustomer.first_name} ${selectedCustomer.last_name} - ${tripLength} days`,
         }])
         .select()
         .single();
