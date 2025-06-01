@@ -705,7 +705,7 @@ export function QuotesDashboard() {
                               {quote.customer.first_name} {quote.customer.last_name}
                             </h2>
                             <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0">
-                              {/* Show quote reference only on desktop */}
+                              {/* Show quote reference only on desk*/}
                               <span className="hidden sm:inline truncate">{quote.quote_reference}</span>
                               <span className="hidden sm:inline mx-2">•</span>
                               <span className="font-medium text-green-600">
