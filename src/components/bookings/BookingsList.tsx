@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, DollarSign, User, MapPin } from 'lucide-react';
+import { Calendar, DollarSign, User, MapPin, GitBranch, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { Booking } from './BookingsDashboard';
 
 interface Props {
@@ -90,6 +91,23 @@ export function BookingsList({ bookings, loading, onBookingSelect, selectedBooki
                       {new Date(booking.travel_start_date).toLocaleDateString()} - {new Date(booking.travel_end_date).toLocaleDateString()}
                     </p>
                   </div>
+                </div>
+                <div className="mt-2 sm:mt-0 flex items-center space-x-2">
+                  <Link
+                    to={`/bookings/${booking.id}/workflow`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-full hover:bg-indigo-100 hover:text-indigo-700 transition-colors"
+                  >
+                    <GitBranch className="h-3 w-3 mr-1" />
+                    Workflow
+                  </Link>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 rounded-full hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                  >
+                    <Settings className="h-3 w-3 mr-1" />
+                    Manage
+                  </button>
                 </div>
               </div>
             </div>

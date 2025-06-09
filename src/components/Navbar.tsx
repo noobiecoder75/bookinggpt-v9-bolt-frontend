@@ -68,6 +68,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 <NavLink to="/bookings" icon={<Calendar className="w-4 h-4" />}>
                   Bookings
                 </NavLink>
+                <NavLink to="/operations" icon={<Settings className="w-4 h-4" />}>
+                  Operations
+                </NavLink>
                 <NavLink to="/analytics" icon={<PieChart className="w-4 h-4" />}>
                   Analytics
                 </NavLink>
@@ -163,6 +166,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
               
               <MobileNavLink to="/bookings" icon={<Calendar className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Bookings
+              </MobileNavLink>
+              <MobileNavLink to="/operations" icon={<Settings className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
+                Operations
               </MobileNavLink>
               <MobileNavLink to="/analytics" icon={<PieChart className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Analytics

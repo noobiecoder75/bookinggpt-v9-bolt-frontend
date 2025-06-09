@@ -11,6 +11,8 @@ import { CustomerProfileView } from './components/customers/CustomerProfileView'
 import { QuotesDashboard } from './components/quotes/QuotesDashboard';
 import { QuoteView } from './components/quotes/QuoteView';
 import { BookingsDashboard } from './components/bookings/BookingsDashboard';
+import { BookingWorkflowDashboard } from './components/workflow/BookingWorkflowDashboard';
+import { OperationsDashboard } from './components/operations/OperationsDashboard';
 import { RecentActivity } from './components/RecentActivity';
 import { DollarSign, Users, FileText, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -321,6 +323,8 @@ const App: React.FC = () => {
                 <Route path="/quotes/new" element={<NewQuoteWizard />} />
                 <Route path="/quotes/:id" element={<QuoteView />} />
                 <Route path="/bookings" element={<BookingsDashboard />} />
+                <Route path="/bookings/:bookingId/workflow" element={<BookingWorkflowDashboard />} />
+                <Route path="/operations" element={<OperationsDashboard />} />
                 <Route path="/customers" element={<CustomerDashboard />} />
                 <Route path="/customers/:id" element={<CustomerProfileView />} />
                 <Route path="/analytics" element={<AnalyticsDashboard />} />
