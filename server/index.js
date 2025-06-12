@@ -13,6 +13,7 @@ import cors from 'cors';
 import ratesRouter from './routes/rates.js';
 import hotelbedsRouter from './routes/hotelbeds.js';
 import bookingsRouter from './routes/bookings.js';
+import reconfirmationService from './services/reconfirmationService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,6 +45,14 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
+// Reconfirmation service status endpoint
+app.get('/api/reconfirmation/status', (req, res) => {
+  res.json({
+    status: 'OK',
+    service: reconfirmationService.getStatus()
+  });
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Server error:', error);
@@ -56,4 +65,7 @@ app.use((error, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API available at http://localhost:${PORT}/api`);
+  
+  // Start the reconfirmation service
+  reconfirmationService.start();
 }); 

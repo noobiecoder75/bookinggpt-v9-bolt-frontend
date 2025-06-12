@@ -78,7 +78,8 @@ export function TripOverviewRefactored() {
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
   const [showAddItemMenu, setShowAddItemMenu] = useState<string | null>(null);
   const [agentMarkupSettings, setAgentMarkupSettings] = useState<AgentMarkupSettings | null>(null);
-  const [itemsLoaded, setItemsLoaded] = useState(false);
+  const [itemsLoadingState, setItemsLoadingState] = useState<'idle' | 'loading' | 'loaded'>('idle');
+  const isLoadingRef = useRef(false);
 
   const [trip, setTrip] = useState<Trip>({
     id: tripId || 'new',
@@ -399,6 +400,10 @@ export function TripOverviewRefactored() {
   const loadItemsFromDatabase = async () => {
     if (!tripId) return;
 
+    console.log('=== loadItemsFromDatabase called ===');
+    console.log('Trip ID:', tripId);
+    console.log('Current days length:', days.length);
+
     try {
       const { data, error } = await supabase
         .from('quote_items')
@@ -408,6 +413,8 @@ export function TripOverviewRefactored() {
 
       if (error) throw error;
 
+      console.log('Database items loaded:', data?.length || 0);
+
       if (data && data.length > 0) {
         // Group items by day_index and populate the days
         const itemsByDay: { [key: number]: ItineraryItem[] } = {};
@@ -415,6 +422,8 @@ export function TripOverviewRefactored() {
         
         data.forEach(dbItem => {
           const dayIndex = dbItem.details?.day_index ?? 0;
+          const spanDays = dbItem.details?.span_days ?? 1;
+          const isMultiDayHotel = dbItem.item_type === 'Hotel' && spanDays > 1;
           
           // Check if item is within trip boundaries
           if (dayIndex < 0 || dayIndex >= days.length) {
@@ -423,10 +432,6 @@ export function TripOverviewRefactored() {
             return;
           }
           
-          if (!itemsByDay[dayIndex]) {
-            itemsByDay[dayIndex] = [];
-          }
-
           const item: ItineraryItem = {
             id: dbItem.id.toString(),
             type: dbItem.item_type as 'Flight' | 'Hotel' | 'Tour' | 'Transfer',
@@ -437,14 +442,42 @@ export function TripOverviewRefactored() {
             cost: dbItem.cost,
             markup: dbItem.markup || 0,
             markup_type: dbItem.markup_type || 'percentage',
-            details: dbItem.details || {},
+            details: {
+              ...dbItem.details,
+              // Ensure multi-day hotel properties are preserved
+              numberOfNights: dbItem.details?.nights || dbItem.details?.numberOfNights,
+              checkInDate: dbItem.details?.checkInDate,
+              checkOutDate: dbItem.details?.checkOutDate,
+              spanDays: spanDays
+            },
             // Include linked flight properties
             linkedItemId: dbItem.details?.linkedItemId,
             isReturnFlight: dbItem.details?.isReturnFlight,
             flightDirection: dbItem.details?.flightDirection
           };
 
-          itemsByDay[dayIndex].push(item);
+          // For multi-day hotels, add to all days in the span
+          if (isMultiDayHotel) {
+            const endDayIndex = Math.min(dayIndex + spanDays - 1, days.length - 1);
+            console.log(`Multi-day hotel "${dbItem.item_name}" (ID: ${dbItem.id}) spans from day ${dayIndex} to day ${endDayIndex} (${spanDays} days)`);
+            console.log(`Days array length: ${days.length}, calculated endDayIndex: ${endDayIndex}`);
+            
+            for (let i = dayIndex; i <= endDayIndex; i++) {
+              if (!itemsByDay[i]) {
+                itemsByDay[i] = [];
+              }
+              // Use the same item for all days (React will handle rendering)
+              console.log(`Adding hotel to day ${i}, item ID: ${item.id}`);
+              itemsByDay[i].push(item);
+            }
+          } else {
+            // Regular items go to their assigned day
+            if (!itemsByDay[dayIndex]) {
+              itemsByDay[dayIndex] = [];
+            }
+            console.log(`Adding regular item "${dbItem.item_name}" to day ${dayIndex}`);
+            itemsByDay[dayIndex].push(item);
+          }
         });
 
         // Log out-of-bounds items for debugging
@@ -454,10 +487,18 @@ export function TripOverviewRefactored() {
 
         // Update days with loaded items
         setDays(prev => {
+          // Check if items are already loaded (prevent duplicates)
+          const hasExistingItems = prev.some(day => day.items.length > 0);
+          if (hasExistingItems) {
+            console.warn('Days already have items, skipping load to prevent duplicates');
+            return prev;
+          }
+          
           console.log('loadItemsFromDatabase: Setting days with items from database:', {
             totalItemsLoaded: data.length,
             outOfBoundsItemsCount: outOfBoundsItems.length,
-            itemsByDay,
+            itemsByDayKeys: Object.keys(itemsByDay),
+            itemsByDayItemCounts: Object.entries(itemsByDay).map(([day, items]) => ({ day, count: items.length })),
             currentDaysItemCounts: prev.map((d, i) => ({ day: i, currentCount: d.items.length }))
           });
           
@@ -474,13 +515,33 @@ export function TripOverviewRefactored() {
 
   // Load items from database when days are initialized
   useEffect(() => {
-    if (days.length > 0 && tripId && !itemsLoaded) {
-      console.log('Loading items from database for trip:', tripId);
-      loadItemsFromDatabase().then(() => {
-        setItemsLoaded(true);
+    if (days.length > 0 && tripId && !isLoadingRef.current && itemsLoadingState !== 'loaded') {
+      console.log('=== useEffect triggered ===');
+      console.log('Loading items from database for trip:', tripId, 'Days length:', days.length);
+      
+      // Set ref immediately to prevent multiple calls
+      isLoadingRef.current = true;
+      setItemsLoadingState('loading');
+      
+      loadItemsFromDatabase()
+        .then(() => {
+          setItemsLoadingState('loaded');
+          isLoadingRef.current = false;
+        })
+        .catch((error) => {
+          console.error('Error loading items:', error);
+          setItemsLoadingState('idle');
+          isLoadingRef.current = false;
+        });
+    } else {
+      console.log('=== useEffect skipped ===', { 
+        daysLength: days.length, 
+        tripId: !!tripId, 
+        isLoading: isLoadingRef.current,
+        itemsLoadingState 
       });
     }
-  }, [days.length, tripId, itemsLoaded]);
+  }, [days.length, tripId]); // Don't include loading state in dependencies
 
   // Load agent markup settings
   useEffect(() => {

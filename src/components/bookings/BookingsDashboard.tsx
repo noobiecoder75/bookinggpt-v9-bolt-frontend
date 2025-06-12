@@ -4,6 +4,7 @@ import { Search, Filter, Calendar, DollarSign, CreditCard, FileText, Mail, X } f
 import { BookingsList } from './BookingsList';
 import { BookingStats } from './BookingStats';
 import { BookingDetails } from './BookingDetails';
+import { BookingConfirmationView } from './BookingConfirmationView';
 
 export type BookingStatus = 'Confirmed' | 'Cancelled' | 'Completed' | 'Pending' | 'Processing' | 'Failed';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -50,9 +51,10 @@ export function BookingsDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [showDetailedView, setShowDetailedView] = useState(false);
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0],
+    end: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -114,6 +116,21 @@ export function BookingsDashboard() {
       booking.customer.email.toLowerCase().includes(searchString)
     );
   });
+
+  function handleBookingSelect(booking: Booking | null) {
+    setSelectedBooking(booking);
+    // Show detailed view for paid, completed, or confirmed bookings
+    if (booking && (booking.payment_status === 'Paid' || booking.status === 'Completed' || booking.status === 'Confirmed')) {
+      setShowDetailedView(true);
+    } else {
+      setShowDetailedView(false);
+    }
+  }
+
+  function handleCloseDetailedView() {
+    setShowDetailedView(false);
+    setSelectedBooking(null);
+  }
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -182,16 +199,16 @@ export function BookingsDashboard() {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        <div className={`transition-all ${selectedBooking ? 'lg:w-2/3' : 'w-full'}`}>
+        <div className={`transition-all ${selectedBooking && !showDetailedView ? 'lg:w-2/3' : 'w-full'}`}>
           <BookingsList
             bookings={filteredBookings}
             loading={loading}
-            onBookingSelect={setSelectedBooking}
+            onBookingSelect={handleBookingSelect}
             selectedBookingId={selectedBooking?.id}
           />
         </div>
 
-        {selectedBooking && (
+        {selectedBooking && !showDetailedView && (
           <div className="lg:w-1/3 lg:min-w-[400px]">
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden lg:sticky lg:top-6">
               <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100">
@@ -208,6 +225,15 @@ export function BookingsDashboard() {
           </div>
         )}
       </div>
+
+      {/* Detailed Confirmation View for Paid/Completed Bookings */}
+      {selectedBooking && showDetailedView && (
+        <BookingConfirmationView
+          booking={selectedBooking}
+          onClose={handleCloseDetailedView}
+          onUpdate={fetchBookings}
+        />
+      )}
     </div>
   );
 }

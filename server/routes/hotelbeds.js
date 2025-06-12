@@ -1,5 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
+import { supabase } from '../lib/supabase.js';
 
 const router = express.Router();
 
@@ -444,6 +445,166 @@ router.get('/destinations', async (req, res) => {
     res.status(500).json({
       error: error.message || 'Failed to fetch destinations',
       source: 'hotelbeds'
+    });
+  }
+});
+
+// Webhook endpoint to receive Hotelbeds reconfirmation numbers
+router.post('/reconfirmation-webhook', async (req, res) => {
+  try {
+    console.log('=== Hotelbeds Reconfirmation Webhook ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('Request headers:', req.headers);
+
+    const { booking, reconfirmation } = req.body;
+
+    if (!booking || !reconfirmation) {
+      console.error('Missing required fields in webhook payload');
+      return res.status(400).json({
+        error: 'Missing required fields: booking and reconfirmation'
+      });
+    }
+
+    // Find the booking confirmation by Hotelbeds booking reference
+    const { data: confirmations, error: findError } = await supabase
+      .from('booking_confirmations')
+      .select('*')
+      .eq('provider', 'hotelbeds')
+      .eq('provider_booking_id', booking.reference);
+
+    if (findError) {
+      console.error('Error finding booking confirmation:', findError);
+      return res.status(500).json({
+        error: 'Database error while finding booking confirmation'
+      });
+    }
+
+    if (!confirmations || confirmations.length === 0) {
+      console.warn(`No booking confirmation found for Hotelbeds reference: ${booking.reference}`);
+      return res.status(404).json({
+        error: 'Booking confirmation not found',
+        reference: booking.reference
+      });
+    }
+
+    const confirmation = confirmations[0];
+
+    // Update the booking confirmation with hotel reconfirmation details
+    const updatedBookingDetails = {
+      ...confirmation.booking_details,
+      hotel_reconfirmation_number: reconfirmation.confirmationNumber,
+      hotel_reconfirmation_received_at: new Date().toISOString(),
+      hotel_status: reconfirmation.status,
+      hotel_voucher_url: reconfirmation.voucherUrl,
+      reconfirmation_details: reconfirmation
+    };
+
+    const { error: updateError } = await supabase
+      .from('booking_confirmations')
+      .update({
+        booking_details: updatedBookingDetails,
+        confirmed_at: new Date().toISOString(),
+        status: reconfirmation.status === 'CONFIRMED' ? 'confirmed' : 'pending'
+      })
+      .eq('id', confirmation.id);
+
+    if (updateError) {
+      console.error('Error updating booking confirmation:', updateError);
+      return res.status(500).json({
+        error: 'Database error while updating booking confirmation'
+      });
+    }
+
+    console.log(`Successfully updated booking confirmation ${confirmation.id} with hotel reconfirmation`);
+
+    // Optionally, trigger notifications or other workflows here
+    // await notifyCustomerOfReconfirmation(confirmation.booking_id, reconfirmation);
+
+    res.json({
+      success: true,
+      message: 'Reconfirmation processed successfully',
+      confirmationId: confirmation.id,
+      hotelReconfirmationNumber: reconfirmation.confirmationNumber
+    });
+
+  } catch (error) {
+    console.error('Hotelbeds reconfirmation webhook error:', error);
+    res.status(500).json({
+      error: 'Internal server error processing reconfirmation',
+      details: error.message
+    });
+  }
+});
+
+// Get reconfirmation status for a booking
+router.get('/reconfirmation/:bookingReference', async (req, res) => {
+  try {
+    const { bookingReference } = req.params;
+
+    // Check if we have the necessary Hotelbeds credentials
+    if (!HOTELBEDS_API_KEY || !HOTELBEDS_SECRET) {
+      return res.status(500).json({
+        error: 'Hotelbeds API credentials not configured'
+      });
+    }
+
+    // Generate signature
+    const timestamp = Math.floor(Date.now() / 1000);
+    const stringToSign = HOTELBEDS_API_KEY + HOTELBEDS_SECRET + timestamp;
+    const signature = crypto.createHash('sha256').update(stringToSign).digest('hex');
+
+    console.log(`Fetching reconfirmation for booking: ${bookingReference}`);
+
+    const response = await fetch(`${HOTELBEDS_BASE_URL}/hotel-api/1.0/bookings/${bookingReference}`, {
+      method: 'GET',
+      headers: {
+        'Api-key': HOTELBEDS_API_KEY,
+        'X-Signature': signature,
+        'Accept': 'application/json'
+      }
+    });
+
+    const responseText = await response.text();
+    
+    if (!response.ok) {
+      console.error('Hotelbeds reconfirmation API error:', response.status, responseText);
+      return res.status(response.status).json({
+        error: `Hotelbeds API error: ${response.status}`,
+        details: responseText
+      });
+    }
+
+    let bookingData;
+    try {
+      bookingData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Hotelbeds response as JSON:', parseError);
+      return res.status(500).json({
+        error: 'Invalid JSON response from Hotelbeds API'
+      });
+    }
+
+    // Extract reconfirmation information
+    const reconfirmationInfo = {
+      bookingReference: bookingData.booking?.reference,
+      status: bookingData.booking?.status,
+      hotelConfirmationNumber: bookingData.booking?.hotel?.confirmationNumber,
+      creationDate: bookingData.booking?.creationDate,
+      modificationDate: bookingData.booking?.modificationDate,
+      hotel: bookingData.booking?.hotel
+    };
+
+    res.json({
+      success: true,
+      reconfirmation: reconfirmationInfo,
+      fullResponse: bookingData
+    });
+
+  } catch (error) {
+    console.error('Reconfirmation fetch error:', error);
+    res.status(500).json({
+      error: error.message,
+      message: 'Failed to fetch reconfirmation status'
     });
   }
 });

@@ -233,7 +233,7 @@ async function processHotelBooking(booking, quoteItem, customer) {
           surname: customer.last_name
         }]
       }],
-      clientReference: `BOOKING-${booking.id}-${Date.now()}`
+      clientReference: `BK${booking.id}-${Date.now().toString().slice(-8)}`
     };
 
     console.log('Hotelbeds booking request:', {
@@ -581,33 +581,183 @@ router.get('/test', (req, res) => {
 });
 
 /**
+ * Debug endpoint to list all bookings
+ * GET /api/bookings/debug-list
+ */
+router.get('/debug-list', async (req, res) => {
+  try {
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('id, booking_reference, status, created_at, customer_id')
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      return res.status(500).json({
+        error: 'Failed to fetch bookings',
+        details: error.message
+      });
+    }
+
+    res.json({
+      count: bookings?.length || 0,
+      bookings: bookings || []
+    });
+
+  } catch (error) {
+    console.error('Error listing bookings:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * Debug endpoint to check booking confirmations
+ * GET /api/bookings/debug-confirmations/:bookingId
+ */
+router.get('/debug-confirmations/:bookingId', async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    
+    console.log('Debugging confirmations for booking ID:', bookingId);
+
+    // First, check if the booking exists
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError || !booking) {
+      return res.status(404).json({
+        error: 'Booking not found',
+        bookingId,
+        details: bookingError?.message
+      });
+    }
+
+    // Then, fetch all confirmations for this booking
+    const { data: confirmations, error: confirmationsError } = await supabase
+      .from('booking_confirmations')
+      .select('*')
+      .eq('booking_id', bookingId);
+
+    // Also check if there are any confirmations with string booking_id
+    const { data: confirmationsString, error: confirmationsStringError } = await supabase
+      .from('booking_confirmations')
+      .select('*')
+      .eq('booking_id', bookingId.toString());
+
+    // Get all booking confirmations to see what's in the table
+    const { data: allConfirmations, error: allError } = await supabase
+      .from('booking_confirmations')
+      .select('id, booking_id, provider, status, created_at')
+      .limit(10)
+      .order('created_at', { ascending: false });
+
+    res.json({
+      booking: {
+        id: booking.id,
+        booking_reference: booking.booking_reference,
+        status: booking.status,
+        created_at: booking.created_at
+      },
+      confirmations: {
+        count: confirmations?.length || 0,
+        data: confirmations || []
+      },
+      confirmationsStringCheck: {
+        count: confirmationsString?.length || 0,
+        data: confirmationsString || []
+      },
+      recentConfirmations: {
+        count: allConfirmations?.length || 0,
+        data: allConfirmations || []
+      },
+      debug: {
+        bookingIdType: typeof bookingId,
+        bookingIdValue: bookingId,
+        bookingTableIdType: typeof booking.id,
+        bookingTableIdValue: booking.id
+      }
+    });
+
+  } catch (error) {
+    console.error('Error debugging confirmations:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Get booking details with confirmations
  * GET /api/bookings/:id
  */
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('Fetching booking details for ID:', id);
 
+    // First, get the basic booking data
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        customer:customers (*),
-        booking_items (*),
-        booking_confirmations (*),
-        payments (*)
-      `)
+      .select('*')
       .eq('id', id)
       .single();
 
-    if (bookingError || !booking) {
+    if (bookingError) {
+      console.error('Booking query error:', bookingError);
       return res.status(404).json({
         error: 'Booking not found',
-        details: bookingError?.message
+        details: bookingError.message
       });
     }
 
-    res.json({ booking });
+    if (!booking) {
+      return res.status(404).json({
+        error: 'Booking not found'
+      });
+    }
+
+    console.log('Booking found:', booking.booking_reference);
+
+    // Fetch related data separately to avoid complex join issues
+    const [
+      { data: customer, error: customerError },
+      { data: booking_items, error: itemsError },
+      { data: booking_confirmations, error: confirmationsError },
+      { data: payments, error: paymentsError }
+    ] = await Promise.all([
+      supabase.from('customers').select('*').eq('id', booking.customer_id).single(),
+      supabase.from('booking_items').select('*').eq('booking_id', booking.id),
+      supabase.from('booking_confirmations').select('*').eq('booking_id', booking.id),
+      supabase.from('payments').select('*').eq('booking_id', booking.id)
+    ]);
+
+    // Log any errors but don't fail the request
+    if (customerError) console.error('Customer query error:', customerError);
+    if (itemsError) console.error('Items query error:', itemsError);
+    if (confirmationsError) console.error('Confirmations query error:', confirmationsError);
+    if (paymentsError) console.error('Payments query error:', paymentsError);
+
+    // Construct the response with available data
+    const response = {
+      booking: {
+        ...booking,
+        customer: customer || null,
+        booking_items: booking_items || [],
+        booking_confirmations: booking_confirmations || [],
+        payments: payments || []
+      }
+    };
+
+    console.log('Returning booking data with confirmations:', booking_confirmations?.length || 0);
+    res.json(response);
+
   } catch (error) {
     console.error('Error fetching booking:', error);
     res.status(500).json({
@@ -657,7 +807,7 @@ router.post('/test-hotelbeds', async (req, res) => {
           surname: customerInfo?.last_name || 'Customer'
         }]
       }],
-      clientReference: `TEST-${Date.now()}`
+      clientReference: `TEST-${Date.now().toString().slice(-10)}`
     };
 
     console.log('Testing Hotelbeds booking with:', testBookingRequest);

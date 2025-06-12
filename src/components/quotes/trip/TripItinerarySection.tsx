@@ -137,7 +137,11 @@ export function TripItinerarySection({
 
   // Helper function to check if an item is a multi-day hotel (shouldn't be moved)
   const isMultiDayHotel = (item: ItineraryItem): boolean => {
-    return item.type === 'Hotel' && item.details?.numberOfNights > 1;
+    return item.type === 'Hotel' && (
+      (item.details?.numberOfNights && item.details.numberOfNights > 1) ||
+      (item.details?.nights && item.details.nights > 1) ||
+      (item.details?.spanDays && item.details.spanDays > 1)
+    );
   };
 
   // Helper function to get flight direction display
@@ -408,9 +412,9 @@ export function TripItinerarySection({
                             </div>
                             <h4 className="font-medium text-sm text-gray-900 mb-1">
                               {item.name}{getFlightDirectionDisplay(item)}
-                              {item.type === 'Hotel' && item.details?.numberOfNights > 1 && (
+                              {item.type === 'Hotel' && isMultiDayHotel(item) && (
                                 <span className="text-xs text-purple-600 ml-2">
-                                  (Check-in: {item.details.numberOfNights} nights)
+                                  (Check-in: {item.details?.numberOfNights || item.details?.nights || item.details?.spanDays} nights)
                                 </span>
                               )}
                             </h4>
@@ -435,16 +439,16 @@ export function TripItinerarySection({
                               {item.type === 'Hotel' ? (
                                 // Special handling for hotel pricing
                                 <>
-                                  {item.details?.numberOfNights > 1 ? (
+                                  {isMultiDayHotel(item) ? (
                                     <>
                                       <p className="text-xs text-gray-600">
-                                        ${item.details.perNightCost?.toFixed(2) || (item.cost / item.details.numberOfNights).toFixed(2)} per night
+                                        ${item.details?.perNightCost?.toFixed(2) || (item.cost / (item.details?.numberOfNights || item.details?.nights || item.details?.spanDays || 1)).toFixed(2)} per night
                                       </p>
                                       <p className="text-sm font-medium text-gray-900">
                                         ${item.cost.toFixed(2)} total
                                       </p>
                                       <p className="text-xs text-gray-500">
-                                        {item.details.numberOfNights} {item.details.numberOfNights === 1 ? 'night' : 'nights'}
+                                        {item.details?.numberOfNights || item.details?.nights || item.details?.spanDays} {(item.details?.numberOfNights || item.details?.nights || item.details?.spanDays) === 1 ? 'night' : 'nights'}
                                       </p>
                                     </>
                                   ) : (
@@ -483,7 +487,7 @@ export function TripItinerarySection({
                                 isPartOfReturnFlight(item) 
                                   ? 'Remove both flight segments' 
                                   : isMultiDayHotel(item)
-                                  ? `Remove ${item.details?.numberOfNights}-night hotel stay`
+                                  ? `Remove ${item.details?.numberOfNights || item.details?.nights || item.details?.spanDays}-night hotel stay`
                                   : 'Remove item'
                               }
                             >

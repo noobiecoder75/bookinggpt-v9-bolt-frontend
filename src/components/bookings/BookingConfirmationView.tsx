@@ -1,0 +1,790 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { 
+  Calendar, 
+  DollarSign, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  CreditCard, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  AlertCircle, 
+  FileText, 
+  Building,
+  Plane,
+  Edit,
+  Save,
+  X,
+  Download,
+  Send,
+  MessageSquare,
+  User,
+  Briefcase
+} from 'lucide-react';
+import type { Booking, BookingConfirmation } from './BookingsDashboard';
+import { BookingWorkflowTracker } from '../workflow/BookingWorkflowTracker';
+import type { BookingWorkflowState } from '../../types/booking';
+
+interface Props {
+  booking: Booking;
+  onClose: () => void;
+  onUpdate: () => void;
+}
+
+interface BookingItem {
+  id: number;
+  booking_id: number;
+  item_type: string;
+  item_name: string;
+  cost: number;
+  quantity: number;
+  details: any;
+  created_at: string;
+}
+
+interface Payment {
+  id: number;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  transaction_reference: string;
+}
+
+export function BookingConfirmationView({ booking, onClose, onUpdate }: Props) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [items, setItems] = useState<BookingItem[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [workflowStates, setWorkflowStates] = useState<BookingWorkflowState[]>([]);
+  const [bookingConfirmations, setBookingConfirmations] = useState<BookingConfirmation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedBooking, setEditedBooking] = useState(booking);
+
+  useEffect(() => {
+    fetchAllDetails();
+  }, [booking.id]);
+
+  async function fetchAllDetails() {
+    try {
+      console.log('Fetching details for booking ID:', booking.id);
+      
+      let confirmationData: BookingConfirmation[] = [];
+      
+      try {
+        // Try API endpoint first to bypass RLS
+        console.log('Attempting to fetch confirmations via API...');
+        const confirmationResponse = await fetch(`/api/bookings/${booking.id}`);
+        
+        if (!confirmationResponse.ok) {
+          console.warn(`API response not OK: ${confirmationResponse.status} ${confirmationResponse.statusText}`);
+          throw new Error(`API returned ${confirmationResponse.status}`);
+        }
+        
+        const responseText = await confirmationResponse.text();
+        console.log('Raw API response:', responseText.substring(0, 200) + '...');
+        
+        let confirmationResult;
+        try {
+          confirmationResult = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse API response as JSON:', parseError);
+          console.error('Response text:', responseText);
+          throw new Error('Invalid JSON response from API');
+        }
+        
+        console.log('Parsed API confirmation result:', confirmationResult);
+        confirmationData = confirmationResult.booking?.booking_confirmations || [];
+        console.log('Confirmation data from API:', confirmationData);
+        console.log('Number of confirmations from API:', confirmationData.length);
+        
+      } catch (apiError) {
+        console.warn('API fetch failed, falling back to direct Supabase query:', apiError);
+        
+        // Fallback to direct Supabase query
+        try {
+          const { data: directConfirmations, error: confirmationError } = await supabase
+            .from('booking_confirmations')
+            .select('*')
+            .eq('booking_id', booking.id)
+            .order('created_at', { ascending: false });
+          
+          if (confirmationError) {
+            console.error('Supabase confirmation query error:', confirmationError);
+          } else {
+            confirmationData = directConfirmations || [];
+            console.log('Confirmation data from direct Supabase query:', confirmationData);
+            console.log('Number of confirmations from Supabase:', confirmationData.length);
+          }
+        } catch (supabaseError) {
+          console.error('Direct Supabase query also failed:', supabaseError);
+        }
+      }
+      
+      // Fetch other data in parallel
+      const [
+        { data: bookingItems, error: itemsError }, 
+        { data: paymentRecords, error: paymentsError },
+        { data: workflowData, error: workflowError }
+      ] = await Promise.all([
+        supabase
+          .from('booking_items')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('payments')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .order('payment_date', { ascending: false }),
+        supabase
+          .from('booking_workflow_states')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: true })
+      ]);
+
+      if (itemsError) console.error('Items error:', itemsError);
+      if (paymentsError) console.error('Payments error:', paymentsError);
+      if (workflowError) console.error('Workflow error:', workflowError);
+
+      if (bookingItems) setItems(bookingItems);
+      if (paymentRecords) setPayments(paymentRecords);
+      if (workflowData) setWorkflowStates(workflowData);
+      setBookingConfirmations(confirmationData);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      // Set empty arrays as fallback
+      setItems([]);
+      setPayments([]);
+      setWorkflowStates([]);
+      setBookingConfirmations([]);
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveChanges() {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          travel_start_date: editedBooking.travel_start_date,
+          travel_end_date: editedBooking.travel_end_date,
+          status: editedBooking.status
+        })
+        .eq('id', booking.id);
+
+      if (!error) {
+        setIsEditing(false);
+        await fetchAllDetails(); // Refresh all data including confirmations
+        onUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating booking:', error);
+    }
+  }
+
+  async function handleResendConfirmation(confirmationId: string) {
+    // Implementation for resending confirmation emails
+    console.log('Resending confirmation:', confirmationId);
+  }
+
+  async function handleDownloadDocument(confirmationId: string) {
+    // Implementation for downloading confirmation documents
+    console.log('Downloading document:', confirmationId);
+  }
+
+  async function handleCheckReconfirmation(providerBookingId: string) {
+    try {
+      console.log('Checking reconfirmation for:', providerBookingId);
+      
+      const response = await fetch(`/api/hotelbeds/reconfirmation/${providerBookingId}`);
+      const data = await response.json();
+      
+      if (data.success && data.reconfirmation.hotelConfirmationNumber) {
+        // Refresh both the booking data and local confirmations
+        await fetchAllDetails();
+        onUpdate();
+        alert(`Hotel confirmation number received: ${data.reconfirmation.hotelConfirmationNumber}`);
+      } else {
+        alert('Hotel reconfirmation not yet available. Please try again later.');
+      }
+    } catch (error) {
+      console.error('Error checking reconfirmation:', error);
+      alert('Error checking reconfirmation status. Please try again.');
+    }
+  }
+
+  function getStatusColor(status: string) {
+    switch (status) {
+      case 'confirmed':
+      case 'Confirmed':
+      case 'Completed':
+        return 'bg-green-100 text-green-800';
+      case 'failed':
+      case 'Failed':
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800';
+      case 'pending':
+      case 'Pending':
+      case 'Processing':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  }
+
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: <Briefcase className="h-4 w-4" /> },
+    { id: 'confirmations', label: 'Confirmations', icon: <FileText className="h-4 w-4" /> },
+    { id: 'items', label: 'Booking Items', icon: <Building className="h-4 w-4" /> },
+    { id: 'payments', label: 'Payments', icon: <CreditCard className="h-4 w-4" /> },
+    { id: 'workflow', label: 'Workflow', icon: <CheckCircle className="h-4 w-4" /> },
+    { id: 'communication', label: 'Communication', icon: <MessageSquare className="h-4 w-4" /> }
+  ];
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-10 mx-auto p-5 max-w-7xl">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-5">
+            <div className="flex justify-between items-start">
+              <div>
+                <h2 className="text-2xl font-bold text-white mb-1">
+                  Booking {booking.booking_reference}
+                </h2>
+                <div className="flex items-center gap-4 text-indigo-100">
+                  <span className="flex items-center gap-1">
+                    <User className="h-4 w-4" />
+                    {booking.customer.first_name} {booking.customer.last_name}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    {new Date(booking.travel_start_date).toLocaleDateString()} - {new Date(booking.travel_end_date).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isEditing ? (
+                  <>
+                    <button
+                      onClick={handleSaveChanges}
+                      className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all"
+                    >
+                      <Save className="h-5 w-5 text-white" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditedBooking(booking);
+                      }}
+                      className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all"
+                    >
+                      <X className="h-5 w-5 text-white" />
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all"
+                  >
+                    <Edit className="h-5 w-5 text-white" />
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="p-2 bg-white bg-opacity-20 hover:bg-opacity-30 rounded-lg transition-all"
+                >
+                  <X className="h-5 w-5 text-white" />
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+                {booking.status}
+              </span>
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.payment_status)}`}>
+                Payment: {booking.payment_status}
+              </span>
+              <span className="text-white text-sm">
+                Total: ${booking.total_price.toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200 bg-gray-50">
+            <nav className="flex -mb-px overflow-x-auto">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                    ${activeTab === tab.id
+                      ? 'border-indigo-600 text-indigo-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }
+                  `}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Tab Content */}
+          <div className="p-6 max-h-[70vh] overflow-y-auto">
+            {activeTab === 'overview' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                  {/* Customer Details */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Details</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <User className="h-5 w-5 text-gray-400 mr-3" />
+                        <span className="text-gray-900">
+                          {booking.customer.first_name} {booking.customer.last_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <Mail className="h-5 w-5 text-gray-400 mr-3" />
+                        <a href={`mailto:${booking.customer.email}`} className="text-indigo-600 hover:text-indigo-800">
+                          {booking.customer.email}
+                        </a>
+                      </div>
+                      <div className="flex items-center">
+                        <Phone className="h-5 w-5 text-gray-400 mr-3" />
+                        <a href={`tel:${booking.customer.phone}`} className="text-indigo-600 hover:text-indigo-800">
+                          {booking.customer.phone}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trip Details */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Trip Details</h3>
+                    {isEditing ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            value={editedBooking.travel_start_date}
+                            onChange={(e) => setEditedBooking({
+                              ...editedBooking,
+                              travel_start_date: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            End Date
+                          </label>
+                          <input
+                            type="date"
+                            value={editedBooking.travel_end_date}
+                            onChange={(e) => setEditedBooking({
+                              ...editedBooking,
+                              travel_end_date: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Status
+                          </label>
+                          <select
+                            value={editedBooking.status}
+                            onChange={(e) => setEditedBooking({
+                              ...editedBooking,
+                              status: e.target.value as any
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                          >
+                            <option value="Pending">Pending</option>
+                            <option value="Processing">Processing</option>
+                            <option value="Confirmed">Confirmed</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Failed">Failed</option>
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center">
+                          <Calendar className="h-5 w-5 text-gray-400 mr-3" />
+                          <span className="text-gray-900">
+                            {new Date(booking.travel_start_date).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })} - {new Date(booking.travel_end_date).toLocaleDateString('en-US', {
+                              weekday: 'long',
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <Clock className="h-5 w-5 text-gray-400 mr-3" />
+                          <span className="text-gray-900">
+                            {Math.ceil((new Date(booking.travel_end_date).getTime() - new Date(booking.travel_start_date).getTime()) / (1000 * 60 * 60 * 24))} nights
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Payment Summary */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Summary</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Total Amount</span>
+                        <span className="font-semibold text-gray-900">
+                          ${booking.total_price.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Amount Paid</span>
+                        <span className="font-semibold text-green-600">
+                          ${booking.amount_paid.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="pt-3 border-t border-gray-200">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Balance Due</span>
+                          <span className="font-semibold text-gray-900">
+                            ${(booking.total_price - booking.amount_paid).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <Send className="h-4 w-4" />
+                        Send Email
+                      </button>
+                      <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <Download className="h-4 w-4" />
+                        Download Invoice
+                      </button>
+                      <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <FileText className="h-4 w-4" />
+                        View Itinerary
+                      </button>
+                      <button className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                        <CreditCard className="h-4 w-4" />
+                        Process Payment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'confirmations' && (
+              <div className="space-y-4">
+                {bookingConfirmations && bookingConfirmations.length > 0 ? (
+                  bookingConfirmations.map((confirmation) => (
+                    <div key={confirmation.id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                              {confirmation.provider === 'hotelbeds' && <Building className="h-5 w-5 text-indigo-600" />}
+                              {confirmation.provider === 'amadeus' && <Plane className="h-5 w-5 text-indigo-600" />}
+                              {confirmation.provider === 'manual' && <FileText className="h-5 w-5 text-indigo-600" />}
+                              {confirmation.provider.charAt(0).toUpperCase() + confirmation.provider.slice(1)} Confirmation
+                            </h4>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Created on {new Date(confirmation.created_at).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(confirmation.status)}`}>
+                            {confirmation.status.charAt(0).toUpperCase() + confirmation.status.slice(1)}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                          {confirmation.confirmation_number && (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <p className="text-sm font-medium text-gray-500 mb-1">Hotelbeds Reference</p>
+                              <p className="font-mono text-lg text-gray-900">{confirmation.confirmation_number}</p>
+                            </div>
+                          )}
+                          {confirmation.booking_details?.hotel_reconfirmation_number && (
+                            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                              <p className="text-sm font-medium text-green-700 mb-1">Hotel Confirmation Number</p>
+                              <p className="font-mono text-lg text-green-900">{confirmation.booking_details.hotel_reconfirmation_number}</p>
+                              <p className="text-xs text-green-600 mt-1">
+                                Received: {new Date(confirmation.booking_details.hotel_reconfirmation_received_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                          {confirmation.provider_booking_id && (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <p className="text-sm font-medium text-gray-500 mb-1">Provider Booking ID</p>
+                              <p className="font-mono text-lg text-gray-900">{confirmation.provider_booking_id}</p>
+                            </div>
+                          )}
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <p className="text-sm font-medium text-gray-500 mb-1">Amount</p>
+                            <p className="text-lg font-semibold text-gray-900">
+                              {confirmation.currency} {confirmation.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          {confirmation.confirmed_at && (
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <p className="text-sm font-medium text-gray-500 mb-1">Confirmed At</p>
+                              <p className="text-lg text-gray-900">
+                                {new Date(confirmation.confirmed_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                          {confirmation.provider === 'hotelbeds' && !confirmation.booking_details?.hotel_reconfirmation_number && (
+                            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                              <p className="text-sm font-medium text-yellow-700 mb-1">Hotel Reconfirmation</p>
+                              <p className="text-sm text-yellow-600">Pending hotel confirmation number</p>
+                              <button 
+                                onClick={() => confirmation.provider_booking_id && handleCheckReconfirmation(confirmation.provider_booking_id)}
+                                className="mt-2 text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded transition-colors"
+                              >
+                                Check Status
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {confirmation.booking_details && (
+                          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <p className="text-sm font-medium text-gray-500 mb-2">Booking Details</p>
+                            <div className="space-y-2 text-sm text-gray-700">
+                              {confirmation.provider === 'hotelbeds' && (
+                                <>
+                                  {confirmation.booking_details.hotel_name && (
+                                    <p><span className="font-medium">Hotel:</span> {confirmation.booking_details.hotel_name}</p>
+                                  )}
+                                  {confirmation.booking_details.room_type && (
+                                    <p><span className="font-medium">Room Type:</span> {confirmation.booking_details.room_type}</p>
+                                  )}
+                                  {confirmation.booking_details.check_in && (
+                                    <p><span className="font-medium">Check-in:</span> {new Date(confirmation.booking_details.check_in).toLocaleDateString()}</p>
+                                  )}
+                                  {confirmation.booking_details.check_out && (
+                                    <p><span className="font-medium">Check-out:</span> {new Date(confirmation.booking_details.check_out).toLocaleDateString()}</p>
+                                  )}
+                                </>
+                              )}
+                              {confirmation.provider === 'amadeus' && (
+                                <>
+                                  {confirmation.booking_details.flight_number && (
+                                    <p><span className="font-medium">Flight:</span> {confirmation.booking_details.flight_number}</p>
+                                  )}
+                                  {confirmation.booking_details.departure && (
+                                    <p><span className="font-medium">Departure:</span> {confirmation.booking_details.departure}</p>
+                                  )}
+                                  {confirmation.booking_details.arrival && (
+                                    <p><span className="font-medium">Arrival:</span> {confirmation.booking_details.arrival}</p>
+                                  )}
+                                </>
+                              )}
+                              {confirmation.booking_details.guest_name && (
+                                <p><span className="font-medium">Guest Name:</span> {confirmation.booking_details.guest_name}</p>
+                              )}
+                              {confirmation.booking_details.special_requests && (
+                                <p><span className="font-medium">Special Requests:</span> {confirmation.booking_details.special_requests}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {confirmation.error_details && (
+                          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                            <p className="text-sm font-medium text-red-800 mb-1">Error Details</p>
+                            <p className="text-sm text-red-600">{confirmation.error_details.error}</p>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleResendConfirmation(confirmation.id)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                          >
+                            <Send className="h-4 w-4" />
+                            Resend Confirmation
+                          </button>
+                          <button
+                            onClick={() => handleDownloadDocument(confirmation.id)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <Download className="h-4 w-4" />
+                            Download Document
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No confirmations found for this booking.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'items' && (
+              <div className="space-y-4">
+                {items.length > 0 ? (
+                  items.map((item) => (
+                    <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900">{item.item_name}</h4>
+                          <p className="text-sm text-gray-500 capitalize">{item.item_type}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-gray-900">
+                            ${(item.cost * item.quantity).toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {item.quantity} × ${item.cost.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
+                        <Calendar className="h-4 w-4" />
+                        <span>Added: {new Date(item.created_at).toLocaleDateString()}</span>
+                      </div>
+                      {item.details && Object.keys(item.details).length > 0 && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-sm font-medium text-gray-700 mb-2">Additional Details</p>
+                          <div className="space-y-1 text-sm text-gray-600">
+                            {Object.entries(item.details).map(([key, value]) => (
+                              <p key={key}>
+                                <span className="font-medium">{key.replace(/_/g, ' ').charAt(0).toUpperCase() + key.replace(/_/g, ' ').slice(1)}:</span> {String(value)}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12">
+                    <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">No booking items found.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'payments' && (
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment History</h3>
+                  <div className="space-y-4">
+                    {payments.map((payment) => (
+                      <div key={payment.id} className="flex justify-between items-center pb-4 border-b border-gray-100 last:border-0">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            ${payment.amount.toLocaleString()}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {payment.payment_method} • {new Date(payment.payment_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-mono text-gray-600">
+                            {payment.transaction_reference}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-gray-200">
+                    <div className="flex justify-between mb-2">
+                      <span className="text-gray-600">Total Paid</span>
+                      <span className="font-semibold text-gray-900">
+                        ${payments.reduce((sum, p) => sum + Number(p.amount), 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Balance Due</span>
+                      <span className="font-semibold text-gray-900">
+                        ${(booking.total_price - payments.reduce((sum, p) => sum + Number(p.amount), 0)).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                  <button className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                    <CreditCard className="h-4 w-4" />
+                    Record New Payment
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'workflow' && (
+              <BookingWorkflowTracker
+                bookingId={booking.id}
+                workflowStates={workflowStates}
+              />
+            )}
+
+            {activeTab === 'communication' && (
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-lg p-6 text-center">
+                  <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500 mb-4">Communication history will be displayed here.</p>
+                  <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors mx-auto">
+                    <Send className="h-4 w-4" />
+                    Send Message to Customer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 
