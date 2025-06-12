@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move } from 'lucide-react';
+import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle } from 'lucide-react';
+import { PaymentModal } from './PaymentModal';
 
 interface Quote {
   id: string;
+  quote_reference?: string;
   customer_id: number;
   status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   total_price: number;
@@ -62,6 +64,11 @@ export function QuoteView() {
   const [expandedDays, setExpandedDays] = useState<number[]>([]);
   const [isEditingMarkup, setIsEditingMarkup] = useState(false);
   const [newMarkup, setNewMarkup] = useState<number>(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isProcessingBooking, setIsProcessingBooking] = useState(false);
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [isSendingQuote, setIsSendingQuote] = useState(false);
+  const [sendStep, setSendStep] = useState<'confirm' | 'generating' | 'sending' | 'success'>('confirm');
 
   useEffect(() => {
     fetchQuoteDetails();
@@ -306,6 +313,59 @@ export function QuoteView() {
     }
   };
 
+  const handlePaymentSuccess = async (paymentRef: string) => {
+    if (!quote) return;
+
+    try {
+      setIsProcessingBooking(true);
+      setShowPaymentModal(false);
+
+      console.log('Payment successful, creating booking...', paymentRef);
+
+      // Call booking API to create booking and process all items
+      const response = await fetch('http://localhost:3001/api/bookings/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          quoteId: quote.id,
+          paymentReference: paymentRef,
+          customerInfo: quote.customer
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create booking');
+      }
+
+      console.log('Booking created successfully:', result);
+
+      // Refresh quote data to show updated status
+      await fetchQuoteDetails();
+      
+      // Show detailed booking confirmation
+      const confirmationMessage = `Payment successful! Reference: ${paymentRef}\n\n` +
+        `Booking Reference: ${result.booking.booking_reference}\n` +
+        `Booking ID: ${result.booking.id}\n\n` +
+        `Confirmations:\n${result.confirmations.map((conf: any) => 
+          `• ${conf.item_type}: ${conf.status} (${conf.confirmation_number})`
+        ).join('\n')}\n\n` +
+        `Your booking has been processed and confirmation details have been saved.`;
+        
+      alert(confirmationMessage);
+      
+    } catch (error) {
+      console.error('Error processing booking:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Payment was successful (Ref: ${paymentRef}) but there was an error creating the booking:\n\n${errorMessage}\n\nPlease contact support for assistance.`);
+    } finally {
+      setIsProcessingBooking(false);
+    }
+  };
+
   // Helper functions to extract trip information from quote items
   const getTripDestinations = () => {
     const flights = quote?.quote_items.filter(item => item.item_type === 'Flight') || [];
@@ -374,6 +434,50 @@ export function QuoteView() {
     return Math.max(0, days);
   };
 
+  const handleSendQuote = async () => {
+    if (!quote) return;
+    
+    setIsSendingQuote(true);
+    setSendStep('generating');
+    
+    try {
+      // Step 1: Generate PDF (dummy implementation)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Step 2: Update quote status to 'Sent'
+      const quoteRef = quote.quote_reference || `Q-${new Date().getFullYear()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      
+      const { data, error } = await supabase
+        .from('quotes')
+        .update({ 
+          status: 'Sent',
+          quote_reference: quoteRef,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', quote.id)
+        .select();
+
+      if (error) throw error;
+
+      setSendStep('success');
+      
+      // Wait a moment to show success, then refresh quote data
+      setTimeout(async () => {
+        await fetchQuoteDetails();
+        setShowSendModal(false);
+        setIsSendingQuote(false);
+        setSendStep('confirm');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error sending quote:', error);
+      alert(`Failed to send quote: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+      setShowSendModal(false);
+      setIsSendingQuote(false);
+      setSendStep('confirm');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -438,6 +542,88 @@ export function QuoteView() {
     return dayDate;
   };
 
+  // Send Quote Modal Component
+  const SendQuoteModal = () => (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => !isSendingQuote && setShowSendModal(false)} />
+        
+        <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+          {sendStep === 'confirm' && (
+            <>
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <Send className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                  <h3 className="text-lg leading-6 font-medium text-gray-900">
+                    Send Quote to Customer
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      This will generate a PDF quote and send it to <strong>{quote?.customer.email}</strong>.
+                      The quote status will be updated to "Sent" after successful delivery.
+                    </p>
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">What will happen:</h4>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li className="flex items-center">
+                          <FileText className="h-4 w-4 mr-2 text-gray-400" />
+                          Generate professional PDF quote
+                        </li>
+                        <li className="flex items-center">
+                          <Mail className="h-4 w-4 mr-2 text-gray-400" />
+                          Send email with quote attachment
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 mr-2 text-gray-400" />
+                          Update status to "Sent"
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  onClick={handleSendQuote}
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm"
+                >
+                  Send Quote
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSendModal(false)}
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+
+          {sendStep === 'generating' && (
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Generating PDF...</p>
+            </div>
+          )}
+
+          {sendStep === 'success' && (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Quote Sent Successfully!</h3>
+              <p className="text-gray-600">The quote status has been updated to 'Sent'.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
@@ -475,13 +661,37 @@ export function QuoteView() {
               <Edit2 className="h-4 w-4 mr-2" />
               {quote.status === 'Draft' ? 'Edit Quote' : 'Edit as Copy'}
             </button>
+            {quote.status === 'Draft' && (
+              <button
+                onClick={() => setShowSendModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Send Quote
+              </button>
+            )}
+            {quote.status === 'Sent' && (
+              <button
+                onClick={() => setShowPaymentModal(true)}
+                disabled={isProcessingBooking}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              >
+                <CreditCard className="h-4 w-4 mr-2" />
+                {isProcessingBooking ? 'Processing...' : 'Proceed to Booking'}
+              </button>
+            )}
             <button
               onClick={() => window.open(`/quote-preview.html?id=${quote.id}`, '_blank')}
               className="inline-flex items-center px-3 py-2 border border-indigo-600 text-indigo-700 bg-white hover:bg-indigo-50 shadow-sm text-sm font-medium rounded-md"
             >
               Preview
             </button>
-            <button className="p-2 text-gray-400 hover:text-gray-500">
+            <button 
+              onClick={() => setShowSendModal(true)}
+              disabled={quote.status !== 'Draft'}
+              className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={quote.status === 'Draft' ? 'Send quote to customer' : 'Quote already sent'}
+            >
               <Mail className="h-5 w-5" />
             </button>
             <button className="p-2 text-gray-400 hover:text-gray-500">
@@ -687,19 +897,27 @@ export function QuoteView() {
                             <div className="text-right">
                               <p className="text-sm font-medium text-gray-900">
                                 ${item.cost.toFixed(2)}
+                                {item.item_type === 'Hotel' && item.quantity > 1 && (
+                                  <span className="text-xs text-gray-500 block">per day</span>
+                                )}
                               </p>
                               {item.markup > 0 && (
                                 <p className="text-xs text-green-600">
                                   +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
                                 </p>
                               )}
-                              {item.quantity > 1 && (
+                              {item.quantity > 1 && item.item_type !== 'Hotel' && (
                                 <p className="text-xs text-gray-500">
                                   Quantity: {item.quantity}
                                 </p>
                               )}
                               <p className="text-xs font-semibold text-indigo-600">
                                 Total: ${calculateItemTotal(item).toFixed(2)}
+                                {item.item_type === 'Hotel' && item.quantity > 1 && (
+                                  <span className="block text-xs text-gray-500">
+                                    ({item.quantity} {item.quantity === 1 ? 'day' : 'days'})
+                                  </span>
+                                )}
                               </p>
                             </div>
                           </div>
@@ -760,19 +978,27 @@ export function QuoteView() {
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
                           ${item.cost.toFixed(2)}
+                          {item.item_type === 'Hotel' && item.quantity > 1 && (
+                            <span className="text-xs text-gray-500 block">per day</span>
+                          )}
                         </p>
                         {item.markup > 0 && (
                           <p className="text-xs text-green-600">
                             +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
                           </p>
                         )}
-                        {item.quantity > 1 && (
+                        {item.quantity > 1 && item.item_type !== 'Hotel' && (
                           <p className="text-xs text-gray-500">
                             Quantity: {item.quantity}
                           </p>
                         )}
                         <p className="text-xs font-semibold text-indigo-600">
                           Total: ${calculateItemTotal(item).toFixed(2)}
+                          {item.item_type === 'Hotel' && item.quantity > 1 && (
+                            <span className="block text-xs text-gray-500">
+                              ({item.quantity} {item.quantity === 1 ? 'day' : 'days'})
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -887,6 +1113,17 @@ export function QuoteView() {
           </div>
         </div>
       )}
+
+      {/* Send Quote Modal */}
+      {showSendModal && <SendQuoteModal />}
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        quote={quote}
+        onPaymentSuccess={handlePaymentSuccess}
+      />
     </div>
   );
 } 

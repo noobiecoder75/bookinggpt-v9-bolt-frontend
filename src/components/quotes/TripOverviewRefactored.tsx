@@ -293,7 +293,8 @@ export function TripOverviewRefactored() {
   };
 
   const calculateTotalPrice = () => {
-    return days.reduce((total, day) => 
+    // Calculate individual items total with their markups
+    const itemsTotal = days.reduce((total, day) => 
       total + day.items.reduce((dayTotal, item) => {
         const itemMarkup = item.markup_type === 'percentage' 
           ? item.cost * (item.markup/100)
@@ -301,6 +302,16 @@ export function TripOverviewRefactored() {
         return dayTotal + (item.cost + itemMarkup);
       }, 0)
     , 0);
+    
+    // Apply global markup if any (from trip settings)
+    const globalMarkup = trip?.markup || 0;
+    const withGlobalMarkup = itemsTotal * (1 + globalMarkup/100);
+    
+    // Apply global discount if any (from trip settings)
+    const globalDiscount = trip?.discount || 0;
+    const withDiscount = withGlobalMarkup * (1 - globalDiscount/100);
+    
+    return withDiscount;
   };
 
   // Database operations for auto-saving
@@ -769,6 +780,14 @@ export function TripOverviewRefactored() {
       return;
     }
 
+    // Debug logging for hotel selection
+    console.log('=== Hotel Selection Debug ===');
+    console.log('Hotel object received:', hotel);
+    console.log('Hotel details:', hotel.details);
+    console.log('Rate key in hotel details:', hotel.details?.rateKey);
+    console.log('Booking available:', hotel.details?.bookingAvailable);
+    console.log('Source:', hotel.details?.source);
+
     const markupInfo = getMarkupForItemType('Hotel', agentMarkupSettings);
     
     // Calculate which days the hotel stay spans
@@ -780,9 +799,11 @@ export function TripOverviewRefactored() {
     const startDayIndex = Math.max(0, Math.floor((checkInDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)));
     const endDayIndex = Math.min(days.length - 1, Math.floor((checkOutDate.getTime() - tripStartDate.getTime()) / (1000 * 60 * 60 * 24)));
     
-    // Calculate number of nights
+    // Calculate number of nights and days the hotel spans
     const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
     const totalCost = hotel.cost * nights;
+    const spanDays = endDayIndex - startDayIndex + 1;
+    const costPerDay = totalCost / spanDays; // Divide total cost across the days
     
     const hotelItem: ItineraryItem = {
       id: `hotel-${Date.now()}`,
@@ -791,7 +812,7 @@ export function TripOverviewRefactored() {
       description: `Hotel accommodation (${nights} nights)`,
       startTime: hotelSearchCriteria.checkInDate,
       endTime: hotelSearchCriteria.checkOutDate,
-      cost: totalCost,
+      cost: costPerDay, // Use cost per day instead of total cost
       markup: markupInfo.markup,
       markup_type: markupInfo.markup_type,
       details: {
@@ -799,6 +820,9 @@ export function TripOverviewRefactored() {
         checkInDate: hotelSearchCriteria.checkInDate,
         checkOutDate: hotelSearchCriteria.checkOutDate,
         nights: nights,
+        totalCost: totalCost, // Store total cost in details for reference
+        costPerDay: costPerDay,
+        spanDays: spanDays,
         country: hotelSearchCriteria.country,
         hotelName: hotelSearchCriteria.hotelName
       }
@@ -807,6 +831,23 @@ export function TripOverviewRefactored() {
     // Save to database
     if (!tripId) return;
 
+    // Debug the details being saved
+    const detailsToSave = {
+      ...hotelItem.details,
+      description: hotelItem.description,
+      startTime: hotelItem.startTime,
+      endTime: hotelItem.endTime,
+      day_index: startDayIndex,
+      span_days: spanDays,
+      local_id: hotelItem.id
+    };
+
+    console.log('=== Saving Hotel to Database ===');
+    console.log('Hotel item details:', hotelItem.details);
+    console.log('Rate key in hotel item details:', hotelItem.details?.rateKey);
+    console.log('Final details being saved to DB:', detailsToSave);
+    console.log('Rate key in final details:', detailsToSave.rateKey);
+
     try {
       const { data, error } = await supabase
         .from('quote_items')
@@ -814,19 +855,11 @@ export function TripOverviewRefactored() {
           quote_id: tripId,
           item_type: hotelItem.type,
           item_name: hotelItem.name,
-          cost: hotelItem.cost,
-          quantity: 1,
+          cost: hotelItem.cost, // This is now the per-day cost
+          quantity: spanDays, // Set quantity to number of days
           markup: hotelItem.markup,
           markup_type: hotelItem.markup_type,
-          details: {
-            ...hotelItem.details,
-            description: hotelItem.description,
-            startTime: hotelItem.startTime,
-            endTime: hotelItem.endTime,
-            day_index: startDayIndex,
-            span_days: endDayIndex - startDayIndex + 1,
-            local_id: hotelItem.id
-          }
+          details: detailsToSave
         }])
         .select()
         .single();
@@ -1140,6 +1173,7 @@ export function TripOverviewRefactored() {
             checkInDate={hotelSearchCriteria.checkInDate}
             checkOutDate={hotelSearchCriteria.checkOutDate}
             guests={travelRequirements.adults + travelRequirements.children + travelRequirements.seniors}
+            quoteId={tripId}
             searchCriteria={hotelSearchCriteria}
           />
         )}

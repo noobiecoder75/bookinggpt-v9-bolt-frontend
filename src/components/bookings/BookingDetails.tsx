@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Calendar, DollarSign, Mail, Phone, MapPin, CreditCard } from 'lucide-react';
-import type { Booking } from './BookingsDashboard';
+import { Calendar, DollarSign, Mail, Phone, MapPin, CreditCard, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import type { Booking, BookingConfirmation } from './BookingsDashboard';
 
 interface BookingItem {
   id: number;
@@ -68,6 +68,32 @@ export function BookingDetails({ booking, onUpdate }: Props) {
     }
   }
 
+  function getConfirmationStatusIcon(status: string) {
+    switch (status) {
+      case 'confirmed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'pending':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <AlertCircle className="h-4 w-4 text-gray-500" />;
+    }
+  }
+
+  function getProviderDisplayName(provider: string) {
+    switch (provider) {
+      case 'hotelbeds':
+        return 'Hotelbeds';
+      case 'amadeus':
+        return 'Amadeus';
+      case 'manual':
+        return 'Manual';
+      default:
+        return provider.charAt(0).toUpperCase() + provider.slice(1);
+    }
+  }
+
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
@@ -90,6 +116,87 @@ export function BookingDetails({ booking, onUpdate }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Payment Reference */}
+      {booking.payment_reference && (
+        <div className="p-4">
+          <h4 className="text-sm font-medium text-gray-500 mb-2">Payment Reference</h4>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-sm font-mono text-gray-900">{booking.payment_reference}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Confirmations */}
+      {booking.booking_confirmations && booking.booking_confirmations.length > 0 && (
+        <div className="p-4">
+          <h4 className="text-sm font-medium text-gray-500 mb-3">Booking Confirmations</h4>
+          <div className="space-y-3">
+            {booking.booking_confirmations.map((confirmation) => (
+              <div key={confirmation.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                    {getConfirmationStatusIcon(confirmation.status)}
+                    <span className="text-sm font-medium text-gray-900">
+                      {getProviderDisplayName(confirmation.provider)}
+                    </span>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    confirmation.status === 'confirmed'
+                      ? 'bg-green-100 text-green-800'
+                      : confirmation.status === 'failed'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {confirmation.status.charAt(0).toUpperCase() + confirmation.status.slice(1)}
+                  </span>
+                </div>
+                
+                {confirmation.confirmation_number && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500">Confirmation Number</p>
+                    <p className="text-sm font-mono text-gray-900">{confirmation.confirmation_number}</p>
+                  </div>
+                )}
+                
+                {confirmation.booking_details && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-500">Details</p>
+                    <div className="text-sm text-gray-900">
+                      {confirmation.provider === 'hotelbeds' && confirmation.booking_details.hotel_name && (
+                        <p>Hotel: {confirmation.booking_details.hotel_name}</p>
+                      )}
+                      {confirmation.provider === 'amadeus' && confirmation.booking_details.flight_name && (
+                        <p>Flight: {confirmation.booking_details.flight_name}</p>
+                      )}
+                      {confirmation.provider === 'manual' && confirmation.booking_details.item_name && (
+                        <p>Item: {confirmation.booking_details.item_name}</p>
+                      )}
+                      {confirmation.booking_details.guest_name && (
+                        <p>Guest: {confirmation.booking_details.guest_name}</p>
+                      )}
+                      {confirmation.booking_details.passenger_name && (
+                        <p>Passenger: {confirmation.booking_details.passenger_name}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-between items-center text-xs text-gray-500">
+                  <span>Amount: {confirmation.currency} {confirmation.amount}</span>
+                  <span>{new Date(confirmation.created_at).toLocaleDateString()}</span>
+                </div>
+                
+                {confirmation.error_details && (
+                  <div className="mt-2 p-2 bg-red-50 rounded border border-red-200">
+                    <p className="text-xs text-red-600">Error: {confirmation.error_details.error}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Booking Items */}
       <div className="p-4">

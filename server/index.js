@@ -1,25 +1,29 @@
 import dotenv from 'dotenv';
-
-// Load environment variables FIRST before any other imports
-dotenv.config();
-
-import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import ratesRouter from './routes/rates.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load environment variables from the parent directory (project root)
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
+import express from 'express';
+import cors from 'cors';
+import ratesRouter from './routes/rates.js';
+import hotelbedsRouter from './routes/hotelbeds.js';
+import bookingsRouter from './routes/bookings.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Debug: Log environment variables to verify they're loaded
 console.log('Environment check:');
-console.log('NEXT_PUBLIC_SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL ? 'Found' : 'Missing');
-console.log('SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Found' : 'Missing');
-console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? 'Found' : 'Missing');
+console.log('VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'Found' : 'Missing');
+console.log('VITE_SUPABASE_SERVICE_ROLE_KEY:', process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ? 'Found' : 'Missing');
+console.log('VITE_OPENAI_API_KEY:', process.env.VITE_OPENAI_API_KEY ? 'Found' : 'Missing');
+console.log('VITE_HOTELBEDS_API_KEY:', process.env.VITE_HOTELBEDS_API_KEY ? 'Found' : 'Missing');
+console.log('VITE_HOTELBEDS_SECRET:', process.env.VITE_HOTELBEDS_SECRET ? 'Found' : 'Missing');
 
 // Middleware
 app.use(cors({
@@ -32,6 +36,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/rates', ratesRouter);
+app.use('/api/hotelbeds', hotelbedsRouter);
+app.use('/api/bookings', bookingsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

@@ -72,6 +72,8 @@ interface DayPlan {
 interface Trip {
   startDate: string;
   endDate: string;
+  markup?: number;
+  discount?: number;
 }
 
 interface TripItinerarySectionProps {
@@ -133,6 +135,11 @@ export function TripItinerarySection({
     return item.type === 'Flight' && (item.isReturnFlight || !!item.linkedItemId);
   };
 
+  // Helper function to check if an item is a multi-day hotel (shouldn't be moved)
+  const isMultiDayHotel = (item: ItineraryItem): boolean => {
+    return item.type === 'Hotel' && item.details?.numberOfNights > 1;
+  };
+
   // Helper function to get flight direction display
   const getFlightDirectionDisplay = (item: ItineraryItem): string => {
     if (!isPartOfReturnFlight(item)) return '';
@@ -176,6 +183,12 @@ export function TripItinerarySection({
       // Check if this is a linked flight - if so, prevent moving
       if (isPartOfReturnFlight(draggedItem.item)) {
         alert('Return flight segments cannot be moved individually. Please remove and re-add the entire return flight if needed.');
+        setDraggedItem(null);
+        return;
+      }
+      // Check if this is a multi-day hotel - if so, prevent moving
+      if (isMultiDayHotel(draggedItem.item)) {
+        alert('Multi-day hotels cannot be moved as their dates are fixed. Please remove and re-add the hotel if needed.');
         setDraggedItem(null);
         return;
       }
@@ -320,19 +333,36 @@ export function TripItinerarySection({
                         <p className="text-xs mt-1">Drag items here or use the Add Item button</p>
                       </div>
                     )}
-                    {day.items.map((item) => (
+                    {day.items.map((item) => {
+                      // Check if this hotel extends beyond this day
+                      const isHotelExtendingBeyond = item.type === 'Hotel' && 
+                        item.details?.numberOfNights > 1 && 
+                        item.details?.checkInDate;
+                      
+                      let daysRemaining = 0;
+                      if (isHotelExtendingBeyond) {
+                        const checkInDate = new Date(item.details.checkInDate);
+                        const currentDayDate = new Date(trip.startDate + 'T00:00:00');
+                        currentDayDate.setDate(currentDayDate.getDate() + index);
+                        const daysDiff = Math.floor((currentDayDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+                        daysRemaining = Math.max(0, item.details.numberOfNights - daysDiff);
+                      }
+
+                      return (
                       <div
                         key={item.id}
                         className={`bg-gray-50 rounded-lg p-3 border transition-all duration-200 ${
                           isPartOfReturnFlight(item) 
                             ? 'border-blue-300 bg-blue-50 cursor-not-allowed' 
+                            : isMultiDayHotel(item)
+                            ? 'border-purple-300 bg-purple-50 cursor-not-allowed'
                             : 'border-gray-200 cursor-move hover:border-indigo-300'
                         } hover:shadow-sm ${
                           draggedItem?.item.id === item.id ? 'opacity-50 scale-95' : ''
                         }`}
-                        draggable={!isPartOfReturnFlight(item)}
+                        draggable={!isPartOfReturnFlight(item) && !isMultiDayHotel(item)}
                         onDragStart={(e) => {
-                          if (isPartOfReturnFlight(item)) {
+                          if (isPartOfReturnFlight(item) || isMultiDayHotel(item)) {
                             e.preventDefault();
                             return;
                           }
@@ -343,12 +373,17 @@ export function TripItinerarySection({
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              {!isPartOfReturnFlight(item) && (
+                              {!isPartOfReturnFlight(item) && !isMultiDayHotel(item) && (
                                 <Move className="h-3 w-3 text-gray-400 cursor-grab" />
                               )}
                               {isPartOfReturnFlight(item) && (
                                 <div className="h-3 w-3 flex items-center justify-center">
                                   <div className="h-2 w-2 bg-blue-400 rounded-full"></div>
+                                </div>
+                              )}
+                              {isMultiDayHotel(item) && (
+                                <div className="h-3 w-3 flex items-center justify-center">
+                                  <div className="h-2 w-2 bg-purple-400 rounded-full"></div>
                                 </div>
                               )}
                               <span className={`px-2 py-1 text-xs rounded-full font-medium ${
@@ -365,14 +400,29 @@ export function TripItinerarySection({
                                   Linked
                                 </span>
                               )}
+                              {isMultiDayHotel(item) && (
+                                <span className="px-2 py-1 text-xs rounded-full font-medium bg-purple-200 text-purple-900">
+                                  Multi-day
+                                </span>
+                              )}
                             </div>
                             <h4 className="font-medium text-sm text-gray-900 mb-1">
                               {item.name}{getFlightDirectionDisplay(item)}
+                              {item.type === 'Hotel' && item.details?.numberOfNights > 1 && (
+                                <span className="text-xs text-purple-600 ml-2">
+                                  (Check-in: {item.details.numberOfNights} nights)
+                                </span>
+                              )}
                             </h4>
                             {item.description && (
                               <p className="text-xs text-gray-600 mb-1">{item.description}</p>
                             )}
-                            {(item.startTime || item.endTime) && (
+                            {item.type === 'Hotel' && item.details?.checkInDate && item.details?.checkOutDate ? (
+                              <p className="text-xs text-gray-500">
+                                Check-in: {new Date(item.details.checkInDate).toLocaleDateString()} 3:00 PM<br/>
+                                Check-out: {new Date(item.details.checkOutDate).toLocaleDateString()} 11:00 AM
+                              </p>
+                            ) : (item.startTime || item.endTime) && (
                               <p className="text-xs text-gray-500">
                                 {item.startTime && new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 {item.startTime && item.endTime && ' - '}
@@ -382,14 +432,40 @@ export function TripItinerarySection({
                           </div>
                           <div className="text-right ml-2">
                             <div className="space-y-1">
-                              <p className="text-sm font-medium text-gray-900">${item.cost.toFixed(2)}</p>
+                              {item.type === 'Hotel' ? (
+                                // Special handling for hotel pricing
+                                <>
+                                  {item.details?.numberOfNights > 1 ? (
+                                    <>
+                                      <p className="text-xs text-gray-600">
+                                        ${item.details.perNightCost?.toFixed(2) || (item.cost / item.details.numberOfNights).toFixed(2)} per night
+                                      </p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        ${item.cost.toFixed(2)} total
+                                      </p>
+                                      <p className="text-xs text-gray-500">
+                                        {item.details.numberOfNights} {item.details.numberOfNights === 1 ? 'night' : 'nights'}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="text-sm font-medium text-gray-900">
+                                      ${item.cost.toFixed(2)}
+                                    </p>
+                                  )}
+                                </>
+                              ) : (
+                                // Regular pricing for non-hotel items
+                                <p className="text-sm font-medium text-gray-900">
+                                  ${item.cost.toFixed(2)}
+                                </p>
+                              )}
                               {item.markup > 0 && (
                                 <p className="text-xs text-green-600">
                                   +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
                                 </p>
                               )}
                               <p className="text-xs font-semibold text-indigo-600">
-                                Total: ${(item.cost + (item.markup_type === 'percentage' ? item.cost * (item.markup / 100) : item.markup)).toFixed(2)}
+                                Final: ${(item.cost + (item.markup_type === 'percentage' ? item.cost * (item.markup / 100) : item.markup)).toFixed(2)}
                               </p>
                             </div>
                             <button
@@ -403,7 +479,13 @@ export function TripItinerarySection({
                                 }
                               }}
                               className="text-red-500 hover:text-red-700 text-xs mt-1 flex items-center"
-                              title={isPartOfReturnFlight(item) ? 'Remove both flight segments' : 'Remove item'}
+                              title={
+                                isPartOfReturnFlight(item) 
+                                  ? 'Remove both flight segments' 
+                                  : isMultiDayHotel(item)
+                                  ? `Remove ${item.details?.numberOfNights}-night hotel stay`
+                                  : 'Remove item'
+                              }
                             >
                               <Trash2 className="h-3 w-3 mr-1" />
                               {isPartOfReturnFlight(item) ? 'Remove Flight' : 'Remove'}
@@ -411,7 +493,8 @@ export function TripItinerarySection({
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                     {day.items.length > 0 && dragOverDay === day.id && draggedItem?.fromDayId !== day.id && (
                       <div className="border-2 border-dashed border-indigo-300 rounded-lg p-3 text-center bg-indigo-50 mt-2">
                         <p className="text-xs text-indigo-600 font-medium">Drop to add to this day</p>

@@ -76,6 +76,12 @@ export function BookingsList({ bookings, loading, onBookingSelect, selectedBooki
                         ? 'bg-green-100 text-green-800'
                         : booking.status === 'Completed'
                         ? 'bg-blue-100 text-blue-800'
+                        : booking.status === 'Processing'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : booking.status === 'Pending'
+                        ? 'bg-gray-100 text-gray-800'
+                        : booking.status === 'Failed'
+                        ? 'bg-red-100 text-red-800'
                         : 'bg-red-100 text-red-800'
                     }`}
                   >

@@ -12,15 +12,15 @@ const router = express.Router();
 // Function to create Supabase client (called when needed)
 function getSupabaseClient() {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.VITE_SUPABASE_URL,
+    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
   );
 }
 
 // Function to create OpenAI client (called when needed)
 function getOpenAIClient() {
   return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.VITE_OPENAI_API_KEY,
   });
 }
 

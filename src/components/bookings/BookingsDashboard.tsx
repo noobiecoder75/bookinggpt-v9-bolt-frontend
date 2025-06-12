@@ -5,8 +5,23 @@ import { BookingsList } from './BookingsList';
 import { BookingStats } from './BookingStats';
 import { BookingDetails } from './BookingDetails';
 
-export type BookingStatus = 'Confirmed' | 'Cancelled' | 'Completed';
+export type BookingStatus = 'Confirmed' | 'Cancelled' | 'Completed' | 'Pending' | 'Processing' | 'Failed';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
+
+export interface BookingConfirmation {
+  id: string;
+  provider: string;
+  provider_booking_id?: string;
+  confirmation_number?: string;
+  booking_reference?: string;
+  status: string;
+  booking_details?: any;
+  amount: number;
+  currency: string;
+  created_at: string;
+  confirmed_at?: string;
+  error_details?: any;
+}
 
 export interface Booking {
   id: number;
@@ -22,9 +37,11 @@ export interface Booking {
   total_price: number;
   amount_paid: number;
   payment_status: PaymentStatus;
+  payment_reference?: string;
   travel_start_date: string;
   travel_end_date: string;
   created_at: string;
+  booking_confirmations?: BookingConfirmation[];
 }
 
 export function BookingsDashboard() {
@@ -54,6 +71,20 @@ export function BookingsDashboard() {
             last_name,
             email,
             phone
+          ),
+          booking_confirmations (
+            id,
+            provider,
+            provider_booking_id,
+            confirmation_number,
+            booking_reference,
+            status,
+            booking_details,
+            amount,
+            currency,
+            created_at,
+            confirmed_at,
+            error_details
           )
         `)
         .gte('travel_start_date', dateRange.start)
@@ -120,9 +151,12 @@ export function BookingsDashboard() {
               className="block w-full sm:w-40 pl-3 pr-10 py-3 text-sm sm:text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl transition-all duration-200"
             >
               <option value="all">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Processing">Processing</option>
               <option value="Confirmed">Confirmed</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="Failed">Failed</option>
             </select>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
