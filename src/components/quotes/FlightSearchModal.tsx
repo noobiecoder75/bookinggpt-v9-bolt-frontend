@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../Modal';
 import { Plane, Search, ArrowRight, Users, Calendar, MapPin, Loader, X } from 'lucide-react';
-import { amadeus } from '../../lib/amadeus';
 
 interface FlightSearchModalProps {
   isOpen: boolean;
@@ -104,140 +103,168 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
     await searchFlights();
   };
 
+  // Debug function to test API connectivity
+  const testDuffelConnection = async () => {
+    try {
+      console.log('Testing Duffel API connection via server proxy...');
+      const response = await fetch('/api/duffel/test');
+      
+      console.log('Test response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Duffel API connection successful!', data);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Duffel API connection failed:', errorData);
+      }
+    } catch (error) {
+      console.error('❌ Network error testing Duffel API:', error);
+    }
+  };
+
   const searchFlights = async () => {
     setIsSearching(true);
     setSearchError(null);
 
     try {
-      // Debug: Check environment variables
-      console.log('Environment variables check:', {
-        hasClientId: !!import.meta.env.VITE_AMADEUS_CLIENT_ID,
-        hasClientSecret: !!import.meta.env.VITE_AMADEUS_CLIENT_SECRET,
-        clientIdLength: import.meta.env.VITE_AMADEUS_CLIENT_ID?.length || 0,
-        clientSecretLength: import.meta.env.VITE_AMADEUS_CLIENT_SECRET?.length || 0
-      });
+      console.log('Starting flight search via server proxy...');
 
-      // Validate credentials before making request
-      if (!import.meta.env.VITE_AMADEUS_CLIENT_ID || !import.meta.env.VITE_AMADEUS_CLIENT_SECRET) {
-        throw new Error('Amadeus API credentials are missing. Please check your .env file.');
+      // Validate search inputs
+      if (!requirements.origin || !requirements.destination || !requirements.departureDate) {
+        throw new Error('Please fill in all required fields (origin, destination, and departure date)');
       }
 
-      // Format dates to YYYY-MM-DD as required by Amadeus
+      // Format dates to YYYY-MM-DD as required by Duffel
       const formatDate = (date: string) => {
         const d = new Date(date);
         return d.toISOString().split('T')[0];
       };
 
-      // First, get the access token
-      console.log('Requesting access token from Amadeus...');
-      const tokenResponse = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+      // Prepare slices for Duffel API
+      const slices = requirements.isReturnFlight ? [
+        {
+          origin: requirements.origin,
+          destination: requirements.destination,
+          departure_date: formatDate(requirements.departureDate)
         },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: import.meta.env.VITE_AMADEUS_CLIENT_ID,
-          client_secret: import.meta.env.VITE_AMADEUS_CLIENT_SECRET,
-        }),
-      });
+        {
+          origin: requirements.destination,
+          destination: requirements.origin,
+          departure_date: formatDate(requirements.returnDate)
+        }
+      ] : [
+        {
+          origin: requirements.origin,
+          destination: requirements.destination,
+          departure_date: formatDate(requirements.departureDate)
+        }
+      ];
 
-      console.log('Token response status:', tokenResponse.status);
-
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json().catch(() => ({}));
-        console.error('Token request failed:', {
-          status: tokenResponse.status,
-          statusText: tokenResponse.statusText,
-          error: errorData
-        });
-        throw new Error(`Failed to obtain access token: ${tokenResponse.status} ${tokenResponse.statusText}`);
+      // Prepare passengers for Duffel API
+      const passengers = [];
+      for (let i = 0; i < requirements.adults; i++) {
+        passengers.push({ type: 'adult' });
+      }
+      for (let i = 0; i < requirements.children; i++) {
+        passengers.push({ type: 'child' });
+      }
+      for (let i = 0; i < requirements.seniors; i++) {
+        passengers.push({ type: 'adult' }); // Duffel doesn't have separate senior type
       }
 
-      const tokenData = await tokenResponse.json();
-
-      // Prepare request parameters based on flight type
+      // Prepare request body for Duffel API
       const requestBody = {
-        currencyCode: 'USD',
-        originDestinations: requirements.isReturnFlight ? [
-          {
-            id: '1',
-            originLocationCode: requirements.origin,
-            destinationLocationCode: requirements.destination,
-            departureDateTimeRange: {
-              date: formatDate(requirements.departureDate)
-            }
-          },
-          {
-            id: '2',
-            originLocationCode: requirements.destination,
-            destinationLocationCode: requirements.origin,
-            departureDateTimeRange: {
-              date: formatDate(requirements.returnDate)
-            }
-          }
-        ] : [
-          {
-            id: '1',
-            originLocationCode: requirements.origin,
-            destinationLocationCode: requirements.destination,
-            departureDateTimeRange: {
-              date: formatDate(requirements.departureDate)
-            }
-          }
-        ],
-        travelers: [
-          ...(Array(requirements.adults).fill({ id: '1', travelerType: 'ADULT' })),
-          ...(Array(requirements.children).fill({ id: '2', travelerType: 'CHILD' })),
-          ...(Array(requirements.seniors).fill({ id: '3', travelerType: 'SENIOR' }))
-        ],
-        sources: ['GDS'],
-        searchCriteria: {
-          maxFlightOffers: 50,
-          flightFilters: {
-            cabinRestrictions: [{
-              cabin: 'ECONOMY',
-              coverage: 'MOST_SEGMENTS',
-              originDestinationIds: requirements.isReturnFlight ? ['1', '2'] : ['1']
-            }]
-          }
+        data: {
+          slices,
+          passengers,
+          cabin_class: 'economy'
         }
       };
 
-      console.log('Making flight search request:', {
+      console.log('Making Duffel flight search request via server proxy:', {
         type: requirements.isReturnFlight ? 'return' : 'one-way',
+        url: '/api/duffel/offer-requests',
         body: requestBody
       });
 
-      // Make the flight search API call
-      const searchResponse = await fetch('https://test.api.amadeus.com/v2/shopping/flight-offers', {
+      // Make the flight search API call via server proxy
+      const searchResponse = await fetch('/api/duffel/offer-requests', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
       });
 
+      console.log('Duffel offer request response:', {
+        status: searchResponse.status,
+        statusText: searchResponse.statusText,
+        ok: searchResponse.ok
+      });
+
       if (!searchResponse.ok) {
-        const errorData = await searchResponse.json();
-        throw new Error(errorData.errors?.[0]?.detail || 'Failed to fetch flight offers');
+        const errorText = await searchResponse.text();
+        console.error('Duffel API Error Response:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          throw new Error(`HTTP ${searchResponse.status}: ${searchResponse.statusText} - ${errorText}`);
+        }
+        
+        throw new Error(errorData.errors?.[0]?.message || `HTTP ${searchResponse.status}: ${errorData.message || 'Failed to fetch flight offers'}`);
       }
 
       const response = await searchResponse.json();
-      console.log('Flight search response:', {
+      console.log('Duffel offer request created:', {
         status: searchResponse.status,
-        flightCount: response.data?.length || 0,
+        offerRequestId: response.data?.id,
         type: requirements.isReturnFlight ? 'return' : 'one-way'
       });
 
-      setFlightOffers(response.data || []);
+      // Now fetch the offers from the offer request via server proxy
+      console.log('Fetching offers for request ID:', response.data.id);
+      const offersResponse = await fetch(`/api/duffel/offers?offer_request_id=${response.data.id}`);
+
+      if (!offersResponse.ok) {
+        const errorData = await offersResponse.json();
+        throw new Error(errorData.errors?.[0]?.message || 'Failed to fetch offers');
+      }
+
+      const offersData = await offersResponse.json();
+      console.log('Duffel offers response:', {
+        status: offersResponse.status,
+        offersCount: offersData.data?.length || 0,
+        type: requirements.isReturnFlight ? 'return' : 'one-way'
+      });
+
+      setFlightOffers(offersData.data || []);
     } catch (error: any) {
       console.error('Flight search error:', {
         message: error.message,
-        type: requirements.isReturnFlight ? 'return' : 'one-way'
+        name: error.name,
+        stack: error.stack,
+        type: requirements.isReturnFlight ? 'return' : 'one-way',
+        requirements: requirements
       });
-      setSearchError(error.message);
+      
+      // Provide more helpful error messages
+      let userFriendlyMessage = error.message;
+      if (error.message.includes('Failed to fetch')) {
+        userFriendlyMessage = 'Network error: Unable to connect to Duffel API. Please check your internet connection and API credentials.';
+      } else if (error.message.includes('401')) {
+        userFriendlyMessage = 'Authentication failed: Please check your Duffel API token.';
+      } else if (error.message.includes('400')) {
+        userFriendlyMessage = 'Invalid request: Please check your search criteria (dates, airports, etc.).';
+      }
+      
+      setSearchError(userFriendlyMessage);
     } finally {
       setIsSearching(false);
     }
@@ -375,7 +402,14 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-between">
+            <button
+              type="button"
+              onClick={testDuffelConnection}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Test API Connection
+            </button>
             <button
               type="submit"
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
@@ -436,11 +470,11 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
                         {formatDate(requirements.departureDate)}
                       </span>
                     </div>
-                    {renderFlightDetails(flight.itineraries[0])}
+                    {renderFlightDetails(flight.slices[0])}
                   </div>
 
                   {/* Return Flight (if exists) */}
-                  {requirements.isReturnFlight && flight.itineraries[1] && (
+                  {requirements.isReturnFlight && flight.slices[1] && (
                     <div className="mt-4 pt-4 border-t border-gray-200">
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-medium text-gray-900">Return Flight</h4>
@@ -448,14 +482,14 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
                           {formatDate(requirements.returnDate)}
                         </span>
                       </div>
-                      {renderFlightDetails(flight.itineraries[1])}
+                      {renderFlightDetails(flight.slices[1])}
                     </div>
                   )}
 
                   <div className="mt-4 flex justify-between items-center">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
-                        ${parseFloat(flight.price.total).toFixed(2)} {flight.price.currency}
+                        ${parseFloat(flight.total_amount).toFixed(2)} {flight.total_currency}
                       </p>
                       <p className="text-xs text-gray-500">
                         {requirements.isReturnFlight ? 'Round-trip total' : 'One-way fare'}
@@ -489,20 +523,20 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
   );
 }
 
-const renderFlightDetails = (itinerary: any) => {
+const renderFlightDetails = (slice: any) => {
   return (
     <div className="space-y-2">
-      {itinerary.segments.map((segment: any, idx: number) => (
+      {slice.segments.map((segment: any, idx: number) => (
         <div key={idx} className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Plane className="h-5 w-5 text-blue-500" />
             <div>
               <p className="text-sm font-medium text-gray-900">
-                {segment.departure.iataCode} → {segment.arrival.iataCode}
+                {segment.origin.iata_code} → {segment.destination.iata_code}
               </p>
               <div className="text-xs text-gray-500">
-                <p>{formatDateTime(segment.departure.at)} - {formatDateTime(segment.arrival.at)}</p>
-                <p>Flight {segment.carrierCode}{segment.number}</p>
+                <p>{formatDateTime(segment.departing_at)} - {formatDateTime(segment.arriving_at)}</p>
+                <p>Flight {segment.marketing_carrier.iata_code}{segment.marketing_carrier_flight_number}</p>
                 <p>Duration: {formatDuration(segment.duration)}</p>
               </div>
             </div>

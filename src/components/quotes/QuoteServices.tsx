@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plane, Building, Car, DollarSign, Plus, Trash2, Loader } from 'lucide-react';
-import { amadeus, ensureAuthenticated } from '../../lib/amadeus';
+
 
 interface Service {
   id: string;
@@ -17,11 +17,13 @@ interface Service {
 
 interface FlightOffer {
   id: string;
-  itineraries: any[];
+  slices: any[];
   price: {
     total: string;
     currency: string;
   };
+  total_amount: string;
+  total_currency: string;
   numberOfBookableSeats: number;
 }
 
@@ -114,84 +116,76 @@ export function QuoteServices({
         return d.toISOString().split('T')[0];
       };
 
-      // First, get the access token
-      const tokenResponse = await fetch('https://test.api.amadeus.com/v1/security/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+      // Prepare slices for Duffel API
+      const slices = travelDates.end ? [
+        {
+          origin: origin,
+          destination: destination,
+          departure_date: formatDate(travelDates.start)
         },
-        body: new URLSearchParams({
-          grant_type: 'client_credentials',
-          client_id: import.meta.env.VITE_AMADEUS_CLIENT_ID,
-          client_secret: import.meta.env.VITE_AMADEUS_CLIENT_SECRET,
-        }),
-      });
+        {
+          origin: destination,
+          destination: origin,
+          departure_date: formatDate(travelDates.end)
+        }
+      ] : [
+        {
+          origin: origin,
+          destination: destination,
+          departure_date: formatDate(travelDates.start)
+        }
+      ];
 
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to obtain access token');
+      // Prepare passengers for Duffel API
+      const passengers = [];
+      for (let i = 0; i < travelers.adults; i++) {
+        passengers.push({ type: 'adult' });
+      }
+      for (let i = 0; i < travelers.children; i++) {
+        passengers.push({ type: 'child' });
+      }
+      for (let i = 0; i < travelers.seniors; i++) {
+        passengers.push({ type: 'adult' }); // Duffel doesn't have separate senior type
       }
 
-      const tokenData = await tokenResponse.json();
-      console.log('Authentication successful');
-
-      // Make the flight search API call
-      console.log('Making Amadeus API call...');
-      const searchResponse = await fetch('https://test.api.amadeus.com/v2/shopping/flight-offers', {
+      // Create offer request first via server proxy
+      console.log('Making Duffel offer request via server proxy...');
+      const offerRequestResponse = await fetch('/api/duffel/offer-requests', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          currencyCode: 'USD',
-          originDestinations: [
-            {
-              id: '1',
-              originLocationCode: origin,
-              destinationLocationCode: destination,
-              departureDateTimeRange: {
-                date: formatDate(travelDates.start)
-              }
-            },
-            ...(travelDates.end ? [{
-              id: '2',
-              originLocationCode: destination,
-              destinationLocationCode: origin,
-              departureDateTimeRange: {
-                date: formatDate(travelDates.end)
-              }
-            }] : [])
-          ],
-          travelers: [
-            ...(Array(travelers.adults).fill({ id: '1', travelerType: 'ADULT' })),
-            ...(Array(travelers.children).fill({ id: '2', travelerType: 'CHILD' })),
-            ...(Array(travelers.seniors).fill({ id: '3', travelerType: 'SENIOR' }))
-          ],
-          sources: ['GDS'],
-          searchCriteria: {
-            maxFlightOffers: 250,
-            flightFilters: {
-              cabinRestrictions: [{
-                cabin: 'ECONOMY',
-                coverage: 'MOST_SEGMENTS',
-                originDestinationIds: ['1', '2']
-              }]
-            }
+          data: {
+            slices,
+            passengers,
+            cabin_class: 'economy'
           }
         })
       });
 
+      if (!offerRequestResponse.ok) {
+        const errorData = await offerRequestResponse.json();
+        throw new Error(errorData.errors?.[0]?.message || 'Failed to create offer request');
+      }
+
+      const offerRequestData = await offerRequestResponse.json();
+      console.log('Duffel offer request created successfully');
+
+      // Now fetch the offers via server proxy
+      console.log('Making Duffel API call via server proxy...');
+      const searchResponse = await fetch(`/api/duffel/offers?offer_request_id=${offerRequestData.data.id}`);
+
       if (!searchResponse.ok) {
         const errorData = await searchResponse.json();
         console.error('API Error:', errorData);
-        throw new Error(errorData.errors?.[0]?.detail || 'Failed to fetch flight offers');
+        throw new Error(errorData.errors?.[0]?.message || 'Failed to fetch flight offers');
       }
 
       const response = await searchResponse.json();
-      console.log('Raw Amadeus response:', {
+      console.log('Raw Duffel response:', {
         status: searchResponse.status,
         data: response.data,
-        dictionaries: response.dictionaries,
         meta: response.meta
       });
 
@@ -204,8 +198,9 @@ export function QuoteServices({
       const processedOffers = response.data.map((offer: any) => ({
         ...offer,
         price: {
-          ...offer.price,
-          formattedTotal: `${offer.price.currency} ${parseFloat(offer.price.total).toFixed(2)}`
+          total: offer.total_amount,
+          currency: offer.total_currency,
+          formattedTotal: `${offer.total_currency} ${parseFloat(offer.total_amount).toFixed(2)}`
         }
       }));
 
@@ -259,7 +254,7 @@ export function QuoteServices({
       details: {
         price: flight.price,
         seats: flight.numberOfBookableSeats,
-        itinerary: flight.itineraries
+        slices: flight.slices
       }
     });
 
@@ -276,7 +271,7 @@ export function QuoteServices({
       const service = {
         id: flight.id,
         type: 'flight',
-        name: `Flight ${flight.itineraries[0].segments[0].departure.iataCode} - ${flight.itineraries[0].segments[0].arrival.iataCode}`,
+        name: `Flight ${flight.slices[0].segments[0].origin.iata_code} - ${flight.slices[0].segments[0].destination.iata_code}`,
         cost: parseFloat(flight.price.total),
         details: flight
       };
@@ -377,14 +372,14 @@ export function QuoteServices({
                         <Plane className="h-5 w-5 text-gray-400 mr-2" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {flight.itineraries[0].segments[0].departure.iataCode} →{' '}
-                            {flight.itineraries[0].segments[0].arrival.iataCode}
+                            {flight.slices[0].segments[0].origin.iata_code} →{' '}
+                            {flight.slices[0].segments[0].destination.iata_code}
                           </p>
                           <p className="text-sm text-gray-500">
                             ${parseFloat(flight.price.total).toFixed(2)} {flight.price.currency}
                           </p>
                           <p className="text-xs text-gray-400">
-                            {new Date(flight.itineraries[0].segments[0].departure.at).toLocaleString()}
+                            {new Date(flight.slices[0].segments[0].departing_at).toLocaleString()}
                           </p>
                         </div>
                       </div>

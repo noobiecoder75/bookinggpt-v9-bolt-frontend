@@ -13,6 +13,7 @@ import cors from 'cors';
 import ratesRouter from './routes/rates.js';
 import hotelbedsRouter from './routes/hotelbeds.js';
 import bookingsRouter from './routes/bookings.js';
+import duffelRouter from './routes/duffel.js';
 import reconfirmationService from './services/reconfirmationService.js';
 
 const app = express();
@@ -25,6 +26,7 @@ console.log('VITE_SUPABASE_SERVICE_ROLE_KEY:', process.env.VITE_SUPABASE_SERVICE
 console.log('VITE_OPENAI_API_KEY:', process.env.VITE_OPENAI_API_KEY ? 'Found' : 'Missing');
 console.log('VITE_HOTELBEDS_API_KEY:', process.env.VITE_HOTELBEDS_API_KEY ? 'Found' : 'Missing');
 console.log('VITE_HOTELBEDS_SECRET:', process.env.VITE_HOTELBEDS_SECRET ? 'Found' : 'Missing');
+console.log('DUFFEL_ACCESS_TOKEN:', process.env.DUFFEL_ACCESS_TOKEN ? 'Found' : 'Missing');
 
 // Middleware
 app.use(cors({
@@ -39,6 +41,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/rates', ratesRouter);
 app.use('/api/hotelbeds', hotelbedsRouter);
 app.use('/api/bookings', bookingsRouter);
+app.use('/api/duffel', duffelRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

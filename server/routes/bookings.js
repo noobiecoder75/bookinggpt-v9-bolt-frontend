@@ -9,10 +9,9 @@ const HOTELBEDS_API_KEY = process.env.VITE_HOTELBEDS_API_KEY;
 const HOTELBEDS_SECRET = process.env.VITE_HOTELBEDS_SECRET;
 const HOTELBEDS_BASE_URL = 'https://api.test.hotelbeds.com'; // Use test environment
 
-// Amadeus credentials (placeholder - would need actual API setup)
-const AMADEUS_CLIENT_ID = process.env.VITE_AMADEUS_CLIENT_ID;
-const AMADEUS_CLIENT_SECRET = process.env.VITE_AMADEUS_CLIENT_SECRET;
-const AMADEUS_BASE_URL = 'https://test.api.amadeus.com'; // Use test environment
+// Duffel API credentials
+const DUFFEL_ACCESS_TOKEN = process.env.DUFFEL_ACCESS_TOKEN;
+const DUFFEL_BASE_URL = 'https://api.duffel.com'; // Duffel API base URL
 
 /**
  * Create a booking from a quote after payment is processed
@@ -372,35 +371,108 @@ async function processHotelBooking(booking, quoteItem, customer) {
 }
 
 /**
- * Process flight booking via Amadeus API (placeholder)
+ * Process flight booking via Duffel API
  */
 async function processFlightBooking(booking, quoteItem, customer) {
   console.log('Processing flight booking for:', quoteItem.item_name);
 
   try {
-    // For now, simulate flight booking since Amadeus integration is complex
-    // In production, you'd need to:
-    // 1. Get Amadeus access token
-    // 2. Call flight booking API with traveler details
-    // 3. Handle PNR creation and ticketing
+    // Check if we have the necessary Duffel credentials
+    if (!DUFFEL_ACCESS_TOKEN) {
+      throw new Error('Duffel API credentials not configured');
+    }
 
-    const simulatedResponse = {
+    // Extract flight offer details from quote item
+    const details = quoteItem.details || {};
+    const travelers = details.travelers || { adults: 1, children: 0, seniors: 0 };
+    
+    // If no complete flight offer is stored, we need to create a simulated booking
+    if (!details.id || !details.slices) {
+      console.warn('Complete flight offer data not found, creating manual confirmation');
+      return await createManualFlightConfirmation(booking, quoteItem, customer, 'Missing complete flight offer data');
+    }
+
+    // Prepare passengers data for Duffel API
+    const duffelPassengers = [];
+    const totalTravelers = travelers.adults + travelers.children + travelers.seniors;
+    
+    for (let i = 1; i <= totalTravelers; i++) {
+      // Determine traveler type
+      let passengerType = 'adult';
+      if (i <= travelers.adults) {
+        passengerType = 'adult';
+      } else if (i <= travelers.adults + travelers.children) {
+        passengerType = 'child';
+      } else {
+        passengerType = 'adult'; // Duffel doesn't have separate senior type
+      }
+
+      duffelPassengers.push({
+        type: passengerType,
+        title: 'mr', // Default title
+        given_name: customer.first_name || 'TRAVELER',
+        family_name: customer.last_name || `${i}`,
+        born_on: passengerType === 'child' ? '2015-01-01' : '1985-01-01', // Default dates
+        email: customer.email || 'customer@example.com',
+        phone_number: customer.phone || '+1234567890',
+        gender: 'm', // Default gender
+        id: `pas_${i.toString().padStart(8, '0')}` // Generate passenger ID
+      });
+    }
+
+    // Prepare the flight create order request for Duffel
+    const createOrderRequest = {
       data: {
-        type: 'flight-order',
-        id: `AM-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-        associatedRecords: [{
-          reference: `PNR${Math.random().toString(36).substr(2, 6).toUpperCase()}`,
-          creationDateTime: new Date().toISOString()
-        }],
-        travelers: [{
-          id: '1',
-          name: {
-            firstName: customer.first_name,
-            lastName: customer.last_name
-          }
+        type: 'instant', // Instant booking
+        selected_offers: [details.id], // Use the offer ID from search
+        passengers: duffelPassengers,
+        payments: [{
+          type: 'balance', // Use balance payment for test environment
+          currency: details.total_currency || 'USD',
+          amount: details.total_amount || (quoteItem.cost * quoteItem.quantity).toFixed(2)
         }]
       }
     };
+
+    console.log('Creating Duffel flight order...');
+    console.log('Request payload:', JSON.stringify(createOrderRequest, null, 2));
+
+    // Make the flight create order API call
+    const orderResponse = await fetch(`${DUFFEL_BASE_URL}/air/orders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DUFFEL_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'Duffel-Version': 'v2'
+      },
+      body: JSON.stringify(createOrderRequest)
+    });
+
+    const responseText = await orderResponse.text();
+    console.log('Duffel order response status:', orderResponse.status);
+    console.log('Duffel order response:', responseText.substring(0, 1000));
+
+    if (!orderResponse.ok) {
+      let errorMessage = 'Failed to create flight order';
+      try {
+        const errorData = JSON.parse(responseText);
+        errorMessage = errorData.errors?.[0]?.message || errorMessage;
+        console.error('Duffel order creation error:', errorData);
+      } catch (e) {
+        console.error('Failed to parse error response');
+      }
+      throw new Error(`Duffel API Error: ${errorMessage}`);
+    }
+
+    const orderData = JSON.parse(responseText);
+    console.log('Flight order created successfully:', orderData.data?.id);
+
+    // Extract important booking information
+    const flightOrder = orderData.data;
+    const bookingReference = flightOrder.booking_reference;
+    const confirmationNumber = flightOrder.id;
 
     // Store booking confirmation in database
     const { data: confirmation, error: confirmationError } = await supabase
@@ -408,17 +480,21 @@ async function processFlightBooking(booking, quoteItem, customer) {
       .insert([{
         booking_id: booking.id,
         quote_item_id: quoteItem.id,
-        provider: 'amadeus',
-        provider_booking_id: simulatedResponse.data.id,
-        confirmation_number: simulatedResponse.data.associatedRecords[0].reference,
-        booking_reference: simulatedResponse.data.id,
+        provider: 'duffel',
+        provider_booking_id: flightOrder.id,
+        confirmation_number: confirmationNumber,
+        booking_reference: bookingReference,
         status: 'confirmed',
-        raw_response: simulatedResponse,
+        raw_response: orderData,
         booking_details: {
           flight_name: quoteItem.item_name,
-          pnr: simulatedResponse.data.associatedRecords[0].reference,
+          pnr: bookingReference,
           passenger_name: `${customer.first_name} ${customer.last_name}`,
-          confirmation_number: simulatedResponse.data.associatedRecords[0].reference
+          confirmation_number: confirmationNumber,
+          booking_reference: bookingReference,
+          flight_number: flightOrder.slices?.[0]?.segments?.[0]?.marketing_carrier?.iata_code + flightOrder.slices?.[0]?.segments?.[0]?.marketing_carrier_flight_number || 'N/A',
+          departure: flightOrder.slices?.[0]?.segments?.[0]?.departing_at || null,
+          arrival: flightOrder.slices?.[0]?.segments?.[0]?.arriving_at || null
         },
         amount: quoteItem.cost * quoteItem.quantity,
         currency: 'USD'
@@ -436,9 +512,9 @@ async function processFlightBooking(booking, quoteItem, customer) {
       item_id: quoteItem.id,
       item_type: 'Flight',
       status: 'confirmed',
-      confirmation_number: simulatedResponse.data.associatedRecords[0].reference,
-      provider: 'amadeus',
-      details: simulatedResponse.data
+      confirmation_number: confirmationNumber,
+      provider: 'duffel',
+      details: flightOrder
     };
 
   } catch (error) {
@@ -450,7 +526,7 @@ async function processFlightBooking(booking, quoteItem, customer) {
       .insert([{
         booking_id: booking.id,
         quote_item_id: quoteItem.id,
-        provider: 'amadeus',
+        provider: 'duffel',
         status: 'failed',
         error_details: {
           error: error.message,
@@ -554,6 +630,54 @@ async function createManualConfirmation(booking, quoteItem) {
     confirmation_number: confirmationNumber,
     provider: 'manual',
     details: { note: 'Manual confirmation created' }
+  };
+}
+
+/**
+ * Create manual flight confirmation for cases where API booking fails
+ */
+async function createManualFlightConfirmation(booking, quoteItem, customer, reason) {
+  console.log('Creating manual flight confirmation for:', quoteItem.item_name, 'Reason:', reason);
+
+  const confirmationNumber = `FLIGHT-MAN-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+  const details = quoteItem.details || {};
+
+  const { data: confirmation, error: confirmationError } = await supabase
+    .from('booking_confirmations')
+    .insert([{
+      booking_id: booking.id,
+      quote_item_id: quoteItem.id,
+      provider: 'manual',
+      confirmation_number: confirmationNumber,
+      booking_reference: confirmationNumber,
+      status: 'confirmed',
+      booking_details: {
+        flight_name: quoteItem.item_name,
+        passenger_name: `${customer.first_name} ${customer.last_name}`,
+        confirmation_number: confirmationNumber,
+        note: `Manual flight confirmation - ${reason}`,
+        requires_agent_followup: true
+      },
+      amount: quoteItem.cost * quoteItem.quantity,
+      currency: 'USD'
+    }])
+    .select()
+    .single();
+
+  if (confirmationError) {
+    throw new Error(`Failed to store manual flight confirmation: ${confirmationError.message}`);
+  }
+
+  return {
+    item_id: quoteItem.id,
+    item_type: 'Flight',
+    status: 'confirmed',
+    confirmation_number: confirmationNumber,
+    provider: 'manual',
+    details: { 
+      note: `Manual flight confirmation created - ${reason}`,
+      requires_followup: true
+    }
   };
 }
 
