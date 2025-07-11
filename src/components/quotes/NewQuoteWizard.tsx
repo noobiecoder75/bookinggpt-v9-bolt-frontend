@@ -1498,52 +1498,35 @@ export function NewQuoteWizard() {
                     <h2 className="text-xl font-semibold">Build Itinerary</h2>
                     <p className="text-sm text-gray-600 mt-1">Add travel requirements and services for each day</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <button
                       onClick={handleFlightSearch}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                     >
-                    Add Flight
-                  </button>
-                  <button
+                      <Plane className="w-5 h-5 mr-2" />
+                      Add Flight
+                    </button>
+                    <button
                       onClick={handleHotelSearch}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    Add Hotel
-                  </button>
-                  <button
+                      className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      <Building className="w-5 h-5 mr-2" />
+                      Add Hotel
+                    </button>
+                    <button
                       onClick={handleActivitySearch}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  >
-                    Add Activity
-                  </button>
-                </div>
+                      className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      Add Activity
+                    </button>
+                  </div>
               </div>
             
-                {/* Travel Requirements Section */}
+                {/* Simplified Travel Requirements Section */}
                 <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h3 className="text-lg font-medium mb-4">Travel Requirements</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Trip Type
-                      </label>
-                      <select
-                        value={travelRequirements.tripType}
-                        onChange={(e) => setTravelRequirements({ 
-                          ...travelRequirements, 
-                          tripType: e.target.value as TravelRequirements['tripType']
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        <option value="flight">Flight Only</option>
-                        <option value="hotel">Hotel Only</option>
-                        <option value="flight+hotel">Flight + Hotel</option>
-                        <option value="tour">Tour Package</option>
-                        <option value="custom">Custom</option>
-                      </select>
-                    </div>
-
+                  <h3 className="text-lg font-medium mb-4">Travelers</h3>
+                  <div className="grid grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Adults

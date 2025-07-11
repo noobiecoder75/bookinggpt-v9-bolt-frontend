@@ -34,12 +34,17 @@ export function TripOverviewSection({
   return (
     <>
       {/* Bookings Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Bookings</h3>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-teal-500 rounded-xl flex items-center justify-center">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800">Bookings</h3>
+          </div>
           <button 
             onClick={onCreateItinerary}
-            className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             Add Booking
           </button>
@@ -52,7 +57,7 @@ export function TripOverviewSection({
             <p className="mt-1 text-sm text-gray-500">Get started by creating your first booking.</p>
             <button 
               onClick={onCreateItinerary}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="mt-6 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
             >
               Create Booking
             </button>
@@ -60,12 +65,12 @@ export function TripOverviewSection({
         ) : (
           <div className="space-y-3">
             {bookings.map((booking) => (
-              <div key={booking.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+              <div key={booking.id} className="flex items-center justify-between p-4 border border-blue-100 rounded-xl bg-gradient-to-r from-white to-blue-50 hover:shadow-md transition-all duration-200">
                 <div>
                   <h4 className="font-medium text-gray-900">{booking.name}</h4>
                   <p className="text-sm text-gray-500">{booking.type} • {booking.date}</p>
                 </div>
-                <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                <span className="px-3 py-1 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 rounded-full text-xs font-medium">
                   {booking.status}
                 </span>
               </div>
@@ -75,12 +80,17 @@ export function TripOverviewSection({
       </div>
 
       {/* Upcoming Activity Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Upcoming Activity</h3>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
+            <Calendar className="h-5 w-5 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-800">Upcoming Activity</h3>
+        </div>
         <div className="space-y-3">
           {upcomingActivity.map((item) => (
             <div key={item.id} className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-100 to-teal-100 rounded-xl flex items-center justify-center text-blue-600 shadow-md">
                 {item.icon}
               </div>
               <div>
@@ -93,12 +103,17 @@ export function TripOverviewSection({
       </div>
 
       {/* Past Activity Card */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Past Activity</h3>
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8 hover:shadow-2xl transition-all duration-300">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 bg-gradient-to-r from-slate-500 to-gray-600 rounded-xl flex items-center justify-center">
+            <Calendar className="h-5 w-5 text-white" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-800">Past Activity</h3>
+        </div>
         <div className="space-y-3">
           {pastActivity.map((item) => (
             <div key={item.id} className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600">
+              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-gray-100 to-slate-100 rounded-xl flex items-center justify-center text-gray-600 shadow-md">
                 {item.icon}
               </div>
               <div>

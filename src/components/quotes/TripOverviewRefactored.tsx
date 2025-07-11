@@ -38,6 +38,18 @@ export function TripOverviewRefactored() {
   const { tripId } = useParams<{ tripId: string }>();
   const [searchParams] = useSearchParams();
   const [activeSection, setActiveSection] = useState('overview');
+  
+  // Valid sections - only overview and itinerary are implemented
+  const validSections = ['overview', 'itinerary'];
+  
+  // Function to safely set active section
+  const handleSectionChange = (section: string) => {
+    if (validSections.includes(section)) {
+      setActiveSection(section);
+    } else {
+      setActiveSection('overview'); // Fallback to overview for invalid sections
+    }
+  };
   const [isEditingName, setIsEditingName] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1077,7 +1089,7 @@ export function TripOverviewRefactored() {
   return (
     <>
       <Navbar />
-      <div className="flex min-h-screen bg-gray-50" style={{ minHeight: 'calc(100vh - 4rem)' }}>
+      <div className="flex min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-sky-100" style={{ minHeight: 'calc(100vh - 4rem)' }}>
         {/* Mobile Sidebar Backdrop */}
         {isMobileSidebarOpen && (
           <div 
@@ -1089,11 +1101,11 @@ export function TripOverviewRefactored() {
         {/* Left Sidebar */}
         <div className={`${
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
+        } fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
           <TripSidebar 
             activeSection={activeSection}
             onSectionChange={(section) => {
-              setActiveSection(section);
+              handleSectionChange(section);
               setIsMobileSidebarOpen(false);
             }}
           />
@@ -1102,14 +1114,14 @@ export function TripOverviewRefactored() {
         {/* Main Content */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Mobile Header with Menu Button */}
-          <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="lg:hidden bg-white/80 backdrop-blur-md border-b border-white/20 px-4 py-4 flex items-center justify-between shadow-lg">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="p-2 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200"
             >
               <Menu className="h-6 w-6" />
             </button>
-            <h1 className="text-lg font-semibold text-gray-900 truncate">{trip.name}</h1>
+            <h1 className="text-lg font-bold text-slate-800 truncate">{trip.name}</h1>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
 
@@ -1125,7 +1137,7 @@ export function TripOverviewRefactored() {
 
           {/* Main Content Area */}
           <div className="flex-1 flex overflow-hidden">
-            <div className="flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto">
+            <div className="flex-1 p-6 sm:p-8 space-y-6 sm:space-y-8 overflow-y-auto max-w-7xl mx-auto">
               {activeSection === 'overview' && (
                 <TripOverviewSection
                   bookings={bookings}
@@ -1154,13 +1166,30 @@ export function TripOverviewRefactored() {
                 />
               )}
 
-              {/* Other sections */}
+              {/* Fallback for any invalid sections - should rarely be seen due to validation */}
               {activeSection !== 'overview' && activeSection !== 'itinerary' && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-                  </h3>
-                  <p className="text-gray-500">This section is coming soon...</p>
+                <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-8">
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-blue-100 to-teal-100 rounded-2xl flex items-center justify-center shadow-lg">
+                      <Eye className="h-10 w-10 text-blue-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-slate-800 mb-3">Welcome to Trip Builder</h3>
+                    <p className="text-slate-600 mb-8 text-lg">Use the sidebar to navigate between Overview and Itinerary sections.</p>
+                    <div className="flex justify-center space-x-4">
+                      <button
+                        onClick={() => handleSectionChange('overview')}
+                        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+                      >
+                        Go to Overview
+                      </button>
+                      <button
+                        onClick={() => handleSectionChange('itinerary')}
+                        className="px-6 py-3 border border-blue-200 text-slate-700 rounded-xl hover:bg-blue-50 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+                      >
+                        Start Planning
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

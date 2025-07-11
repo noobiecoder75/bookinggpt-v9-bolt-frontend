@@ -183,12 +183,12 @@ This link can be shared with anyone - no login required.`;
   };
 
   return (
-    <div className="sticky top-16 z-40 bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+    <div className="sticky top-16 z-40 bg-white/80 backdrop-blur-md border-b border-white/20 px-6 py-6 shadow-lg">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           {isEditing ? (
             /* Editing Mode */
-            <div className="flex items-center space-x-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <div className="flex items-center space-x-4 bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-blue-200/50 shadow-lg">
               <div className="flex flex-col space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Trip Name</label>
@@ -196,7 +196,7 @@ This link can be shared with anyone - no login required.`;
                     type="text"
                     value={editingData.name}
                     onChange={(e) => setEditingData(prev => ({ ...prev, name: e.target.value }))}
-                    className="text-lg font-semibold bg-white border border-gray-300 rounded px-3 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="text-lg font-semibold bg-white border border-blue-300 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                     placeholder="Enter trip name"
                   />
                 </div>
@@ -207,7 +207,7 @@ This link can be shared with anyone - no login required.`;
                       type="date"
                       value={editingData.startDate}
                       onChange={(e) => setEditingData(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="text-sm border border-blue-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                     />
                   </div>
                   <div>
@@ -216,7 +216,7 @@ This link can be shared with anyone - no login required.`;
                       type="date"
                       value={editingData.endDate}
                       onChange={(e) => setEditingData(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      className="text-sm border border-blue-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
                     />
                   </div>
                   {editingData.startDate && editingData.endDate && (
@@ -229,14 +229,14 @@ This link can be shared with anyone - no login required.`;
               <div className="flex flex-col space-y-2 ml-4">
                 <button
                   onClick={handleSaveEdit}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl text-sm hover:from-emerald-600 hover:to-teal-700 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 font-medium"
                 >
                   <Check className="h-3 w-3 mr-1" />
                   Save
                 </button>
                 <button
                   onClick={handleCancelEdit}
-                  className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 flex items-center"
+                  className="px-4 py-2 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl text-sm hover:from-gray-600 hover:to-gray-700 flex items-center shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 font-medium"
                 >
                   <X className="h-3 w-3 mr-1" />
                   Cancel
@@ -246,8 +246,8 @@ This link can be shared with anyone - no login required.`;
           ) : (
             /* Display Mode */
             <>
-              <div className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors" onClick={handleStartEdit}>
-                <h1 className="text-xl font-semibold text-gray-900 hover:text-indigo-600 flex items-center">
+              <div className="cursor-pointer hover:bg-white/80 rounded-xl p-3 transition-all duration-200 hover:shadow-md" onClick={handleStartEdit}>
+                <h1 className="text-2xl font-bold text-slate-800 hover:text-blue-600 flex items-center transition-colors duration-200">
                   {trip.name}
                   <Edit3 className="inline h-4 w-4 ml-2 opacity-50" />
                 </h1>
@@ -264,11 +264,11 @@ This link can be shared with anyone - no login required.`;
                 )}
               </div>
               
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(trip.status)}`}>
+              <span className={`px-4 py-2 rounded-full text-sm font-semibold shadow-md ${getStatusColor(trip.status)}`}>
                 {trip.status}
               </span>
               
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+              <span className="px-4 py-2 bg-gradient-to-r from-slate-100 to-blue-100 text-slate-700 rounded-full text-sm font-medium shadow-md">
                 {trip.type}
               </span>
 

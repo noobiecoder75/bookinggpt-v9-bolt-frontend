@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle } from 'lucide-react';
+import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle, Copy, ExternalLink } from 'lucide-react';
 import { PaymentModal } from './PaymentModal';
 
 interface Quote {
@@ -461,12 +461,22 @@ export function QuoteView() {
 
       setSendStep('success');
       
+      // Generate client portal link
+      const clientPortalLink = `${window.location.origin}/client/${quote.id}`;
+      
+      // In a real implementation, this would send an email with the client portal link
+      console.log('Client portal link generated:', clientPortalLink);
+      console.log(`Email would be sent to ${quote.customer.email} with client portal link`);
+      
       // Wait a moment to show success, then refresh quote data
       setTimeout(async () => {
         await fetchQuoteDetails();
         setShowSendModal(false);
         setIsSendingQuote(false);
         setSendStep('confirm');
+        
+        // Show client portal link to agent
+        alert(`Quote sent successfully!\n\nClient Portal Link: ${clientPortalLink}\n\nThis link has been sent to ${quote.customer.email}`);
       }, 2000);
 
     } catch (error) {
@@ -475,6 +485,26 @@ export function QuoteView() {
       setShowSendModal(false);
       setIsSendingQuote(false);
       setSendStep('confirm');
+    }
+  };
+
+  const copyClientPortalLink = async () => {
+    if (!quote) return;
+    
+    const clientPortalLink = `${window.location.origin}/client/${quote.id}`;
+    
+    try {
+      await navigator.clipboard.writeText(clientPortalLink);
+      alert('Client portal link copied to clipboard!');
+    } catch (error) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = clientPortalLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Client portal link copied to clipboard!');
     }
   };
 
@@ -681,10 +711,20 @@ export function QuoteView() {
               </button>
             )}
             <button
-              onClick={() => window.open(`/quote-preview.html?id=${quote.id}`, '_blank')}
+              onClick={() => window.open(`/client/${quote.id}`, '_blank')}
               className="inline-flex items-center px-3 py-2 border border-indigo-600 text-indigo-700 bg-white hover:bg-indigo-50 shadow-sm text-sm font-medium rounded-md"
+              title="Open customer-facing client portal"
             >
-              Preview
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Client Portal
+            </button>
+            <button
+              onClick={copyClientPortalLink}
+              className="inline-flex items-center px-3 py-2 border border-green-600 text-green-700 bg-white hover:bg-green-50 shadow-sm text-sm font-medium rounded-md"
+              title="Copy client portal link to share with customer"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Link
             </button>
             <button 
               onClick={() => setShowSendModal(true)}
@@ -700,6 +740,39 @@ export function QuoteView() {
           </div>
         </div>
       </div>
+
+      {/* Client Portal Link Section - Show when quote is sent */}
+      {(quote.status === 'Sent' || quote.status === 'Published') && (
+        <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium text-blue-900 mb-2">Client Portal Active</h3>
+              <p className="text-blue-700 text-sm">
+                Your customer can view their quote and proceed with booking using this secure link:
+              </p>
+              <div className="mt-3 flex items-center gap-3">
+                <code className="px-3 py-2 bg-white border border-blue-200 rounded-md text-sm text-blue-800 font-mono">
+                  {`${window.location.origin}/client/${quote.id}`}
+                </code>
+                <button
+                  onClick={copyClientPortalLink}
+                  className="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </button>
+                <button
+                  onClick={() => window.open(`/client/${quote.id}`, '_blank')}
+                  className="inline-flex items-center px-3 py-2 border border-blue-600 text-blue-700 bg-white text-sm font-medium rounded-md hover:bg-blue-50"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Customer & Trip Details */}
       <div className="grid grid-cols-2 gap-6 mb-8">

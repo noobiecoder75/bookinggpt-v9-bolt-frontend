@@ -4,15 +4,14 @@ import { Navbar } from './components/Navbar';
 import { NewQuoteWizard } from './components/quotes/NewQuoteWizard';
 import { TripOverviewRefactored } from './components/quotes/TripOverviewRefactored';
 import { CreateTripDialog } from './components/quotes/CreateTripDialog';
-import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { SettingsDashboard } from './components/settings/SettingsDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { CustomerProfileView } from './components/customers/CustomerProfileView';
 import { QuotesDashboard } from './components/quotes/QuotesDashboard';
 import { QuoteView } from './components/quotes/QuoteView';
 import { BookingsDashboard } from './components/bookings/BookingsDashboard';
+import { ClientPortal } from './components/client/ClientPortal';
 import { BookingWorkflowDashboard } from './components/workflow/BookingWorkflowDashboard';
-import { OperationsDashboard } from './components/operations/OperationsDashboard';
 import { RecentActivity } from './components/RecentActivity';
 import { DollarSign, Users, FileText, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { supabase } from './lib/supabase';
@@ -33,20 +32,20 @@ interface DashboardStats {
 }
 
 const QuickActionCard: React.FC<QuickActionCardProps> = ({ title, description, link }) => (
-  <div className="bg-white overflow-hidden shadow-sm rounded-xl border border-gray-100 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300 hover:-translate-y-1 group">
+  <div className="bg-white/50 backdrop-blur-sm overflow-hidden shadow-sm rounded-2xl border border-white/20 hover:shadow-xl hover:shadow-cyan-100/50 transition-all duration-300 hover:-translate-y-1 group">
     <Link to={link} className="block px-6 py-6">
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">{title}</h3>
-          <p className="mt-2 text-sm text-gray-600 leading-relaxed">{description}</p>
+          <h3 className="text-lg font-semibold text-slate-900 group-hover:text-cyan-600 transition-colors duration-200">{title}</h3>
+          <p className="mt-2 text-sm text-slate-600 leading-relaxed">{description}</p>
         </div>
         <div className="ml-4 flex-shrink-0">
-          <div className="w-10 h-10 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg flex items-center justify-center group-hover:from-indigo-500 group-hover:to-indigo-600 transition-all duration-300">
-            <span className="text-indigo-600 group-hover:text-white transition-colors duration-300 text-lg font-bold">→</span>
+          <div className="w-10 h-10 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg flex items-center justify-center group-hover:from-cyan-500 group-hover:to-cyan-600 transition-all duration-300">
+            <span className="text-cyan-600 group-hover:text-white transition-colors duration-300 text-lg font-bold">→</span>
           </div>
         </div>
       </div>
-      <div className="mt-4 flex items-center text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
+      <div className="mt-4 flex items-center text-sm font-medium text-cyan-600 group-hover:text-cyan-700">
         <span>Get started</span>
         <span className="ml-2 transform group-hover:translate-x-1 transition-transform duration-200">→</span>
       </div>
@@ -159,13 +158,23 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-        <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
-
-        <main className="transition-all duration-300">
-          <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-            <div className="sm:px-0">
-              <Routes>
+      <Routes>
+        {/* Client Portal Routes - No agent navbar */}
+        <Route path="/client/:quoteId" element={<ClientPortal />} />
+        <Route path="/client/:quoteId/itinerary" element={<ClientPortal activeSection="itinerary" />} />
+        <Route path="/client/:quoteId/payment" element={<ClientPortal activeSection="payment" />} />
+        <Route path="/client/:quoteId/chat" element={<ClientPortal activeSection="chat" />} />
+        <Route path="/client/:quoteId/documents" element={<ClientPortal activeSection="documents" />} />
+        <Route path="/client/:quoteId/status" element={<ClientPortal activeSection="status" />} />
+        
+        {/* Agent/Admin Routes - With agent navbar */}
+        <Route path="*" element={
+          <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+            <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+            <main className="transition-all duration-300">
+              <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
+                <div className="sm:px-0">
+                  <Routes>
                 <Route 
                   path="/" 
                   element={
@@ -324,22 +333,22 @@ const App: React.FC = () => {
                 <Route path="/quotes/:id" element={<QuoteView />} />
                 <Route path="/bookings" element={<BookingsDashboard />} />
                 <Route path="/bookings/:bookingId/workflow" element={<BookingWorkflowDashboard />} />
-                <Route path="/operations" element={<OperationsDashboard />} />
-                <Route path="/customers" element={<CustomerDashboard />} />
-                <Route path="/customers/:id" element={<CustomerProfileView />} />
-                <Route path="/analytics" element={<AnalyticsDashboard />} />
-                <Route path="/settings/*" element={<SettingsDashboard />} />
-              </Routes>
-            </div>
+                    <Route path="/customers" element={<CustomerDashboard />} />
+                    <Route path="/customers/:id" element={<CustomerProfileView />} />
+                    <Route path="/settings/*" element={<SettingsDashboard />} />
+                  </Routes>
+                </div>
+              </div>
+            </main>
+            
+            {/* Create Trip Dialog */}
+            <CreateTripDialog 
+              isOpen={showCreateTripDialog}
+              onClose={() => setShowCreateTripDialog(false)}
+            />
           </div>
-        </main>
-
-        {/* Create Trip Dialog */}
-        <CreateTripDialog 
-          isOpen={showCreateTripDialog}
-          onClose={() => setShowCreateTripDialog(false)}
-        />
-      </div>
+        } />
+      </Routes>
     </Router>
   );
 };

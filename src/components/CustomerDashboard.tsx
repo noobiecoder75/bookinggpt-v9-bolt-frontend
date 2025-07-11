@@ -34,32 +34,18 @@ export function CustomerDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const navigate = useNavigate();
 
-  // Advanced filter states
+  // Simplified filter states
   const [filters, setFilters] = useState({
     lifetimeValueRange: {
       min: '',
       max: ''
     },
-    potentialValueRange: {
-      min: '',
-      max: ''
-    },
-    bookingsRange: {
-      min: '',
-      max: ''
-    },
-    quotesRange: {
-      min: '',
-      max: ''
-    },
-    nationality: '',
-    createdDateRange: {
+    dateRange: {
       start: '',
       end: ''
     },
-    passportStatus: 'all' as 'all' | 'valid' | 'expiring-soon' | 'expired',
-    hasBookings: 'all' as 'all' | 'with-bookings' | 'without-bookings',
-    hasQuotes: 'all' as 'all' | 'with-quotes' | 'without-quotes'
+    nationality: '',
+    passportStatus: 'all' as 'all' | 'valid' | 'expiring-soon' | 'expired'
   });
 
   console.log('CustomerDashboard rendered', { searchTerm, loading, customersCount: customers.length });
@@ -164,14 +150,9 @@ export function CustomerDashboard() {
     setSearchTerm('');
     setFilters({
       lifetimeValueRange: { min: '', max: '' },
-      potentialValueRange: { min: '', max: '' },
-      bookingsRange: { min: '', max: '' },
-      quotesRange: { min: '', max: '' },
+      dateRange: { start: '', end: '' },
       nationality: '',
-      createdDateRange: { start: '', end: '' },
-      passportStatus: 'all',
-      hasBookings: 'all',
-      hasQuotes: 'all'
+      passportStatus: 'all'
     });
   };
 
@@ -210,50 +191,22 @@ export function CustomerDashboard() {
         (filters.lifetimeValueRange.min === '' || stats.lifetimeValue >= parseFloat(filters.lifetimeValueRange.min)) &&
         (filters.lifetimeValueRange.max === '' || stats.lifetimeValue <= parseFloat(filters.lifetimeValueRange.max));
 
-      // Potential value range filter
-      const matchesPotentialValue = 
-        (filters.potentialValueRange.min === '' || stats.potentialValue >= parseFloat(filters.potentialValueRange.min)) &&
-        (filters.potentialValueRange.max === '' || stats.potentialValue <= parseFloat(filters.potentialValueRange.max));
-
-      // Bookings range filter
-      const matchesBookingsRange = 
-        (filters.bookingsRange.min === '' || stats.totalBookings >= parseInt(filters.bookingsRange.min)) &&
-        (filters.bookingsRange.max === '' || stats.totalBookings <= parseInt(filters.bookingsRange.max));
-
-      // Quotes range filter
-      const matchesQuotesRange = 
-        (filters.quotesRange.min === '' || stats.activeQuotes >= parseInt(filters.quotesRange.min)) &&
-        (filters.quotesRange.max === '' || stats.activeQuotes <= parseInt(filters.quotesRange.max));
-
       // Nationality filter
       const matchesNationality = filters.nationality === '' ||
         customer.nationality.toLowerCase().includes(filters.nationality.toLowerCase());
 
       // Created date range filter
       const customerCreatedDate = new Date(customer.created_at).toISOString().split('T')[0];
-      const matchesCreatedDateRange = 
-        (filters.createdDateRange.start === '' || customerCreatedDate >= filters.createdDateRange.start) &&
-        (filters.createdDateRange.end === '' || customerCreatedDate <= filters.createdDateRange.end);
+      const matchesDateRange = 
+        (filters.dateRange.start === '' || customerCreatedDate >= filters.dateRange.start) &&
+        (filters.dateRange.end === '' || customerCreatedDate <= filters.dateRange.end);
 
       // Passport status filter
       const passportStatus = getPassportStatus(customer.passport_expiry);
       const matchesPassportStatus = filters.passportStatus === 'all' || passportStatus === filters.passportStatus;
 
-      // Has bookings filter
-      const matchesHasBookings = 
-        filters.hasBookings === 'all' ||
-        (filters.hasBookings === 'with-bookings' && stats.totalBookings > 0) ||
-        (filters.hasBookings === 'without-bookings' && stats.totalBookings === 0);
-
-      // Has quotes filter
-      const matchesHasQuotes = 
-        filters.hasQuotes === 'all' ||
-        (filters.hasQuotes === 'with-quotes' && stats.activeQuotes > 0) ||
-        (filters.hasQuotes === 'without-quotes' && stats.activeQuotes === 0);
-
-      return matchesSearch && matchesLifetimeValue && matchesPotentialValue && 
-             matchesBookingsRange && matchesQuotesRange && matchesNationality && 
-             matchesCreatedDateRange && matchesPassportStatus && matchesHasBookings && matchesHasQuotes;
+      return matchesSearch && matchesLifetimeValue && matchesNationality && 
+             matchesDateRange && matchesPassportStatus;
     });
   }, [customers, customerStats, searchTerm, filters]);
 
@@ -262,17 +215,9 @@ export function CustomerDashboard() {
            filters.nationality !== '' ||
            filters.lifetimeValueRange.min !== '' || 
            filters.lifetimeValueRange.max !== '' ||
-           filters.potentialValueRange.min !== '' || 
-           filters.potentialValueRange.max !== '' ||
-           filters.bookingsRange.min !== '' || 
-           filters.bookingsRange.max !== '' ||
-           filters.quotesRange.min !== '' || 
-           filters.quotesRange.max !== '' ||
-           filters.createdDateRange.start !== '' || 
-           filters.createdDateRange.end !== '' ||
-           filters.passportStatus !== 'all' ||
-           filters.hasBookings !== 'all' ||
-           filters.hasQuotes !== 'all';
+           filters.dateRange.start !== '' || 
+           filters.dateRange.end !== '' ||
+           filters.passportStatus !== 'all';
   }, [searchTerm, filters]);
 
   const handleCreateQuote = (customerId: number) => {
@@ -370,7 +315,7 @@ export function CustomerDashboard() {
           {/* Advanced Filters */}
           {showAdvancedFilters && (
             <div className="border-t border-gray-200 pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Nationality Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -408,76 +353,7 @@ export function CustomerDashboard() {
                   </div>
                 </div>
 
-                {/* Potential Value Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Potential Value ($)
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={filters.potentialValueRange.min}
-                      onChange={(e) => handleFilterChange('potentialValueRange', { ...filters.potentialValueRange, min: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={filters.potentialValueRange.max}
-                      onChange={(e) => handleFilterChange('potentialValueRange', { ...filters.potentialValueRange, max: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Bookings Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Bookings
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={filters.bookingsRange.min}
-                      onChange={(e) => handleFilterChange('bookingsRange', { ...filters.bookingsRange, min: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={filters.bookingsRange.max}
-                      onChange={(e) => handleFilterChange('bookingsRange', { ...filters.bookingsRange, max: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Quotes Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Active Quotes
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={filters.quotesRange.min}
-                      onChange={(e) => handleFilterChange('quotesRange', { ...filters.quotesRange, min: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={filters.quotesRange.max}
-                      onChange={(e) => handleFilterChange('quotesRange', { ...filters.quotesRange, max: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Created Date Range */}
+                {/* Registration Date Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Registration Date Range
@@ -485,14 +361,14 @@ export function CustomerDashboard() {
                   <div className="flex space-x-2">
                     <input
                       type="date"
-                      value={filters.createdDateRange.start}
-                      onChange={(e) => handleFilterChange('createdDateRange', { ...filters.createdDateRange, start: e.target.value })}
+                      value={filters.dateRange.start}
+                      onChange={(e) => handleFilterChange('dateRange', { ...filters.dateRange, start: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                     <input
                       type="date"
-                      value={filters.createdDateRange.end}
-                      onChange={(e) => handleFilterChange('createdDateRange', { ...filters.createdDateRange, end: e.target.value })}
+                      value={filters.dateRange.end}
+                      onChange={(e) => handleFilterChange('dateRange', { ...filters.dateRange, end: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
@@ -512,38 +388,6 @@ export function CustomerDashboard() {
                     <option value="valid">Valid</option>
                     <option value="expiring-soon">Expiring Soon (6 months)</option>
                     <option value="expired">Expired</option>
-                  </select>
-                </div>
-
-                {/* Has Bookings Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Booking History
-                  </label>
-                  <select
-                    value={filters.hasBookings}
-                    onChange={(e) => handleFilterChange('hasBookings', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="all">All Customers</option>
-                    <option value="with-bookings">With Bookings</option>
-                    <option value="without-bookings">Without Bookings</option>
-                  </select>
-                </div>
-
-                {/* Has Quotes Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quote Status
-                  </label>
-                  <select
-                    value={filters.hasQuotes}
-                    onChange={(e) => handleFilterChange('hasQuotes', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="all">All Customers</option>
-                    <option value="with-quotes">With Active Quotes</option>
-                    <option value="without-quotes">Without Active Quotes</option>
                   </select>
                 </div>
               </div>
@@ -620,7 +464,7 @@ export function CustomerDashboard() {
             </li>
           ) : (
             filteredCustomers.map((customer) => (
-              <li key={customer.id} className="hover:bg-gradient-to-r hover:from-indigo-50 hover:to-blue-50 transition-all duration-200">
+              <li key={customer.id} className="hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-cyan-50/50 transition-all duration-200 backdrop-blur-sm">
                 <div 
                   className="px-4 sm:px-6 py-4 sm:py-6 cursor-pointer"
                   onClick={() => navigate(`/customers/${customer.id}`)}

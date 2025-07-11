@@ -39,27 +39,18 @@ export function QuotesDashboard() {
   const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   
-  // Advanced filter states
+  // Simplified filter states
   const [filters, setFilters] = useState({
-    dateRange: {
-      start: '',
-      end: ''
-    },
     priceRange: {
       min: '',
       max: ''
     },
-    markupRange: {
-      min: '',
-      max: ''
-    },
-    customerName: '',
-    itemTypes: [] as string[],
-    createdDateRange: {
+    dateRange: {
       start: '',
       end: ''
     },
-    hasItems: 'all' as 'all' | 'with-items' | 'without-items'
+    customerName: '',
+    itemTypes: [] as string[]
   });
 
   // Calculate dynamic total price from quote items
@@ -220,16 +211,11 @@ export function QuotesDashboard() {
         (filters.priceRange.min === '' || quote.total_price >= parseFloat(filters.priceRange.min)) &&
         (filters.priceRange.max === '' || quote.total_price <= parseFloat(filters.priceRange.max));
       
-      // Markup range filter
-      const matchesMarkupRange = 
-        (filters.markupRange.min === '' || quote.markup >= parseFloat(filters.markupRange.min)) &&
-        (filters.markupRange.max === '' || quote.markup <= parseFloat(filters.markupRange.max));
-      
       // Created date range filter
       const quoteCreatedDate = new Date(quote.created_at).toISOString().split('T')[0];
-      const matchesCreatedDateRange = 
-        (filters.createdDateRange.start === '' || quoteCreatedDate >= filters.createdDateRange.start) &&
-        (filters.createdDateRange.end === '' || quoteCreatedDate <= filters.createdDateRange.end);
+      const matchesDateRange = 
+        (filters.dateRange.start === '' || quoteCreatedDate >= filters.dateRange.start) &&
+        (filters.dateRange.end === '' || quoteCreatedDate <= filters.dateRange.end);
       
       // Item types filter
       const matchesItemTypes = filters.itemTypes.length === 0 || 
@@ -237,15 +223,8 @@ export function QuotesDashboard() {
           filters.itemTypes.includes(item.item_type)
         ));
       
-      // Has items filter
-      const matchesHasItems = 
-        filters.hasItems === 'all' ||
-        (filters.hasItems === 'with-items' && quote.quote_items && quote.quote_items.length > 0) ||
-        (filters.hasItems === 'without-items' && (!quote.quote_items || quote.quote_items.length === 0));
-      
       return matchesSearch && matchesStatus && matchesCustomerName && 
-             matchesPriceRange && matchesMarkupRange && matchesCreatedDateRange && 
-             matchesItemTypes && matchesHasItems;
+             matchesPriceRange && matchesDateRange && matchesItemTypes;
     });
   }, [processedQuotes, searchTerm, statusFilter, filters]);
 
@@ -290,13 +269,10 @@ export function QuotesDashboard() {
     setSearchTerm('');
     setStatusFilter('all');
     setFilters({
-      dateRange: { start: '', end: '' },
       priceRange: { min: '', max: '' },
-      markupRange: { min: '', max: '' },
+      dateRange: { start: '', end: '' },
       customerName: '',
-      itemTypes: [],
-      createdDateRange: { start: '', end: '' },
-      hasItems: 'all'
+      itemTypes: []
     });
   };
 
@@ -306,12 +282,9 @@ export function QuotesDashboard() {
            filters.customerName !== '' ||
            filters.priceRange.min !== '' || 
            filters.priceRange.max !== '' ||
-           filters.markupRange.min !== '' || 
-           filters.markupRange.max !== '' ||
-           filters.createdDateRange.start !== '' || 
-           filters.createdDateRange.end !== '' ||
-           filters.itemTypes.length > 0 ||
-           filters.hasItems !== 'all';
+           filters.dateRange.start !== '' || 
+           filters.dateRange.end !== '' ||
+           filters.itemTypes.length > 0;
   }, [searchTerm, statusFilter, filters]);
 
   return (
@@ -469,8 +442,8 @@ export function QuotesDashboard() {
               onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
               className={`flex items-center px-4 py-3 border rounded-xl transition-all duration-200 ${
                 showAdvancedFilters 
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700' 
-                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'border-blue-500 bg-blue-50/80 text-blue-700 backdrop-blur-sm' 
+                  : 'border-white/20 bg-white/50 text-slate-700 hover:bg-white/70'
               }`}
             >
               <Filter className="h-4 w-4 mr-2" />
@@ -482,7 +455,7 @@ export function QuotesDashboard() {
             {hasActiveFilters && (
               <button
                 onClick={clearAllFilters}
-                className="flex items-center px-4 py-3 border border-red-200 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-all duration-200"
+                className="flex items-center px-4 py-3 border border-red-200 bg-red-50/80 text-red-700 rounded-xl hover:bg-red-100/80 transition-all duration-200 backdrop-blur-sm"
               >
                 <X className="h-4 w-4 mr-2" />
                 Clear All
@@ -493,7 +466,7 @@ export function QuotesDashboard() {
           {/* Advanced Filters */}
           {showAdvancedFilters && (
             <div className="border-t border-gray-200 pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Customer Name Filter */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -531,64 +504,25 @@ export function QuotesDashboard() {
                   </div>
                 </div>
 
-                {/* Markup Range */}
+                {/* Date Range */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Markup Range (%)
-                  </label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={filters.markupRange.min}
-                      onChange={(e) => handleFilterChange('markupRange', { ...filters.markupRange, min: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={filters.markupRange.max}
-                      onChange={(e) => handleFilterChange('markupRange', { ...filters.markupRange, max: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-
-                {/* Created Date Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Created Date Range
+                    Date Range
                   </label>
                   <div className="flex space-x-2">
                     <input
                       type="date"
-                      value={filters.createdDateRange.start}
-                      onChange={(e) => handleFilterChange('createdDateRange', { ...filters.createdDateRange, start: e.target.value })}
+                      value={filters.dateRange.start}
+                      onChange={(e) => handleFilterChange('dateRange', { ...filters.dateRange, start: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                     <input
                       type="date"
-                      value={filters.createdDateRange.end}
-                      onChange={(e) => handleFilterChange('createdDateRange', { ...filters.createdDateRange, end: e.target.value })}
+                      value={filters.dateRange.end}
+                      onChange={(e) => handleFilterChange('dateRange', { ...filters.dateRange, end: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                   </div>
-                </div>
-
-                {/* Has Items Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Quote Items
-                  </label>
-                  <select
-                    value={filters.hasItems}
-                    onChange={(e) => handleFilterChange('hasItems', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value="all">All Quotes</option>
-                    <option value="with-items">With Items</option>
-                    <option value="without-items">Without Items</option>
-                  </select>
                 </div>
 
                 {/* Item Types Filter */}
