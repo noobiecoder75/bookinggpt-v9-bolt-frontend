@@ -6,6 +6,16 @@ import { HotelSearchModal } from './trip/HotelSearchModal';
 import { ActivitySearchModal } from './trip/ActivitySearchModal';
 import { Calendar, Plus, Loader, AlertCircle, Menu, X } from 'lucide-react';
 import { getAgentMarkupSettings, getMarkupForItemType, AgentMarkupSettings } from '../../utils/markupUtils';
+import { 
+  calculateQuoteTotal, 
+  calculateItemPrice, 
+  calculateDayTotal,
+  determineMarkupStrategy,
+  DEFAULT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
 import { Navbar } from '../Navbar';
 
 // Import the new components
@@ -21,7 +31,6 @@ import { createFlightItems, getFlightDayIndex } from './trip/flightUtils';
 
 // Import types
 import { 
-  Trip, 
   Booking, 
   ActivityItem, 
   Traveler, 
@@ -30,6 +39,32 @@ import {
   DayPlan, 
   ItineraryItem 
 } from './trip/types';
+
+// Extended Trip interface with markup strategy
+interface Trip {
+  id: string;
+  name: string;
+  status: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  currency: string;
+  pricingVisible: boolean;
+  pdfDownloadEnabled: boolean;
+  tags: string[];
+  total_price: number;
+  markup: number;
+  discount: number;
+  notes: string;
+  markup_strategy: MarkupStrategy;
+  customer?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+  };
+}
 
 
 
@@ -107,7 +142,8 @@ export function TripOverviewRefactored() {
     total_price: 0,
     markup: 0,
     discount: 0,
-    notes: ''
+    notes: '',
+    markup_strategy: 'global' as MarkupStrategy
   });
 
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -306,25 +342,34 @@ export function TripOverviewRefactored() {
   };
 
   const calculateTotalPrice = () => {
-    // Calculate individual items total with their markups
-    const itemsTotal = days.reduce((total, day) => 
-      total + day.items.reduce((dayTotal, item) => {
-        const itemMarkup = item.markup_type === 'percentage' 
-          ? item.cost * (item.markup/100)
-          : item.markup;
-        return dayTotal + (item.cost + itemMarkup);
-      }, 0)
-    , 0);
+    // Convert days items to pricing format
+    const allItems: PricingItem[] = [];
     
-    // Apply global markup if any (from trip settings)
-    const globalMarkup = trip?.markup || 0;
-    const withGlobalMarkup = itemsTotal * (1 + globalMarkup/100);
-    
-    // Apply global discount if any (from trip settings)
-    const globalDiscount = trip?.discount || 0;
-    const withDiscount = withGlobalMarkup * (1 - globalDiscount/100);
-    
-    return withDiscount;
+    days.forEach(day => {
+      day.items.forEach(item => {
+        allItems.push({
+          id: item.id,
+          cost: item.cost,
+          markup: item.markup || 0,
+          markup_type: item.markup_type || 'percentage',
+          quantity: 1, // Items in days don't have quantity
+          item_type: item.type,
+          details: item.details
+        });
+      });
+    });
+
+    // Create pricing quote object
+    const pricingQuote: PricingQuote = {
+      id: trip.id,
+      markup: trip.markup || 0,
+      discount: trip.discount || 0,
+      markup_strategy: trip.markup_strategy || 'global',
+      quote_items: allItems
+    };
+
+    // Use unified pricing calculation
+    return calculateQuoteTotal(pricingQuote, DEFAULT_PRICING_OPTIONS);
   };
 
   // Database operations for auto-saving
@@ -348,7 +393,10 @@ export function TripOverviewRefactored() {
             startTime: item.startTime,
             endTime: item.endTime,
             day_index: dayIndex,
-            local_id: item.id // Store the local ID for reference
+            local_id: item.id, // Store the local ID for reference
+            // Include markup information in details for client portal
+            markup: item.markup,
+            markup_type: item.markup_type
           }
         }])
         .select()
@@ -807,7 +855,10 @@ export function TripOverviewRefactored() {
               local_id: flightItem.id,
               linkedItemId: flightItem.linkedItemId,
               isReturnFlight: flightItem.isReturnFlight,
-              flightDirection: flightItem.flightDirection
+              flightDirection: flightItem.flightDirection,
+              // Include markup information in details for client portal
+              markup: flightItem.markup,
+              markup_type: flightItem.markup_type
             }
           }])
           .select()
@@ -904,7 +955,7 @@ export function TripOverviewRefactored() {
     // Save to database
     if (!tripId) return;
 
-    // Debug the details being saved
+    // Debug the details being saved - ensure field names match client portal expectations
     const detailsToSave = {
       ...hotelItem.details,
       description: hotelItem.description,
@@ -912,7 +963,20 @@ export function TripOverviewRefactored() {
       endTime: hotelItem.endTime,
       day_index: startDayIndex,
       span_days: spanDays,
-      local_id: hotelItem.id
+      local_id: hotelItem.id,
+      // Standardize field names to match client portal expectations
+      check_in: hotelItem.details?.checkInDate,
+      check_out: hotelItem.details?.checkOutDate,
+      numberOfNights: hotelItem.details?.nights,
+      checkInDate: hotelItem.details?.checkInDate,  // Keep both formats for compatibility
+      checkOutDate: hotelItem.details?.checkOutDate,
+      nights: hotelItem.details?.nights,
+      totalCost: hotelItem.details?.totalCost,
+      costPerDay: hotelItem.details?.costPerDay,
+      spanDays: hotelItem.details?.spanDays,
+      // Include markup information in details for client portal
+      markup: hotelItem.markup,
+      markup_type: hotelItem.markup_type
     };
 
     console.log('=== Saving Hotel to Database ===');
@@ -1003,7 +1067,10 @@ export function TripOverviewRefactored() {
             ...activityItem.details,
             description: activityItem.description,
             day_index: dayIndex,
-            local_id: activityItem.id
+            local_id: activityItem.id,
+            // Include markup information in details for client portal
+            markup: activityItem.markup,
+            markup_type: activityItem.markup_type
           }
         }])
         .select()

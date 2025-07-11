@@ -124,6 +124,30 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
     });
   };
 
+  // Helper function to calculate display price for items (per-night for hotels)
+  const getItemDisplayPrice = (item: Quote['quote_items'][0]) => {
+    const totalPrice = calculateCustomerPrice(item);
+    
+    if (item.item_type === 'Hotel') {
+      const numberOfNights = item.details?.nights || item.details?.numberOfNights;
+      const checkInDate = item.details?.check_in || item.details?.checkInDate;
+      const checkOutDate = item.details?.check_out || item.details?.checkOutDate;
+      
+      if (numberOfNights && numberOfNights > 0) {
+        return totalPrice / numberOfNights;
+      } else if (checkInDate && checkOutDate) {
+        const checkIn = new Date(checkInDate + 'T00:00:00');
+        const checkOut = new Date(checkOutDate + 'T00:00:00');
+        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        if (nights > 0) {
+          return totalPrice / nights;
+        }
+      }
+    }
+    
+    return totalPrice;
+  };
+
   // Build itinerary days with improved database sync
   const buildItineraryDays = (): ItineraryDay[] => {
     // Use validated quote which has normalized/inferred dates
@@ -140,7 +164,21 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
     
     // Enhanced grouping with better database field handling
     const itemsByDay = validatedQuote.quote_items.reduce((acc, item) => {
-      // Try multiple ways to get day index from database
+      // For multi-day hotels, add them to all days they span
+      if (item.item_type === 'Hotel' && item.details?.span_days && item.details.span_days > 1) {
+        const startDayIndex = item.details.day_index || 0;
+        const spanDays = item.details.span_days;
+        
+        // Add hotel to all days it spans
+        for (let i = 0; i < spanDays; i++) {
+          const dayIndex = Math.max(0, Math.min(startDayIndex + i, totalDays - 1));
+          if (!acc[dayIndex]) acc[dayIndex] = [];
+          acc[dayIndex].push(item);
+        }
+        return acc;
+      }
+      
+      // For single-day items, use standard day assignment logic
       let dayIndex = 0;
       
       // Priority 1: Explicit day_index in details
@@ -152,8 +190,8 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
         dayIndex = item.details.day.index;
       }
       // Priority 3: Calculate from date for hotels
-      else if (item.item_type === 'Hotel' && item.details?.check_in) {
-        const checkInDate = new Date(item.details.check_in + 'T00:00:00');
+      else if (item.item_type === 'Hotel' && (item.details?.check_in || item.details?.checkInDate)) {
+        const checkInDate = new Date((item.details.check_in || item.details.checkInDate) + 'T00:00:00');
         const diffTime = checkInDate.getTime() - startDate.getTime();
         dayIndex = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
       }
@@ -203,22 +241,30 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
         try {
           const itemPrice = calculateCustomerPrice(item);
           
-          // For hotels, only add cost on check-in day to avoid double-counting
+          // For hotels, calculate per-night cost instead of total cost
           if (item.item_type === 'Hotel') {
             const checkInDate = item.details?.check_in || item.details?.checkInDate;
-            if (checkInDate) {
+            const checkOutDate = item.details?.check_out || item.details?.checkOutDate;
+            const numberOfNights = item.details?.nights || item.details?.numberOfNights;
+            
+            if (checkInDate && checkOutDate) {
               const checkIn = new Date(checkInDate + 'T00:00:00');
+              const checkOut = new Date(checkOutDate + 'T00:00:00');
               const dayDate = new Date(currentDate);
               dayDate.setHours(0, 0, 0, 0);
               checkIn.setHours(0, 0, 0, 0);
+              checkOut.setHours(0, 0, 0, 0);
               
-              // Only add hotel cost on the check-in day
-              if (dayDate.getTime() === checkIn.getTime()) {
-                return sum + itemPrice;
-              } else {
-                return sum; // Don't add cost on other days
+              // Check if current day is within the hotel stay period
+              if (dayDate.getTime() >= checkIn.getTime() && dayDate.getTime() < checkOut.getTime()) {
+                // Calculate per-night cost
+                const nights = numberOfNights || Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+                if (nights > 0) {
+                  return sum + (itemPrice / nights);
+                }
               }
             }
+            return sum; // Don't add cost if not within stay period
           }
           
           // For other item types, add the full cost
@@ -540,10 +586,18 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
                                   </div>
                                   <div className="text-right">
                                     <p className="text-xl font-bold text-indigo-600">
-                                      ${calculateCustomerPrice(item).toFixed(2)}
+                                      ${getItemDisplayPrice(item).toFixed(2)}
+                                      {item.item_type === 'Hotel' && (
+                                        <span className="text-sm text-slate-500 font-normal">/night</span>
+                                      )}
                                     </p>
                                     {item.quantity > 1 && (
                                       <p className="text-sm text-slate-500">Qty: {item.quantity}</p>
+                                    )}
+                                    {item.item_type === 'Hotel' && (
+                                      <p className="text-sm text-slate-500">
+                                        Total: ${calculateCustomerPrice(item).toFixed(2)}
+                                      </p>
                                     )}
                                   </div>
                                 </div>

@@ -1,0 +1,8 @@
+# Netlify redirects for SPA client-side routing
+# This ensures all routes are handled by the React app
+
+# Client portal routes
+/client/* /index.html 200
+
+# All other routes (fallback for SPA)
+/* /index.html 200 

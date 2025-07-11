@@ -1,0 +1,44 @@
+[build]
+  # Build command for the application
+  command = "npm run build"
+  
+  # Directory to publish (Vite builds to 'dist' by default)
+  publish = "dist"
+  
+  # Functions directory for Netlify Functions
+  functions = "netlify/functions"
+
+[build.environment]
+  # Node version for build
+  NODE_VERSION = "18"
+
+# API redirects to Netlify Functions
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+# SPA redirect rules (backup to _redirects file)
+[[redirects]]
+  from = "/client/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers for security and performance
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable" 

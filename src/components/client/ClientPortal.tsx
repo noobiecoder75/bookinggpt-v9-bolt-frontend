@@ -335,10 +335,16 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
   // Calculate customer-facing price (without markup visibility)
   const calculateCustomerPrice = (item: Quote['quote_items'][0]) => {
     const itemTotal = item.cost * item.quantity;
-    const markup = item.markup_type === 'percentage'
-      ? itemTotal * (item.markup / 100)
-      : item.markup;
-    return itemTotal + markup;
+    
+    // Try to get markup from direct fields first, then from details JSONB field
+    const markup = item.markup || item.details?.markup || 0;
+    const markupType = item.markup_type || item.details?.markup_type || 'percentage';
+    
+    const markupAmount = markupType === 'percentage'
+      ? itemTotal * (markup / 100)
+      : markup;
+    
+    return itemTotal + markupAmount;
   };
 
   const handleSectionChange = (section: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status') => {

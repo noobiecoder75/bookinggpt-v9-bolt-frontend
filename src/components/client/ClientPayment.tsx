@@ -22,6 +22,16 @@ interface Quote {
     last_name: string;
     email: string;
   };
+  quote_items: Array<{
+    id: number;
+    item_type: 'Flight' | 'Hotel' | 'Tour' | 'Transfer';
+    item_name: string;
+    cost: number;
+    markup?: number;
+    markup_type?: 'percentage' | 'fixed';
+    quantity: number;
+    details?: any;
+  }>;
 }
 
 interface ClientPaymentProps {
@@ -43,7 +53,30 @@ export function ClientPayment({ quote, onSuccess }: ClientPaymentProps) {
     country: ''
   });
 
-  const finalPrice = quote.total_price * (1 - quote.discount / 100);
+  // Calculate customer-facing price (same logic as ClientPortal)
+  const calculateCustomerPrice = (item: Quote['quote_items'][0]) => {
+    const itemTotal = item.cost * item.quantity;
+    
+    // Try to get markup from direct fields first, then from details JSONB field
+    const markup = item.markup || item.details?.markup || 0;
+    const markupType = item.markup_type || item.details?.markup_type || 'percentage';
+    
+    const markupAmount = markupType === 'percentage'
+      ? itemTotal * (markup / 100)
+      : markup;
+    
+    return itemTotal + markupAmount;
+  };
+
+  // Calculate total from itemized costs instead of using quote.total_price
+  const calculateItemizedTotal = () => {
+    return quote.quote_items.reduce((total, item) => {
+      return total + calculateCustomerPrice(item);
+    }, 0);
+  };
+
+  const itemizedTotal = calculateItemizedTotal();
+  const finalPrice = itemizedTotal * (1 - quote.discount / 100);
   const depositAmount = finalPrice * 0.3; // 30% deposit
   const remainingAmount = finalPrice - depositAmount;
 
@@ -205,6 +238,54 @@ export function ClientPayment({ quote, onSuccess }: ClientPaymentProps) {
                     <p className="text-xs text-blue-800">
                       Remaining ${remainingAmount.toFixed(2)} due 60 days before travel
                     </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Itemized Breakdown */}
+              <div className="mt-8 bg-white/50 rounded-2xl p-6 border border-white/20">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">Itemized Breakdown</h3>
+                <div className="space-y-3">
+                  {quote.quote_items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                      <div className="flex-1">
+                        <div className="font-medium text-slate-900">{item.item_name}</div>
+                        <div className="text-sm text-slate-600">
+                          {item.item_type} • Qty: {item.quantity}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-slate-900">
+                          ${calculateCustomerPrice(item).toFixed(2)}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          ${item.cost.toFixed(2)} base
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="pt-4 border-t-2 border-gray-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-lg font-semibold text-slate-900">Subtotal</span>
+                      <span className="text-lg font-semibold text-slate-900">
+                        ${itemizedTotal.toFixed(2)}
+                      </span>
+                    </div>
+                    {quote.discount > 0 && (
+                      <div className="flex justify-between items-center mb-2 text-green-600">
+                        <span className="font-medium">Discount ({quote.discount}%)</span>
+                        <span className="font-medium">
+                          -${(itemizedTotal * (quote.discount / 100)).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                      <span className="text-xl font-bold text-slate-900">Total</span>
+                      <span className="text-xl font-bold text-indigo-600">
+                        ${finalPrice.toFixed(2)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
