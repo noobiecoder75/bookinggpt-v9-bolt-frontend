@@ -4,13 +4,14 @@ import { supabase } from '../../lib/supabase';
 import { FlightSearchModal } from './FlightSearchModal';
 import { HotelSearchModal } from './trip/HotelSearchModal';
 import { ActivitySearchModal } from './trip/ActivitySearchModal';
-import { Calendar, Plus, Loader, AlertCircle, Menu, X } from 'lucide-react';
+import { Calendar, Plus, Loader, AlertCircle, Menu, X, Eye } from 'lucide-react';
 import { getAgentMarkupSettings, getMarkupForItemType, AgentMarkupSettings } from '../../utils/markupUtils';
 import { 
   calculateQuoteTotal, 
   calculateItemPrice, 
   calculateDayTotal,
   determineMarkupStrategy,
+  validateHotelPricing,
   DEFAULT_PRICING_OPTIONS,
   type PricingQuote,
   type PricingItem,
@@ -207,7 +208,8 @@ export function TripOverviewRefactored() {
             total_price: quoteData.total_price || 0,
             markup: quoteData.markup || 0,
             discount: quoteData.discount || 0,
-            notes: quoteData.notes || ''
+            notes: quoteData.notes || '',
+            markup_strategy: quoteData.markup_strategy || 'global'
           });
 
           // Initialize itinerary
@@ -352,24 +354,48 @@ export function TripOverviewRefactored() {
           cost: item.cost,
           markup: item.markup || 0,
           markup_type: item.markup_type || 'percentage',
-          quantity: 1, // Items in days don't have quantity
+          quantity: item.details?.quantity || 1, // Use quantity from details or default to 1
           item_type: item.type,
           details: item.details
         });
       });
     });
 
-    // Create pricing quote object
+    // Create pricing quote object with proper quote_items
     const pricingQuote: PricingQuote = {
       id: trip.id,
       markup: trip.markup || 0,
       discount: trip.discount || 0,
       markup_strategy: trip.markup_strategy || 'global',
-      quote_items: allItems
+      quote_items: allItems // This was missing before!
     };
 
-    // Use unified pricing calculation
-    return calculateQuoteTotal(pricingQuote, DEFAULT_PRICING_OPTIONS);
+    // Use unified pricing calculation with dynamic markup strategy
+    const pricingOptions = {
+      ...DEFAULT_PRICING_OPTIONS,
+      markupStrategy: trip.markup_strategy || determineMarkupStrategy(pricingQuote)
+    };
+
+    // Validate hotel pricing in development
+    if (process.env.NODE_ENV === 'development') {
+      const validation = validateHotelPricing(pricingQuote);
+      if (validation.issues.length > 0) {
+        console.warn(`TripOverviewRefactored - Trip ${trip.id} hotel pricing issues:`, validation.issues);
+      }
+    }
+
+    const total = calculateQuoteTotal(pricingQuote, pricingOptions);
+    
+    // Debug logging
+    console.log('🎯 TripOverviewRefactored - calculateTotalPrice:', {
+      itemCount: allItems.length,
+      tripMarkup: trip.markup,
+      markupStrategy: pricingOptions.markupStrategy,
+      total: total,
+      pricingQuote
+    });
+
+    return total;
   };
 
   // Database operations for auto-saving
@@ -508,7 +534,8 @@ export function TripOverviewRefactored() {
               numberOfNights: dbItem.details?.nights || dbItem.details?.numberOfNights,
               checkInDate: dbItem.details?.checkInDate,
               checkOutDate: dbItem.details?.checkOutDate,
-              spanDays: spanDays
+              spanDays: spanDays,
+              quantity: dbItem.quantity || 1 // Store quantity from database
             },
             // Include linked flight properties
             linkedItemId: dbItem.details?.linkedItemId,
@@ -986,20 +1013,23 @@ export function TripOverviewRefactored() {
     console.log('Rate key in final details:', detailsToSave.rateKey);
 
     try {
-      const { data, error } = await supabase
-        .from('quote_items')
-        .insert([{
-          quote_id: tripId,
-          item_type: hotelItem.type,
-          item_name: hotelItem.name,
-          cost: hotelItem.cost, // This is now the per-day cost
-          quantity: spanDays, // Set quantity to number of days
-          markup: hotelItem.markup,
-          markup_type: hotelItem.markup_type,
-          details: detailsToSave
-        }])
-        .select()
-        .single();
+              const { data, error } = await supabase
+          .from('quote_items')
+          .insert([{
+            quote_id: tripId,
+            item_type: hotelItem.type,
+            item_name: hotelItem.name,
+            cost: hotelItem.cost, // This is now the per-day cost
+            quantity: spanDays, // Set quantity to number of days
+            markup: hotelItem.markup,
+            markup_type: hotelItem.markup_type,
+            details: {
+              ...detailsToSave,
+              quantity: spanDays // Also store quantity in details for consistency
+            }
+          }])
+          .select()
+          .single();
 
       if (error) throw error;
 

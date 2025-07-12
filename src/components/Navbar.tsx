@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthContext } from '../contexts/AuthContext';
 import {
   Home,
   FileText,
   Calendar,
   Users,
   Settings,
+  Mail,
   Bell,
   PlusCircle,
   Menu,
@@ -21,6 +23,7 @@ interface NavbarProps {
 
 export function Navbar({ onCreateTrip }: NavbarProps) {
   const navigate = useNavigate();
+  const { user, signOut } = useAuthContext();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -30,6 +33,15 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
 
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setIsUserMenuOpen(false);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   return (
@@ -61,6 +73,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 <NavLink to="/bookings" icon={<Calendar className="w-4 h-4" />}>
                   Bookings
                 </NavLink>
+                <NavLink to="/communications" icon={<Mail className="w-4 h-4" />}>
+                  Communications
+                </NavLink>
                 <NavLink to="/settings" icon={<Settings className="w-4 h-4" />}>
                   Settings
                 </NavLink>
@@ -91,7 +106,7 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                   className="flex items-center space-x-3 p-2 text-white hover:bg-white/10 rounded-xl transition-all duration-200 backdrop-blur-sm"
                 >
                   <div className="hidden sm:block text-right">
-                    <p className="text-sm font-medium text-white">Sarah Johnson</p>
+                    <p className="text-sm font-medium text-white">{user?.email || 'User'}</p>
                     <p className="text-xs text-white/70">Travel Agent</p>
                   </div>
                   <img
@@ -112,11 +127,14 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                       }}
                       className="w-full px-4 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
                     >
-                      <p className="text-sm font-medium text-gray-900">Sarah Johnson</p>
-                      <p className="text-xs text-gray-500">sarah@bookinggpt.com</p>
+                      <p className="text-sm font-medium text-gray-900">{user?.email || 'User'}</p>
+                      <p className="text-xs text-gray-500">{user?.email || 'user@bookinggpt.com'}</p>
                     </button>
                     <hr className="my-1" />
-                    <button className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                    <button 
+                      onClick={handleSignOut}
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                    >
                       Sign out
                     </button>
                   </div>
@@ -162,6 +180,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
               <MobileNavLink to="/bookings" icon={<Calendar className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Bookings
               </MobileNavLink>
+              <MobileNavLink to="/communications" icon={<Mail className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
+                Communications
+              </MobileNavLink>
               <MobileNavLink to="/settings" icon={<Settings className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Settings
               </MobileNavLink>
@@ -182,13 +203,16 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                   alt="User avatar"
                 />
                 <div className="ml-3">
-                  <div className="text-base font-medium text-white">Sarah Johnson</div>
+                  <div className="text-base font-medium text-white">{user?.email || 'User'}</div>
                   <div className="text-sm text-white/70">Travel Agent</div>
-                  <div className="text-sm text-white/70">sarah@bookinggpt.com</div>
+                  <div className="text-sm text-white/70">{user?.email || 'user@bookinggpt.com'}</div>
                 </div>
               </button>
               <div className="mt-3 px-2 space-y-1">
-                <button className="flex items-center w-full px-3 py-2 text-base font-medium text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200">
+                <button 
+                  onClick={handleSignOut}
+                  className="flex items-center w-full px-3 py-2 text-base font-medium text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
+                >
                   Sign out
                 </button>
               </div>

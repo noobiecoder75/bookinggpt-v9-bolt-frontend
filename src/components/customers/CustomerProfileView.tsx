@@ -4,8 +4,9 @@ import { supabase } from '../../lib/supabase';
 import { 
   User, Mail, Phone, Globe, Calendar, FileText, 
   DollarSign, Edit2, Save, X, ChevronDown, ChevronUp,
-  Download, Send, CheckCircle, AlertCircle, Plus
+  Download, Send, CheckCircle, AlertCircle, Plus, Eye
 } from 'lucide-react';
+import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 
 interface StatCardProps {
   title: string;
@@ -78,6 +79,18 @@ interface Booking {
   created_at: string;
 }
 
+interface EmailCommunication {
+  id: string;
+  customer_id: number;
+  quote_id?: string;
+  email_type: string;
+  subject: string;
+  recipients: string[];
+  status: 'sent' | 'failed' | 'bounced' | 'opened';
+  sent_at: string;
+  opened_at?: string;
+}
+
 export function CustomerProfileView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -85,11 +98,13 @@ export function CustomerProfileView() {
   const [events, setEvents] = useState<CustomerEvent[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [emails, setEmails] = useState<EmailCommunication[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedCustomer, setEditedCustomer] = useState<Customer | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'bookings' | 'payments'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'bookings' | 'payments' | 'emails'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isConnected } = useGoogleOAuth();
 
   useEffect(() => {
     if (id) {
@@ -141,6 +156,16 @@ export function CustomerProfileView() {
 
       if (bookingsError) throw bookingsError;
       setBookings(bookingsData);
+
+      // Fetch email communications
+      const { data: emailsData, error: emailsError } = await supabase
+        .from('email_communications')
+        .select('*')
+        .eq('customer_id', id)
+        .order('sent_at', { ascending: false });
+
+      if (emailsError) throw emailsError;
+      setEmails(emailsData || []);
 
     } catch (error: any) {
       setError(error.message);
@@ -272,6 +297,7 @@ export function CustomerProfileView() {
             { id: 'overview', name: 'Overview & Timeline' },
             { id: 'quotes', name: 'Quotes' },
             { id: 'bookings', name: 'Bookings' },
+            { id: 'emails', name: `Emails ${emails.length > 0 ? `(${emails.length})` : ''}` },
             { id: 'payments', name: 'Payments' },
           ].map((tab) => (
             <button
@@ -648,6 +674,101 @@ export function CustomerProfileView() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Emails Tab */}
+        {activeTab === 'emails' && (
+          <div className="bg-white shadow rounded-lg">
+            <div className="px-4 py-5 sm:p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-medium text-gray-900">Email Communications</h2>
+                <div className="flex space-x-3">
+                  {isConnected && (
+                    <button
+                      onClick={() => navigate(`/communications?customer=${customer?.id}&email=${encodeURIComponent(customer?.email || '')}`)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      Send Email
+                    </button>
+                  )}
+                  <button
+                    onClick={() => navigate('/communications')}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    View All Communications
+                  </button>
+                </div>
+              </div>
+              
+              {emails.length > 0 ? (
+                <div className="space-y-4">
+                  {emails.map((email) => (
+                    <div key={email.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <div className={`w-3 h-3 rounded-full ${
+                              email.status === 'opened' ? 'bg-green-500' :
+                              email.status === 'sent' ? 'bg-blue-500' :
+                              email.status === 'failed' ? 'bg-red-500' :
+                              'bg-gray-400'
+                            }`} />
+                            <h4 className="text-sm font-medium text-gray-900">{email.subject}</h4>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                              {email.email_type}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500 space-y-1">
+                            <div>To: {email.recipients.join(', ')}</div>
+                            <div>Sent: {new Date(email.sent_at).toLocaleString()}</div>
+                            {email.opened_at && (
+                              <div className="flex items-center space-x-1">
+                                <Eye className="h-4 w-4 text-green-600" />
+                                <span className="text-green-600">Opened: {new Date(email.opened_at).toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            email.status === 'opened' ? 'bg-green-100 text-green-800' :
+                            email.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                            email.status === 'failed' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Mail className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">No emails sent</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {isConnected 
+                      ? 'Start communicating with this customer by sending an email.'
+                      : 'Connect Gmail to start sending emails to customers.'
+                    }
+                  </p>
+                  {isConnected && (
+                    <div className="mt-6">
+                      <button
+                        onClick={() => navigate(`/communications?customer=${customer?.id}&email=${encodeURIComponent(customer?.email || '')}`)}
+                        className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                      >
+                        <Mail className="h-5 w-5 mr-2" />
+                        Send First Email
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

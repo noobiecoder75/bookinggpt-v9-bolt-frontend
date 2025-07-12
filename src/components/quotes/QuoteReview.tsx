@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plane, Building, Car, Calendar, DollarSign, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { QuoteDetails, TravelRequirements, DayPlan, ItineraryItem } from './types';
+import { getItemDisplayPrice, DEFAULT_PRICING_OPTIONS, type PricingItem, type PricingQuote } from '../../utils/pricingUtils';
 
 interface Props {
   quoteDetails: QuoteDetails;
@@ -134,7 +135,31 @@ export function QuoteReview({
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-900">
-                            ${item.cost.toFixed(2)}
+                            ${(() => {
+                              // Convert to pricing format for hotel-aware pricing
+                              const pricingItem: PricingItem = {
+                                id: item.id,
+                                cost: item.cost,
+                                markup: item.markup || 0,
+                                markup_type: item.markup_type || 'percentage',
+                                quantity: 1,
+                                item_type: item.type,
+                                details: item.details || {}
+                              };
+                              
+                              const pricingQuote: PricingQuote = {
+                                id: 'temp-quote',
+                                markup: 0,
+                                discount: 0,
+                                markup_strategy: 'individual'
+                              };
+                              
+                              const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
+                              return displayPrice.toFixed(2);
+                            })()}
+                            {item.type === 'hotel' && item.details?.nights && item.details.nights > 1 && (
+                              <span className="text-xs text-gray-500 block">per night</span>
+                            )}
                           </p>
                           {item.markup > 0 && (
                             <p className="text-xs text-gray-500">

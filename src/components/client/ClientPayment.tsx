@@ -1,36 +1,30 @@
 import React, { useState } from 'react';
+import { CreditCard, Calendar, Check, ArrowLeft, Loader, CheckCircle, Shield, ArrowRight, Lock } from 'lucide-react';
 import { 
-  CreditCard, 
-  Shield, 
-  CheckCircle, 
-  Lock, 
-  Calendar,
-  User,
-  DollarSign,
-  AlertCircle,
-  ArrowRight
-} from 'lucide-react';
+  calculateItemPrice,
+  calculateQuoteTotal,
+  validateHotelPricing,
+  CLIENT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
 
 interface Quote {
   id: string;
-  quote_reference?: string;
   total_price: number;
+  markup: number;
   discount: number;
-  expiry_date: string;
-  customer: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
+  markup_strategy: MarkupStrategy;
   quote_items: Array<{
     id: number;
     item_type: 'Flight' | 'Hotel' | 'Tour' | 'Transfer';
     item_name: string;
     cost: number;
-    markup?: number;
-    markup_type?: 'percentage' | 'fixed';
+    markup: number;
+    markup_type: 'percentage' | 'fixed';
     quantity: number;
-    details?: any;
+    details: any;
   }>;
 }
 
@@ -53,32 +47,78 @@ export function ClientPayment({ quote, onSuccess }: ClientPaymentProps) {
     country: ''
   });
 
-  // Calculate customer-facing price (same logic as ClientPortal)
+  // Calculate customer-facing price using unified pricing system
   const calculateCustomerPrice = (item: Quote['quote_items'][0]) => {
-    const itemTotal = item.cost * item.quantity;
-    
-    // Try to get markup from direct fields first, then from details JSONB field
-    const markup = item.markup || item.details?.markup || 0;
-    const markupType = item.markup_type || item.details?.markup_type || 'percentage';
-    
-    const markupAmount = markupType === 'percentage'
-      ? itemTotal * (markup / 100)
-      : markup;
-    
-    return itemTotal + markupAmount;
+    // Convert to pricing format
+    const pricingItem: PricingItem = {
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.quantity || 1,
+      item_type: item.item_type,
+      details: item.details
+    };
+
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global'
+    };
+
+    return calculateItemPrice(pricingItem, pricingQuote, CLIENT_PRICING_OPTIONS);
   };
 
-  // Calculate total from itemized costs instead of using quote.total_price
-  const calculateItemizedTotal = () => {
-    return quote.quote_items.reduce((total, item) => {
-      return total + calculateCustomerPrice(item);
-    }, 0);
+  // Calculate total using unified pricing system
+  const calculateTotalPrice = () => {
+    // Convert to pricing format
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global',
+      quote_items: quote.quote_items.map(item => ({
+        id: item.id,
+        cost: item.cost,
+        markup: item.markup || 0,
+        markup_type: item.markup_type || 'percentage',
+        quantity: item.quantity || 1,
+        item_type: item.item_type,
+        details: item.details
+      }))
+    };
+
+    return calculateQuoteTotal(pricingQuote, CLIENT_PRICING_OPTIONS);
   };
 
-  const itemizedTotal = calculateItemizedTotal();
-  const finalPrice = itemizedTotal * (1 - quote.discount / 100);
+  const finalPrice = calculateTotalPrice();
   const depositAmount = finalPrice * 0.3; // 30% deposit
   const remainingAmount = finalPrice - depositAmount;
+
+  // Validate hotel pricing for debugging
+  React.useEffect(() => {
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global',
+      quote_items: quote.quote_items.map(item => ({
+        id: item.id,
+        cost: item.cost,
+        markup: item.markup || 0,
+        markup_type: item.markup_type || 'percentage',
+        quantity: item.quantity || 1,
+        item_type: item.item_type,
+        details: item.details
+      }))
+    };
+
+    const validation = validateHotelPricing(pricingQuote);
+    if (validation.issues.length > 0 && process.env.NODE_ENV === 'development') {
+      console.warn('ClientPayment hotel pricing validation:', validation.issues);
+    }
+  }, [quote]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -133,10 +173,10 @@ export function ClientPayment({ quote, onSuccess }: ClientPaymentProps) {
           <p className="text-lg text-slate-600 mb-4">Your booking is confirmed</p>
           <div className="bg-green-50 rounded-2xl p-6 mb-6">
             <p className="text-green-800 font-medium">
-              Confirmation details have been sent to {quote.customer.email}
+              Confirmation details will be sent to your email
             </p>
             <p className="text-green-700 text-sm mt-2">
-              Quote Reference: {quote.quote_reference}
+              Quote Reference: {quote.id}
             </p>
           </div>
           <p className="text-slate-500 text-sm">
@@ -269,14 +309,14 @@ export function ClientPayment({ quote, onSuccess }: ClientPaymentProps) {
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-lg font-semibold text-slate-900">Subtotal</span>
                       <span className="text-lg font-semibold text-slate-900">
-                        ${itemizedTotal.toFixed(2)}
+                        ${finalPrice.toFixed(2)}
                       </span>
                     </div>
                     {quote.discount > 0 && (
                       <div className="flex justify-between items-center mb-2 text-green-600">
                         <span className="font-medium">Discount ({quote.discount}%)</span>
                         <span className="font-medium">
-                          -${(itemizedTotal * (quote.discount / 100)).toFixed(2)}
+                          -${(finalPrice * (quote.discount / 100)).toFixed(2)}
                         </span>
                       </div>
                     )}

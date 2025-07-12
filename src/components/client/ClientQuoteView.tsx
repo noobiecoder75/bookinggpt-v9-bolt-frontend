@@ -17,6 +17,12 @@ import {
   Award,
   CreditCard
 } from 'lucide-react';
+import { 
+  getItemDisplayPrice,
+  DEFAULT_PRICING_OPTIONS,
+  type PricingItem,
+  type PricingQuote
+} from '../../utils/pricingUtils';
 
 interface Quote {
   id: string;
@@ -374,11 +380,64 @@ export function ClientQuoteView({ quote, calculateCustomerPrice }: ClientQuoteVi
                                 </div>
                               </div>
                               <div className="text-right flex-shrink-0 ml-4">
-                                <div className="text-xl font-bold text-blue-600">
-                                  ${calculateCustomerPrice(item).toFixed(2)}
-                                </div>
-                                {item.quantity > 1 && (
-                                  <p className="text-sm text-slate-500">Quantity: {item.quantity}</p>
+                                {item.item_type === 'Hotel' ? (
+                                  // Special handling for hotel pricing
+                                  <>
+                                    <div className="text-xl font-bold text-blue-600">
+                                      ${(() => {
+                                        // Convert to pricing format for hotel-aware pricing
+                                        const pricingItem: PricingItem = {
+                                          id: item.id,
+                                          cost: item.cost,
+                                          markup: item.markup || 0,
+                                          markup_type: item.markup_type || 'percentage',
+                                          quantity: item.quantity || 1,
+                                          item_type: item.item_type,
+                                          details: item.details || {}
+                                        };
+                                        
+                                        const pricingQuote: PricingQuote = {
+                                          id: quote.id,
+                                          markup: 0, // Customer view doesn't show markup
+                                          discount: quote.discount || 0,
+                                          markup_strategy: 'individual'
+                                        };
+                                        
+                                        const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
+                                        return displayPrice.toFixed(2);
+                                      })()}
+                                    </div>
+                                    {/* Show per-night label for multi-night hotels */}
+                                    {(
+                                      item.details?.nights > 1 || 
+                                      item.details?.numberOfNights > 1 || 
+                                      (item.details?.checkInDate && item.details?.checkOutDate && 
+                                       Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
+                                    ) && (
+                                      <p className="text-sm text-slate-500">per night</p>
+                                    )}
+                                    {/* Show total for multi-night hotels */}
+                                    {(
+                                      item.details?.nights > 1 || 
+                                      item.details?.numberOfNights > 1 || 
+                                      (item.details?.checkInDate && item.details?.checkOutDate && 
+                                       Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
+                                    ) && (
+                                      <p className="text-xs text-slate-400">
+                                        Total: ${calculateCustomerPrice(item).toFixed(2)}
+                                      </p>
+                                    )}
+                                  </>
+                                ) : (
+                                  // Regular pricing for non-hotel items
+                                  <>
+                                    <div className="text-xl font-bold text-blue-600">
+                                      ${calculateCustomerPrice(item).toFixed(2)}
+                                    </div>
+                                    {item.quantity > 1 && (
+                                      <p className="text-sm text-slate-500">Quantity: {item.quantity}</p>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             </div>

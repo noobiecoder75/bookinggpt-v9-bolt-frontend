@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Download, Mail, Calendar, FileText, RefreshCw, Filter, X, ChevronDown } from 'lucide-react';
+import { Search, Plus, Download, Mail, Calendar, FileText, RefreshCw, Filter, X, ChevronDown, Eye } from 'lucide-react';
 import { CreateTripDialog } from './CreateTripDialog';
+import { 
+  calculateQuoteTotal, 
+  calculateAverageMarkup,
+  determineMarkupStrategy,
+  validateHotelPricing,
+  DEFAULT_PRICING_OPTIONS,
+  type PricingQuote,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
+import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 
 interface Quote {
   id: number;
@@ -10,6 +20,8 @@ interface Quote {
   status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   total_price: number;
   markup: number; // Global/average markup
+  discount: number;
+  markup_strategy: MarkupStrategy;
   created_at: string;
   updated_at: string;
   customer: {
@@ -25,6 +37,8 @@ interface Quote {
     cost: number;
     markup: number;
     markup_type: 'percentage' | 'fixed';
+    quantity: number;
+    details?: any;
   }[];
 }
 
@@ -38,6 +52,8 @@ export function QuotesDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const navigate = useNavigate();
+  const { isConnected } = useGoogleOAuth();
   
   // Simplified filter states
   const [filters, setFilters] = useState({
@@ -53,50 +69,112 @@ export function QuotesDashboard() {
     itemTypes: [] as string[]
   });
 
-  // Calculate dynamic total price from quote items
-  const calculateQuoteTotal = useCallback((quote: Quote): number => {
+  // Calculate dynamic total price from quote items using unified pricing
+  const calculateQuoteTotalPrice = useCallback((quote: Quote): number => {
     if (!quote.quote_items || quote.quote_items.length === 0) {
       return quote.total_price || 0;
     }
 
-    return quote.quote_items.reduce((total, item) => {
-      let itemTotal = item.cost;
-      if (item.markup_type === 'percentage') {
-        itemTotal = item.cost * (1 + item.markup / 100);
-      } else {
-        itemTotal = item.cost + item.markup;
+    // Convert to pricing format
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global',
+      quote_items: quote.quote_items.map(item => ({
+        id: item.id,
+        cost: item.cost,
+        markup: item.markup || 0,
+        markup_type: item.markup_type || 'percentage',
+        quantity: item.quantity || 1,
+        item_type: item.item_type,
+        details: item.details
+      }))
+    };
+
+    // Use unified pricing calculation with dynamic markup strategy
+    const pricingOptions = {
+      ...DEFAULT_PRICING_OPTIONS,
+      markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
+    };
+
+    // Validate hotel pricing in development
+    if (process.env.NODE_ENV === 'development') {
+      const validation = validateHotelPricing(pricingQuote);
+      if (validation.issues.length > 0) {
+        console.warn(`QuotesDashboard - Quote ${quote.id} hotel pricing issues:`, validation.issues);
       }
-      return total + itemTotal;
-    }, 0);
+    }
+
+    return calculateQuoteTotal(pricingQuote, pricingOptions);
   }, []);
 
-  // Calculate average markup for a quote
-  const calculateAverageMarkup = useCallback((quote: Quote): number => {
+  const fetchEmailStats = useCallback(async (quotes: Quote[]) => {
+    try {
+      const quotesWithStats = await Promise.all(
+        quotes.map(async (quote) => {
+          const { data: emails, error } = await supabase
+            .from('email_communications')
+            .select('sent_at, opened_at')
+            .eq('customer_id', quote.customer.id)
+            .or(`quote_id.eq.${quote.id},quote_id.is.null`)
+            .order('sent_at', { ascending: false });
+
+          if (error) {
+            console.error('Error fetching email stats:', error);
+            return quote;
+          }
+
+          const emailStats = {
+            totalSent: emails?.length || 0,
+            lastSent: emails?.[0]?.sent_at,
+            hasOpened: emails?.some(email => email.opened_at) || false
+          };
+
+          return { ...quote, emailStats };
+        })
+      );
+      
+      setQuotes(quotesWithStats);
+    } catch (error) {
+      console.error('Error fetching email stats:', error);
+    }
+  }, []);
+
+  // Calculate average markup for a quote using unified pricing
+  const calculateQuoteAverageMarkup = useCallback((quote: Quote): number => {
     if (!quote.quote_items || quote.quote_items.length === 0) {
       return quote.markup || 0;
     }
 
-    const totalCost = quote.quote_items.reduce((sum, item) => sum + item.cost, 0);
-    const totalWithMarkup = quote.quote_items.reduce((sum, item) => {
-      if (item.markup_type === 'percentage') {
-        return sum + (item.cost * (1 + item.markup / 100));
-      } else {
-        return sum + (item.cost + item.markup);
-      }
-    }, 0);
+    // Convert to pricing format
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global',
+      quote_items: quote.quote_items.map(item => ({
+        id: item.id,
+        cost: item.cost,
+        markup: item.markup || 0,
+        markup_type: item.markup_type || 'percentage',
+        quantity: item.quantity || 1,
+        item_type: item.item_type,
+        details: item.details
+      }))
+    };
 
-    if (totalCost === 0) return 0;
-    return ((totalWithMarkup - totalCost) / totalCost) * 100;
+    return calculateAverageMarkup(pricingQuote, DEFAULT_PRICING_OPTIONS);
   }, []);
 
   // Process quotes with dynamic calculations
   const processedQuotes = useMemo(() => {
     return quotes.map(quote => ({
       ...quote,
-      total_price: calculateQuoteTotal(quote),
-      markup: calculateAverageMarkup(quote)
+      total_price: calculateQuoteTotalPrice(quote),
+      markup: calculateQuoteAverageMarkup(quote)
     }));
-  }, [quotes, calculateQuoteTotal, calculateAverageMarkup]);
+  }, [quotes, calculateQuoteTotalPrice, calculateQuoteAverageMarkup]);
 
   const fetchQuotes = useCallback(async (showRefreshing = false) => {
     try {
@@ -119,7 +197,9 @@ export function QuotesDashboard() {
             item_name,
             cost,
             markup,
-            markup_type
+            markup_type,
+            quantity,
+            details
           )
         `)
         .order('created_at', { ascending: false });
@@ -127,6 +207,12 @@ export function QuotesDashboard() {
       if (error) throw error;
       
       setQuotes(data || []);
+      
+      // Fetch email stats for all quotes
+      if (data && data.length > 0) {
+        await fetchEmailStats(data);
+      }
+      
       setLastUpdated(new Date());
       setLoading(false);
       setRefreshing(false);
@@ -136,7 +222,7 @@ export function QuotesDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchEmailStats]);
 
   // Set up real-time subscriptions
   useEffect(() => {
@@ -247,6 +333,10 @@ export function QuotesDashboard() {
 
   const handleRefresh = () => {
     fetchQuotes(true);
+  };
+
+  const handleSendEmail = (quote: Quote) => {
+    navigate(`/communications?customer=${quote.customer.id}&email=${encodeURIComponent(quote.customer.email)}&quote=${quote.id}`);
   };
 
   const handleFilterChange = (filterType: string, value: any) => {
@@ -635,9 +725,20 @@ export function QuotesDashboard() {
                             </div>
                           </div>
                           <div className="ml-3 sm:ml-4 flex-1 min-w-0">
-                            <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
-                              {quote.customer.first_name} {quote.customer.last_name}
-                            </h2>
+                            <div className="flex items-center space-x-2">
+                              <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
+                                {quote.customer.first_name} {quote.customer.last_name}
+                              </h2>
+                              {quote.emailStats && quote.emailStats.totalSent > 0 && (
+                                <div className="flex items-center space-x-1">
+                                  <Mail className="h-3 w-3 text-blue-500" />
+                                  <span className="text-xs text-blue-600">{quote.emailStats.totalSent}</span>
+                                  {quote.emailStats.hasOpened && (
+                                    <Eye className="h-3 w-3 text-green-500" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                             <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0">
                               {/* Show quote reference only on desk*/}
                               <span className="hidden sm:inline truncate">{quote.quote_reference}</span>
@@ -668,6 +769,11 @@ export function QuotesDashboard() {
                             {/* Show email on mobile */}
                             <div className="mt-1 sm:hidden">
                               <span className="text-xs text-gray-400">{quote.customer.email}</span>
+                              {quote.emailStats?.lastSent && (
+                                <span className="text-xs text-gray-400 block">
+                                  Last email: {new Date(quote.emailStats.lastSent).toLocaleDateString()}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -694,16 +800,18 @@ export function QuotesDashboard() {
                           </span>
                         </div>
                         <div className="hidden sm:flex space-x-2">
-                          <button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              // Add email functionality
-                            }} 
-                            className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Send email"
-                          >
-                            <Mail className="h-5 w-5" />
-                          </button>
+                          {isConnected && (
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                handleSendEmail(quote);
+                              }} 
+                              className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Send email to customer"
+                            >
+                              <Mail className="h-5 w-5" />
+                            </button>
+                          )}
                           <button 
                             onClick={(e) => {
                               e.preventDefault();

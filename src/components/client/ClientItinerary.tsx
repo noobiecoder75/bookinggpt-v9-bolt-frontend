@@ -22,14 +22,26 @@ import {
   Zap
 } from 'lucide-react';
 import { validateItineraryData, formatDateSafely } from '../../utils/itineraryDataValidator';
+import { 
+  calculateItemPrice,
+  getItemDisplayPrice as getUnifiedItemDisplayPrice,
+  calculateFilteredDayTotal,
+  CLIENT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
 
 interface Quote {
   id: string;
+  markup: number;
+  discount: number;
+  markup_strategy: MarkupStrategy;
   trip_start_date?: string;
   trip_end_date?: string;
   quote_items: Array<{
     id: number;
-    item_type: 'Flight' | 'Hotel' | 'Tour' | 'Transfer';
+    item_type: 'Flight' | 'Hotel' | 'Tour' | 'Transfer' | 'Insurance';
     item_name: string;
     cost: number;
     markup: number;
@@ -58,6 +70,16 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
   const [validatedQuote, setValidatedQuote] = useState(quote);
   const [dataWarnings, setDataWarnings] = useState<string[]>([]);
 
+  // Debug logging
+  console.log('🎯 ClientItinerary component loaded:', {
+    quote: !!quote,
+    quoteId: quote?.id,
+    startDate: quote?.trip_start_date,
+    endDate: quote?.trip_end_date,
+    itemsCount: quote?.quote_items?.length,
+    calculateCustomerPrice: !!calculateCustomerPrice
+  });
+
   // Validate and normalize data when quote changes
   useEffect(() => {
     const validation = validateItineraryData(quote);
@@ -71,7 +93,12 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
       console.error('Itinerary data errors:', validation.errors);
     }
     
-    setValidatedQuote(validation.normalizedQuote);
+    setValidatedQuote({
+      ...validation.normalizedQuote,
+      markup: quote.markup,
+      discount: quote.discount,
+      markup_strategy: quote.markup_strategy
+    });
   }, [quote]);
 
   // Helper functions
@@ -85,6 +112,8 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
         return <Camera className="h-5 w-5 text-green-500" />;
       case 'Transfer':
         return <Car className="h-5 w-5 text-yellow-500" />;
+      case 'Insurance':
+        return <Star className="h-5 w-5 text-purple-500" />;
       default:
         return <MapPin className="h-5 w-5 text-gray-500" />;
     }
@@ -100,6 +129,8 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
         return 'from-green-400 to-green-600';
       case 'Transfer':
         return 'from-yellow-400 to-yellow-600';
+      case 'Insurance':
+        return 'from-purple-400 to-purple-600';
       default:
         return 'from-gray-400 to-gray-600';
     }
@@ -126,26 +157,26 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
 
   // Helper function to calculate display price for items (per-night for hotels)
   const getItemDisplayPrice = (item: Quote['quote_items'][0]) => {
-    const totalPrice = calculateCustomerPrice(item);
-    
-    if (item.item_type === 'Hotel') {
-      const numberOfNights = item.details?.nights || item.details?.numberOfNights;
-      const checkInDate = item.details?.check_in || item.details?.checkInDate;
-      const checkOutDate = item.details?.check_out || item.details?.checkOutDate;
-      
-      if (numberOfNights && numberOfNights > 0) {
-        return totalPrice / numberOfNights;
-      } else if (checkInDate && checkOutDate) {
-        const checkIn = new Date(checkInDate + 'T00:00:00');
-        const checkOut = new Date(checkOutDate + 'T00:00:00');
-        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-        if (nights > 0) {
-          return totalPrice / nights;
-        }
-      }
-    }
-    
-    return totalPrice;
+    // Convert to pricing format for unified pricing utility
+    const pricingItem: PricingItem = {
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.quantity || 1,
+      item_type: item.item_type,
+      details: item.details
+    };
+
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global'
+    };
+
+    // Use unified pricing utility to get proper display price
+    return getUnifiedItemDisplayPrice(pricingItem, pricingQuote, CLIENT_PRICING_OPTIONS);
   };
 
   // Build itinerary days with improved database sync
@@ -162,20 +193,52 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
     
     const days: ItineraryDay[] = [];
     
-    // Enhanced grouping with better database field handling
+    // Enhanced grouping with unified pricing logic for multi-day items
     const itemsByDay = validatedQuote.quote_items.reduce((acc, item) => {
-      // For multi-day hotels, add them to all days they span
-      if (item.item_type === 'Hotel' && item.details?.span_days && item.details.span_days > 1) {
-        const startDayIndex = item.details.day_index || 0;
-        const spanDays = item.details.span_days;
+      // For multi-day hotels, add them to all days they span but mark them for proper pricing
+      if (item.item_type === 'Hotel') {
+        // Check for explicit span_days
+        let spanDays = item.details?.span_days;
         
-        // Add hotel to all days it spans
-        for (let i = 0; i < spanDays; i++) {
-          const dayIndex = Math.max(0, Math.min(startDayIndex + i, totalDays - 1));
-          if (!acc[dayIndex]) acc[dayIndex] = [];
-          acc[dayIndex].push(item);
+        // If no span_days, try to calculate from nights
+        if (!spanDays) {
+          const nights = item.details?.nights || item.details?.numberOfNights;
+          if (nights && nights > 1) {
+            spanDays = nights; // For hotels, span_days usually equals nights
+          }
         }
-        return acc;
+        
+        // If no span_days, try to calculate from check-in/check-out dates
+        if (!spanDays && item.details?.check_in && item.details?.check_out) {
+          const checkIn = new Date(item.details.check_in + 'T00:00:00');
+          const checkOut = new Date(item.details.check_out + 'T00:00:00');
+          const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+          if (nights > 1) {
+            spanDays = nights;
+          }
+        }
+        
+        // If this is a multi-day hotel, duplicate it across days
+        if (spanDays && spanDays > 1) {
+          const startDayIndex = item.details?.day_index || 0;
+          
+          // Add hotel to all days it spans (for display purposes)
+          for (let i = 0; i < spanDays; i++) {
+            const dayIndex = Math.max(0, Math.min(startDayIndex + i, totalDays - 1));
+            if (!acc[dayIndex]) acc[dayIndex] = [];
+            // Add a flag to indicate this is a multi-day item for pricing purposes
+            acc[dayIndex].push({
+              ...item,
+              details: {
+                ...item.details,
+                isMultiDayDisplay: true,
+                originalSpanDays: spanDays,
+                currentSpanDay: i
+              }
+            });
+          }
+          return acc;
+        }
       }
       
       // For single-day items, use standard day assignment logic
@@ -236,44 +299,30 @@ export function ClientItinerary({ quote, calculateCustomerPrice }: ClientItinera
         return timeA.localeCompare(timeB);
       });
       
-      // Calculate total cost, handling multi-day items properly
-      const totalCost = sortedDayItems.reduce((sum, item) => {
-        try {
-          const itemPrice = calculateCustomerPrice(item);
-          
-          // For hotels, calculate per-night cost instead of total cost
-          if (item.item_type === 'Hotel') {
-            const checkInDate = item.details?.check_in || item.details?.checkInDate;
-            const checkOutDate = item.details?.check_out || item.details?.checkOutDate;
-            const numberOfNights = item.details?.nights || item.details?.numberOfNights;
-            
-            if (checkInDate && checkOutDate) {
-              const checkIn = new Date(checkInDate + 'T00:00:00');
-              const checkOut = new Date(checkOutDate + 'T00:00:00');
-              const dayDate = new Date(currentDate);
-              dayDate.setHours(0, 0, 0, 0);
-              checkIn.setHours(0, 0, 0, 0);
-              checkOut.setHours(0, 0, 0, 0);
-              
-              // Check if current day is within the hotel stay period
-              if (dayDate.getTime() >= checkIn.getTime() && dayDate.getTime() < checkOut.getTime()) {
-                // Calculate per-night cost
-                const nights = numberOfNights || Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
-                if (nights > 0) {
-                  return sum + (itemPrice / nights);
-                }
-              }
-            }
-            return sum; // Don't add cost if not within stay period
-          }
-          
-          // For other item types, add the full cost
-          return sum + itemPrice;
-        } catch (error) {
-          console.warn('Error calculating price for item:', item.id, error);
-          return sum;
-        }
-      }, 0);
+      // Calculate total cost using unified pricing utility
+      const totalCost = (() => {
+        // Convert items to pricing format
+        const pricingItems: PricingItem[] = sortedDayItems.map(item => ({
+          id: item.id,
+          cost: item.cost,
+          markup: item.markup || 0,
+          markup_type: item.markup_type || 'percentage',
+          quantity: item.quantity || 1,
+          item_type: item.item_type,
+          details: item.details
+        }));
+
+        const pricingQuote: PricingQuote = {
+          id: quote.id,
+          markup: quote.markup || 0,
+          discount: quote.discount || 0,
+          markup_strategy: quote.markup_strategy || 'global',
+          quote_items: pricingItems
+        };
+
+        // Use unified pricing utility to calculate day total
+        return calculateFilteredDayTotal(pricingItems, pricingQuote, CLIENT_PRICING_OPTIONS);
+      })();
       
       // Generate highlights based on activities
       const highlights = generateDayHighlights(sortedDayItems);

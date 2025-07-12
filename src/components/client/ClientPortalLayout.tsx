@@ -18,8 +18,8 @@ interface Quote {
 
 interface ClientPortalLayoutProps {
   quote: Quote;
-  currentSection: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status';
-  onSectionChange: (section: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status') => void;
+  currentSection: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status' | 'email';
+  onSectionChange: (section: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status' | 'email') => void;
   children: React.ReactNode;
 }
 
@@ -196,6 +196,18 @@ export function ClientPortalLayout({
                 <BarChart className="w-4 h-4" />
                 <span className="hidden sm:inline">Status</span>
                 <span className="sm:hidden">Status</span>
+              </button>
+              <button
+                onClick={() => onSectionChange('email')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                  currentSection === 'email'
+                    ? 'bg-white/20 text-white shadow-lg backdrop-blur-sm'
+                    : 'text-white/70 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <Mail className="w-4 h-4" />
+                <span className="hidden sm:inline">Email</span>
+                <span className="sm:hidden">Email</span>
               </button>
               <button
                 onClick={() => onSectionChange('chat')}

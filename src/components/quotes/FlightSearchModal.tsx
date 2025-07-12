@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../Modal';
 import { Plane, Search, ArrowRight, Users, Calendar, MapPin, Loader, X } from 'lucide-react';
+import { providerFactory } from '../../lib/providers/ProviderFactory';
+import { ProviderError } from '../../types/providers';
 
 interface FlightSearchModalProps {
   isOpen: boolean;
@@ -104,26 +106,27 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
   };
 
   // Debug function to test API connectivity
-  const testDuffelConnection = async () => {
+  const testFlightProviderConnection = async () => {
     try {
-      console.log('Testing Duffel API connection via server proxy...');
-      const response = await fetch('/api/duffel/test');
+      console.log('Testing flight provider connection...');
+      const flightProvider = providerFactory.getFlightProvider();
       
-      console.log('Test response:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
+      console.log(`Testing ${flightProvider.name} provider...`);
+      const success = await flightProvider.testConnection();
       
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Duffel API connection successful!', data);
+      if (success) {
+        console.log(`✅ ${flightProvider.name} API connection successful!`);
+        alert(`${flightProvider.getDisplayName()} connection test successful!`);
       } else {
-        const errorData = await response.json();
-        console.error('❌ Duffel API connection failed:', errorData);
+        console.error(`❌ ${flightProvider.name} API connection failed`);
+        alert(`${flightProvider.getDisplayName()} connection test failed. Please check your configuration.`);
       }
     } catch (error) {
-      console.error('❌ Network error testing Duffel API:', error);
+      console.error('❌ Flight provider test error:', error);
+      const message = error instanceof ProviderError 
+        ? `${error.provider} provider error: ${error.message}`
+        : `Flight provider test failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      alert(message);
     }
   };
 
@@ -132,136 +135,90 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
     setSearchError(null);
 
     try {
-      console.log('Starting flight search via server proxy...');
+      console.log('Starting flight search via provider factory...');
 
       // Validate search inputs
       if (!requirements.origin || !requirements.destination || !requirements.departureDate) {
         throw new Error('Please fill in all required fields (origin, destination, and departure date)');
       }
 
-      // Format dates to YYYY-MM-DD as required by Duffel
-      const formatDate = (date: string) => {
-        const d = new Date(date);
-        return d.toISOString().split('T')[0];
+      // Get the configured flight provider
+      const flightProvider = providerFactory.getFlightProvider();
+
+      const searchCriteria = {
+        origin: requirements.origin,
+        destination: requirements.destination,
+        departureDate: requirements.departureDate,
+        returnDate: requirements.returnDate,
+        adults: requirements.adults,
+        children: requirements.children,
+        seniors: requirements.seniors,
+        isReturnFlight: requirements.isReturnFlight,
+        guests: requirements.adults + requirements.children + requirements.seniors,
+        cabinClass: 'economy' as const
       };
 
-      // Prepare slices for Duffel API
-      const slices = requirements.isReturnFlight ? [
-        {
-          origin: requirements.origin,
-          destination: requirements.destination,
-          departure_date: formatDate(requirements.departureDate)
-        },
-        {
-          origin: requirements.destination,
-          destination: requirements.origin,
-          departure_date: formatDate(requirements.returnDate)
-        }
-      ] : [
-        {
-          origin: requirements.origin,
-          destination: requirements.destination,
-          departure_date: formatDate(requirements.departureDate)
-        }
-      ];
-
-      // Prepare passengers for Duffel API
-      const passengers = [];
-      for (let i = 0; i < requirements.adults; i++) {
-        passengers.push({ type: 'adult' });
-      }
-      for (let i = 0; i < requirements.children; i++) {
-        passengers.push({ type: 'child' });
-      }
-      for (let i = 0; i < requirements.seniors; i++) {
-        passengers.push({ type: 'adult' }); // Duffel doesn't have separate senior type
-      }
-
-      // Prepare request body for Duffel API
-      const requestBody = {
-        data: {
-          slices,
-          passengers,
-          cabin_class: 'economy'
-        }
-      };
-
-      console.log('Making Duffel flight search request via server proxy:', {
+      console.log(`Searching flights with ${flightProvider.name} provider:`, {
         type: requirements.isReturnFlight ? 'return' : 'one-way',
-        url: '/api/duffel/offer-requests',
-        body: requestBody
+        criteria: searchCriteria
       });
 
-      // Make the flight search API call via server proxy
-      const searchResponse = await fetch('/api/duffel/offer-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
+      const response = await flightProvider.searchFlights(searchCriteria);
 
-      console.log('Duffel offer request response:', {
-        status: searchResponse.status,
-        statusText: searchResponse.statusText,
-        ok: searchResponse.ok
-      });
-
-      if (!searchResponse.ok) {
-        const errorText = await searchResponse.text();
-        console.error('Duffel API Error Response:', errorText);
-        
-        let errorData;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch (e) {
-          throw new Error(`HTTP ${searchResponse.status}: ${searchResponse.statusText} - ${errorText}`);
-        }
-        
-        throw new Error(errorData.errors?.[0]?.message || `HTTP ${searchResponse.status}: ${errorData.message || 'Failed to fetch flight offers'}`);
+      if (!response.success) {
+        throw new Error(response.error || 'Flight search failed');
       }
 
-      const response = await searchResponse.json();
-      console.log('Duffel offer request created:', {
-        status: searchResponse.status,
-        offerRequestId: response.data?.id,
-        type: requirements.isReturnFlight ? 'return' : 'one-way'
-      });
+      console.log(`Found ${response.data.length} flights from ${flightProvider.name} provider`);
 
-      // Now fetch the offers from the offer request via server proxy
-      console.log('Fetching offers for request ID:', response.data.id);
-      const offersResponse = await fetch(`/api/duffel/offers?offer_request_id=${response.data.id}`);
+      // Convert standardized flights back to your existing format for compatibility
+      const compatibleFlights = response.data.map(flight => ({
+        id: flight.id,
+        total_amount: flight.totalAmount.toString(),
+        total_currency: flight.totalCurrency,
+        expires_at: flight.validUntil,
+        slices: flight.slices.map(slice => ({
+          origin: {
+            iata_code: slice.origin.iataCode,
+            name: slice.origin.name
+          },
+          destination: {
+            iata_code: slice.destination.iataCode,
+            name: slice.destination.name
+          },
+          duration: slice.duration,
+          segments: slice.segments.map(segment => ({
+            ...segment,
+            // Ensure compatibility with existing render logic
+            marketing_carrier: segment.marketing_carrier,
+            marketing_carrier_flight_number: segment.marketing_carrier_flight_number
+          }))
+        })),
+        // Preserve all original provider data
+        ...flight.details
+      }));
 
-      if (!offersResponse.ok) {
-        const errorData = await offersResponse.json();
-        throw new Error(errorData.errors?.[0]?.message || 'Failed to fetch offers');
-      }
-
-      const offersData = await offersResponse.json();
-      console.log('Duffel offers response:', {
-        status: offersResponse.status,
-        offersCount: offersData.data?.length || 0,
-        type: requirements.isReturnFlight ? 'return' : 'one-way'
-      });
-
-      setFlightOffers(offersData.data || []);
+      setFlightOffers(compatibleFlights);
     } catch (error: any) {
       console.error('Flight search error:', {
         message: error.message,
         name: error.name,
-        stack: error.stack,
         type: requirements.isReturnFlight ? 'return' : 'one-way',
         requirements: requirements
       });
       
       // Provide more helpful error messages
       let userFriendlyMessage = error.message;
-      if (error.message.includes('Failed to fetch')) {
-        userFriendlyMessage = 'Network error: Unable to connect to Duffel API. Please check your internet connection and API credentials.';
+      if (error instanceof ProviderError) {
+        userFriendlyMessage = `${error.provider} provider error: ${error.message}`;
+      } else if (error.message.includes('Failed to fetch')) {
+        userFriendlyMessage = 'Network error: Unable to connect to flight API. Please check your internet connection and API credentials.';
       } else if (error.message.includes('401')) {
-        userFriendlyMessage = 'Authentication failed: Please check your Duffel API token.';
+        userFriendlyMessage = 'Authentication failed: Please check your flight API credentials in settings.';
       } else if (error.message.includes('400')) {
         userFriendlyMessage = 'Invalid request: Please check your search criteria (dates, airports, etc.).';
+      } else if (error.message.includes('not properly configured')) {
+        userFriendlyMessage = 'Flight provider not configured. Please configure your flight API in the settings tab.';
       }
       
       setSearchError(userFriendlyMessage);
@@ -405,7 +362,7 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
           <div className="flex justify-between">
             <button
               type="button"
-              onClick={testDuffelConnection}
+              onClick={testFlightProviderConnection}
               className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               Test API Connection

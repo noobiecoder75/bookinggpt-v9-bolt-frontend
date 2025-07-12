@@ -1,0 +1,324 @@
+import { supabase } from './supabase';
+import { EmailMessage, EmailSendResult, GmailIntegration } from '../types/gmail';
+
+export class GmailApiService {
+  private static instance: GmailApiService;
+
+  static getInstance(): GmailApiService {
+    if (!GmailApiService.instance) {
+      GmailApiService.instance = new GmailApiService();
+    }
+    return GmailApiService.instance;
+  }
+
+  private async getAccessToken(): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
+    // Get Gmail integration from database
+    const { data: integration, error } = await supabase
+      .from('user_integrations')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('integration_type', 'gmail')
+      .eq('is_connected', true)
+      .single();
+
+    if (error || !integration) {
+      throw new Error('Gmail not connected. Please connect your Gmail account first.');
+    }
+
+    const gmailIntegration = integration as GmailIntegration;
+
+    // Check if token is expired
+    const now = Date.now() / 1000;
+    if (gmailIntegration.tokens.expires_at < now) {
+      // Token is expired, try to refresh
+      const refreshed = await this.refreshAccessToken(gmailIntegration);
+      if (!refreshed) {
+        throw new Error('Gmail access token expired and could not be refreshed. Please reconnect your Gmail account.');
+      }
+      // Get updated integration
+      const { data: updatedIntegration } = await supabase
+        .from('user_integrations')
+        .select('*')
+        .eq('id', integration.id)
+        .single();
+      
+      if (updatedIntegration) {
+        gmailIntegration.tokens = updatedIntegration.tokens;
+      }
+    }
+
+    return gmailIntegration.tokens.access_token;
+  }
+
+  private async refreshAccessToken(integration: GmailIntegration): Promise<boolean> {
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID!,
+          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET!,
+          refresh_token: integration.tokens.refresh_token,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to refresh token:', await response.text());
+        return false;
+      }
+
+      const newTokens = await response.json();
+      const updatedTokens = {
+        ...integration.tokens,
+        access_token: newTokens.access_token,
+        expires_in: newTokens.expires_in,
+        expires_at: Date.now() / 1000 + newTokens.expires_in,
+      };
+
+      // Update tokens in database
+      const { error } = await supabase
+        .from('user_integrations')
+        .update({
+          tokens: updatedTokens,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', integration.id);
+
+      if (error) {
+        console.error('Failed to update tokens in database:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error refreshing access token:', error);
+      return false;
+    }
+  }
+
+  async sendEmail(message: EmailMessage): Promise<EmailSendResult> {
+    try {
+      const accessToken = await this.getAccessToken();
+      
+      // Create email content
+      const emailContent = this.createEmailContent(message);
+      
+      // Send email using Gmail API
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          raw: emailContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gmail API error: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.id) {
+        return {
+          success: true,
+          messageId: result.id,
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Failed to send email - no message ID returned',
+        };
+      }
+    } catch (error: any) {
+      console.error('Error sending email:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to send email',
+      };
+    }
+  }
+
+  private createEmailContent(message: EmailMessage): string {
+    const boundary = `boundary_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    
+    // Create headers
+    const headers = [
+      `To: ${message.to.join(', ')}`,
+      message.cc && message.cc.length > 0 ? `Cc: ${message.cc.join(', ')}` : '',
+      message.bcc && message.bcc.length > 0 ? `Bcc: ${message.bcc.join(', ')}` : '',
+      `Subject: ${message.subject}`,
+      'MIME-Version: 1.0',
+      `Content-Type: multipart/mixed; boundary="${boundary}"`,
+      '',
+    ].filter(header => header !== '').join('\r\n');
+
+    // Create body
+    let body = `--${boundary}\r\n`;
+    body += 'Content-Type: text/html; charset=UTF-8\r\n';
+    body += 'Content-Transfer-Encoding: quoted-printable\r\n\r\n';
+    body += this.quotedPrintableEncode(message.body);
+    body += '\r\n\r\n';
+
+    // Add attachments if any
+    if (message.attachments && message.attachments.length > 0) {
+      for (const attachment of message.attachments) {
+        body += `--${boundary}\r\n`;
+        body += `Content-Type: ${attachment.contentType}\r\n`;
+        body += `Content-Disposition: attachment; filename="${attachment.filename}"\r\n`;
+        body += 'Content-Transfer-Encoding: base64\r\n\r\n';
+        body += attachment.content;
+        body += '\r\n\r\n';
+      }
+    }
+
+    body += `--${boundary}--`;
+
+    const email = headers + '\r\n' + body;
+    
+    // Base64 encode the entire email
+    return btoa(unescape(encodeURIComponent(email)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+
+  private quotedPrintableEncode(text: string): string {
+    // Simple quoted-printable encoding for HTML content
+    return text
+      .replace(/[\x80-\xFF]/g, (match) => {
+        const hex = match.charCodeAt(0).toString(16).toUpperCase();
+        return `=${hex.length === 1 ? '0' + hex : hex}`;
+      })
+      .replace(/=/g, '=3D')
+      .replace(/\r\n/g, '\r\n')
+      .replace(/(.{75})/g, '$1=\r\n'); // Wrap lines at 75 characters
+  }
+
+  async getEmailThreads(customerId: string, limit: number = 20): Promise<any[]> {
+    try {
+      const accessToken = await this.getAccessToken();
+      
+      // This is a placeholder for future implementation
+      // You would search for emails by customer email or other criteria
+      console.log('Getting email threads for customer:', customerId);
+      
+      // Example of how to fetch threads (when needed):
+      /*
+      const response = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/threads?maxResults=${limit}`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.threads || [];
+      }
+      */
+      
+      // For now, return empty array as this is stubbed
+      return [];
+    } catch (error) {
+      console.error('Error getting email threads:', error);
+      return [];
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const accessToken = await this.getAccessToken();
+      
+      // Test connection by getting user profile
+      const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      return response.ok;
+    } catch (error) {
+      console.error('Gmail connection test failed:', error);
+      return false;
+    }
+  }
+}
+
+// Export singleton instance
+export const gmailApi = GmailApiService.getInstance();
+
+// Helper functions for email templates
+export function createWelcomeEmail(customerName: string, agentName: string): EmailMessage {
+  return {
+    to: [],
+    subject: `Welcome ${customerName}! Your travel planning journey begins`,
+    body: `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">Welcome to Your Travel Journey!</h2>
+            <p>Dear ${customerName},</p>
+            <p>Thank you for choosing us for your travel planning needs. I'm ${agentName}, and I'll be your dedicated travel agent throughout this exciting journey.</p>
+            <p>Here's what you can expect:</p>
+            <ul>
+              <li>Personalized trip recommendations</li>
+              <li>Real-time updates on your bookings</li>
+              <li>24/7 support during your travels</li>
+              <li>Access to your dedicated client portal</li>
+            </ul>
+            <p>I'll be in touch soon with your customized travel options. In the meantime, feel free to reach out if you have any questions.</p>
+            <p>Best regards,<br>${agentName}</p>
+          </div>
+        </body>
+      </html>
+    `,
+  };
+}
+
+export function createQuoteEmail(customerName: string, quoteId: string, agentName: string): EmailMessage {
+  const clientPortalUrl = `${window.location.origin}/client/${quoteId}`;
+  
+  return {
+    to: [],
+    subject: `Your Travel Quote is Ready - ${quoteId}`,
+    body: `
+      <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2 style="color: #2563eb;">Your Travel Quote is Ready!</h2>
+            <p>Dear ${customerName},</p>
+            <p>Great news! I've prepared a customized travel quote based on your preferences.</p>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0;">View Your Quote</h3>
+              <p>Click the button below to view your detailed itinerary, pricing, and booking options:</p>
+              <a href="${clientPortalUrl}" 
+                 style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                View Your Quote
+              </a>
+            </div>
+            <p>Your quote includes:</p>
+            <ul>
+              <li>Detailed itinerary with activities</li>
+              <li>Transparent pricing breakdown</li>
+              <li>Flexible payment options</li>
+              <li>Easy booking process</li>
+            </ul>
+            <p>This quote is valid for 14 days. If you have any questions or would like to make changes, please don't hesitate to reach out.</p>
+            <p>Best regards,<br>${agentName}</p>
+          </div>
+        </body>
+      </html>
+    `,
+  };
+}

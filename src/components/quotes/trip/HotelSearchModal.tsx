@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, Building, Loader, AlertCircle, Globe, Database } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { providerFactory } from '../../../lib/providers/ProviderFactory';
+import { ProviderError } from '../../../types/providers';
 
 interface HotelSearchModalProps {
   isOpen: boolean;
@@ -206,8 +208,8 @@ export function HotelSearchModal({
     }
   };
 
-  const fetchHotelbedsHotels = async (): Promise<HotelRate[]> => {
-    // Only search Hotelbeds if we have search criteria with destination info
+  const fetchProviderHotels = async (): Promise<HotelRate[]> => {
+    // Only search external providers if we have search criteria with destination info
     if (!searchCriteria?.country && !destination) {
       return [];
     }
@@ -215,62 +217,51 @@ export function HotelSearchModal({
     try {
       setSearchingSources(prev => ({ ...prev, hotelbeds: true }));
       
+      // Get the configured hotel provider
+      const hotelProvider = providerFactory.getHotelProvider();
+      
       const searchPayload = {
         destination: searchCriteria?.country || destination,
         checkInDate: searchCriteria?.checkInDate || checkInDate,
         checkOutDate: searchCriteria?.checkOutDate || checkOutDate,
         guests: guests,
-        ...(searchCriteria?.hotelName && { hotelName: searchCriteria.hotelName })
+        hotelName: searchCriteria?.hotelName,
+        country: searchCriteria?.country,
+        selectedDayId: searchCriteria?.selectedDayId
       };
 
-      console.log('Searching Hotelbeds with payload:', searchPayload);
+      console.log(`Searching hotels with ${hotelProvider.name} provider:`, searchPayload);
 
-      const response = await fetch('http://localhost:3001/api/hotelbeds/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(searchPayload)
-      });
+      const response = await hotelProvider.searchHotels(searchPayload);
 
-      console.log('Hotelbeds API response status:', response.status);
-      console.log('Hotelbeds API response content-type:', response.headers.get('content-type'));
-
-      // Get response text first to see what we're actually receiving
-      const responseText = await response.text();
-      console.log('Hotelbeds API raw response (first 500 chars):', responseText.substring(0, 500));
-
-      if (!response.ok) {
-        console.warn('Hotelbeds API error - Status:', response.status);
-        console.warn('Hotelbeds API error - Response:', responseText.substring(0, 200));
-        
-        // Try to parse as JSON for error details
-        try {
-          const errorData = JSON.parse(responseText);
-          console.warn('Hotelbeds API parsed error:', errorData.error);
-        } catch (parseError) {
-          console.warn('Hotelbeds API returned non-JSON response (likely HTML error page)');
-          console.warn('This usually means the server endpoint is not working or credentials are missing');
-        }
-        
-        return []; // Return empty array instead of throwing to allow local results to show
-      }
-
-      // Try to parse the response as JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.warn('Failed to parse Hotelbeds response as JSON:', parseError);
-        console.warn('Response was:', responseText.substring(0, 200) + '...');
+      if (!response.success) {
+        console.warn(`${hotelProvider.name} provider error:`, response.error);
         return [];
       }
 
-      return data.hotels || [];
+      console.log(`Found ${response.data.length} hotels from ${hotelProvider.name} provider`);
+
+      // Convert standardized hotels back to your existing HotelRate format
+      return response.data.map(hotel => ({
+        id: hotel.id,
+        rate_type: hotel.rateType,
+        description: hotel.name,
+        cost: hotel.cost,
+        currency: hotel.currency,
+        valid_start: hotel.validStart || '',
+        valid_end: hotel.validEnd || '',
+        details: {
+          ...hotel.details,
+          source: hotel.provider
+        }
+      }));
       
     } catch (error: any) {
-      console.warn('Hotelbeds API unavailable:', error.message);
-      console.warn('Full error:', error);
+      if (error instanceof ProviderError) {
+        console.warn(`Hotel provider error (${error.provider}):`, error.message);
+      } else {
+        console.warn('Hotel provider unavailable:', error.message);
+      }
       return []; // Return empty array to allow local results to show
     } finally {
       setSearchingSources(prev => ({ ...prev, hotelbeds: false }));
@@ -283,15 +274,15 @@ export function HotelSearchModal({
     
     try {
       // Fetch from both sources in parallel
-      const [localHotels, hotelbedsHotels] = await Promise.all([
+      const [localHotels, providerHotels] = await Promise.all([
         fetchLocalHotels(),
-        fetchHotelbedsHotels()
+        fetchProviderHotels()
       ]);
 
       // Combine results, with local hotels first
-      const combinedHotels = [...localHotels, ...hotelbedsHotels];
+      const combinedHotels = [...localHotels, ...providerHotels];
       
-      console.log(`Found ${localHotels.length} local hotels and ${hotelbedsHotels.length} Hotelbeds hotels`);
+      console.log(`Found ${localHotels.length} local hotels and ${providerHotels.length} provider hotels`);
       
       setHotels(combinedHotels);
       
@@ -397,11 +388,11 @@ export function HotelSearchModal({
   const getSourceBadge = (hotel: HotelRate) => {
     const source = hotel.details?.source;
     
-    if (source === 'hotelbeds') {
+    if (source === 'hotelbeds' || source === 'duffel' || source === 'expedia') {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
           <Globe className="h-3 w-3 mr-1" />
-          Hotelbeds API
+          {source.charAt(0).toUpperCase() + source.slice(1)} API
         </span>
       );
     } else if (hotel.details?.imported_from) {
@@ -449,7 +440,7 @@ export function HotelSearchModal({
                     <span className="text-xs text-blue-600">Searching local inventory...</span>
                   )}
                   {searchingSources.hotelbeds && (
-                    <span className="text-xs text-blue-600">Searching Hotelbeds API...</span>
+                    <span className="text-xs text-blue-600">Searching provider API...</span>
                   )}
                 </div>
               )}
@@ -624,11 +615,11 @@ export function HotelSearchModal({
             <div className="flex items-center space-x-4 text-xs text-gray-500">
               <div className="flex items-center">
                 <Database className="h-3 w-3 mr-1" />
-                {hotels.filter(h => h.details?.source !== 'hotelbeds').length} Local
+                {hotels.filter(h => !h.details?.source || h.details?.source === 'local').length} Local
               </div>
               <div className="flex items-center">
                 <Globe className="h-3 w-3 mr-1" />
-                {hotels.filter(h => h.details?.source === 'hotelbeds').length} Live API
+                {hotels.filter(h => h.details?.source && h.details?.source !== 'local').length} Live API
               </div>
             </div>
           </div>

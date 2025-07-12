@@ -1,8 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle, Copy, ExternalLink } from 'lucide-react';
+import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle, Copy, ExternalLink, Eye, X } from 'lucide-react';
 import { PaymentModal } from './PaymentModal';
+import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { 
+  calculateQuoteTotal, 
+  calculateItemPrice, 
+  calculateDayTotal as calculateUnifiedDayTotal,
+  calculateAverageMarkup,
+  determineMarkupStrategy,
+  getItemDisplayPrice,
+  DEFAULT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
 
 interface Quote {
   id: string;
@@ -12,6 +25,7 @@ interface Quote {
   total_price: number;
   markup: number;
   discount: number;
+  markup_strategy: MarkupStrategy;
   notes: string;
   expiry_date: string;
   created_at: string;
@@ -69,6 +83,9 @@ export function QuoteView() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [isSendingQuote, setIsSendingQuote] = useState(false);
   const [sendStep, setSendStep] = useState<'confirm' | 'generating' | 'sending' | 'success'>('confirm');
+  const [emails, setEmails] = useState<any[]>([]);
+  const [showEmailHistory, setShowEmailHistory] = useState(false);
+  const { isConnected } = useGoogleOAuth();
 
   useEffect(() => {
     fetchQuoteDetails();
@@ -142,10 +159,31 @@ export function QuoteView() {
 
       if (error) throw error;
       setQuote(data);
+      
+      // Fetch email communications for this quote
+      if (data) {
+        await fetchEmailHistory(data.customer_id, data.id);
+      }
     } catch (error: any) {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEmailHistory = async (customerId: number, quoteId: string) => {
+    try {
+      const { data: emailData, error } = await supabase
+        .from('email_communications')
+        .select('*')
+        .eq('customer_id', customerId)
+        .or(`quote_id.eq.${quoteId},quote_id.is.null`)
+        .order('sent_at', { ascending: false });
+      
+      if (error) throw error;
+      setEmails(emailData || []);
+    } catch (error) {
+      console.error('Error fetching email history:', error);
     }
   };
 
@@ -184,22 +222,65 @@ export function QuoteView() {
     return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const calculateDayTotal = (items: Quote['quote_items']) => {
-    return items.reduce((total, item) => {
-      const itemTotal = item.cost * item.quantity;
-      const markup = item.markup_type === 'percentage'
-        ? itemTotal * (item.markup / 100)
-        : item.markup;
-      return total + (itemTotal + markup);
-    }, 0);
+  const calculateDayTotalPrice = (items: Quote['quote_items']) => {
+    if (!quote) return 0;
+    
+    // Convert items to pricing format
+    const pricingItems: PricingItem[] = items.map(item => ({
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.quantity || 1,
+      item_type: item.item_type,
+      details: item.details
+    }));
+
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global',
+      quote_items: pricingItems
+    };
+
+    // Use unified pricing calculation with dynamic markup strategy
+    const pricingOptions = {
+      ...DEFAULT_PRICING_OPTIONS,
+      markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
+    };
+
+    return calculateQuoteTotal(pricingQuote, pricingOptions);
   };
 
   const calculateItemTotal = (item: Quote['quote_items'][0]) => {
-    const itemTotal = item.cost * item.quantity;
-    const markup = item.markup_type === 'percentage'
-      ? itemTotal * (item.markup / 100)
-      : item.markup;
-    return itemTotal + markup;
+    if (!quote) return 0;
+    
+    // Convert to pricing format
+    const pricingItem: PricingItem = {
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.quantity || 1,
+      item_type: item.item_type,
+      details: item.details
+    };
+
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global'
+    };
+
+    // Use unified pricing calculation with dynamic markup strategy
+    const pricingOptions = {
+      ...DEFAULT_PRICING_OPTIONS,
+      markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
+    };
+
+    return calculateItemPrice(pricingItem, pricingQuote, pricingOptions);
   };
 
   // Helper function to check if an item is part of a return flight
@@ -726,14 +807,26 @@ export function QuoteView() {
               <Copy className="h-4 w-4 mr-2" />
               Copy Link
             </button>
-            <button 
-              onClick={() => setShowSendModal(true)}
-              disabled={quote.status !== 'Draft'}
-              className="p-2 text-gray-400 hover:text-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={quote.status === 'Draft' ? 'Send quote to customer' : 'Quote already sent'}
-            >
-              <Mail className="h-5 w-5" />
-            </button>
+            {isConnected && (
+              <button 
+                onClick={() => navigate(`/communications?customer=${quote.customer_id}&email=${encodeURIComponent(quote.customer.email)}&quote=${quote.id}`)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                title="Send email to customer"
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                Email Customer
+              </button>
+            )}
+            {emails.length > 0 && (
+              <button 
+                onClick={() => setShowEmailHistory(!showEmailHistory)}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                title="View email history"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Email History ({emails.length})
+              </button>
+            )}
             <button className="p-2 text-gray-400 hover:text-gray-500">
               <Download className="h-5 w-5" />
             </button>
@@ -770,6 +863,65 @@ export function QuoteView() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Email History Section */}
+      {showEmailHistory && emails.length > 0 && (
+        <div className="mb-8 bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">Email History</h3>
+              <button
+                onClick={() => setShowEmailHistory(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            {emails.map((email) => (
+              <div key={email.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        email.status === 'opened' ? 'bg-green-500' :
+                        email.status === 'sent' ? 'bg-blue-500' :
+                        email.status === 'failed' ? 'bg-red-500' :
+                        'bg-gray-400'
+                      }`} />
+                      <h4 className="text-sm font-medium text-gray-900">{email.subject}</h4>
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {email.email_type}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-500 space-y-1">
+                      <div>To: {email.recipients.join(', ')}</div>
+                      <div>Sent: {new Date(email.sent_at).toLocaleString()}</div>
+                      {email.opened_at && (
+                        <div className="flex items-center space-x-1">
+                          <Eye className="h-4 w-4 text-green-600" />
+                          <span className="text-green-600">Opened: {new Date(email.opened_at).toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      email.status === 'opened' ? 'bg-green-100 text-green-800' :
+                      email.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                      email.status === 'failed' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {email.status.charAt(0).toUpperCase() + email.status.slice(1)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -915,7 +1067,7 @@ export function QuoteView() {
                           {items.length} items
                         </span>
                         <p className="text-sm font-medium text-gray-900">
-                          ${calculateDayTotal(items).toFixed(2)}
+                          ${calculateDayTotalPrice(items).toFixed(2)}
                         </p>
                         {expandedDays.includes(parseInt(dayIndex)) ? (
                           <ChevronUp className="h-5 w-5 text-gray-400" />
@@ -969,9 +1121,34 @@ export function QuoteView() {
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-medium text-gray-900">
-                                ${item.cost.toFixed(2)}
-                                {item.item_type === 'Hotel' && item.quantity > 1 && (
-                                  <span className="text-xs text-gray-500 block">per day</span>
+                                ${(() => {
+                                  // Convert to pricing format for hotel-aware pricing
+                                  const pricingItem: PricingItem = {
+                                    id: item.id,
+                                    cost: item.cost,
+                                    markup: item.markup || 0,
+                                    markup_type: item.markup_type || 'percentage',
+                                    quantity: item.quantity || 1,
+                                    item_type: item.item_type,
+                                    details: item.details || {}
+                                  };
+                                  
+                                  const pricingQuote: PricingQuote = {
+                                    id: quote?.id || 'temp-quote',
+                                    markup: quote?.markup || 0,
+                                    discount: quote?.discount || 0,
+                                    markup_strategy: quote?.markup_strategy || 'individual'
+                                  };
+                                  
+                                  const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
+                                  return displayPrice.toFixed(2);
+                                })()}
+                                {item.item_type === 'Hotel' && (
+                                  item.details?.nights > 1 || item.details?.numberOfNights > 1 || 
+                                  (item.details?.checkInDate && item.details?.checkOutDate && 
+                                   Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
+                                ) && (
+                                  <span className="text-xs text-gray-500 block">per night</span>
                                 )}
                               </p>
                               {item.markup > 0 && (
@@ -1050,9 +1227,34 @@ export function QuoteView() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium text-gray-900">
-                          ${item.cost.toFixed(2)}
-                          {item.item_type === 'Hotel' && item.quantity > 1 && (
-                            <span className="text-xs text-gray-500 block">per day</span>
+                          ${(() => {
+                            // Convert to pricing format for hotel-aware pricing
+                            const pricingItem: PricingItem = {
+                              id: item.id,
+                              cost: item.cost,
+                              markup: item.markup || 0,
+                              markup_type: item.markup_type || 'percentage',
+                              quantity: item.quantity || 1,
+                              item_type: item.item_type,
+                              details: item.details || {}
+                            };
+                            
+                            const pricingQuote: PricingQuote = {
+                              id: quote?.id || 'temp-quote',
+                              markup: quote?.markup || 0,
+                              discount: quote?.discount || 0,
+                              markup_strategy: quote?.markup_strategy || 'individual'
+                            };
+                            
+                            const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
+                            return displayPrice.toFixed(2);
+                          })()}
+                          {item.item_type === 'Hotel' && (
+                            item.details?.nights > 1 || item.details?.numberOfNights > 1 || 
+                            (item.details?.checkInDate && item.details?.checkOutDate && 
+                             Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
+                          ) && (
+                            <span className="text-xs text-gray-500 block">per night</span>
                           )}
                         </p>
                         {item.markup > 0 && (
@@ -1153,7 +1355,34 @@ export function QuoteView() {
                 )}
               </span>
               <span className="font-medium text-gray-900">
-                ${(quote.quote_items.reduce((total, item) => total + item.cost * item.quantity, 0) * (quote.markup / 100)).toFixed(2)}
+                ${(() => {
+                  // Calculate markup using unified pricing utility
+                  const pricingQuote: PricingQuote = {
+                    id: quote.id,
+                    markup: quote.markup || 0,
+                    discount: 0, // Don't include discount in markup calculation
+                    markup_strategy: quote.markup_strategy || 'global',
+                    quote_items: quote.quote_items.map(item => ({
+                      id: item.id,
+                      cost: item.cost,
+                      markup: item.markup || 0,
+                      markup_type: item.markup_type || 'percentage',
+                      quantity: item.quantity || 1,
+                      item_type: item.item_type,
+                      details: item.details
+                    }))
+                  };
+                  
+                  const pricingOptions = {
+                    ...DEFAULT_PRICING_OPTIONS,
+                    markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
+                  };
+                  
+                  const totalWithMarkup = calculateQuoteTotal(pricingQuote, pricingOptions);
+                  const totalWithoutMarkup = quote.quote_items.reduce((total, item) => total + (item.cost * item.quantity), 0);
+                  
+                  return (totalWithMarkup - totalWithoutMarkup).toFixed(2);
+                })()}
               </span>
             </div>
             {quote.discount > 0 && (
@@ -1168,7 +1397,31 @@ export function QuoteView() {
               <div className="flex justify-between">
                 <span className="text-base font-medium text-gray-900">Total</span>
                 <span className="text-base font-medium text-gray-900">
-                  ${quote.total_price.toFixed(2)}
+                  ${(() => {
+                    // Calculate total using unified pricing utility to ensure consistency
+                    const pricingQuote: PricingQuote = {
+                      id: quote.id,
+                      markup: quote.markup || 0,
+                      discount: quote.discount || 0,
+                      markup_strategy: quote.markup_strategy || 'global',
+                      quote_items: quote.quote_items.map(item => ({
+                        id: item.id,
+                        cost: item.cost,
+                        markup: item.markup || 0,
+                        markup_type: item.markup_type || 'percentage',
+                        quantity: item.quantity || 1,
+                        item_type: item.item_type,
+                        details: item.details
+                      }))
+                    };
+                    
+                    const pricingOptions = {
+                      ...DEFAULT_PRICING_OPTIONS,
+                      markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
+                    };
+                    
+                    return calculateQuoteTotal(pricingQuote, pricingOptions).toFixed(2);
+                  })()}
                 </span>
               </div>
             </div>

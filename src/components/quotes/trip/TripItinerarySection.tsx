@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
 import { Calendar, Plus, Plane, Building, Car, MapPin, Trash2, Move } from 'lucide-react';
+import { 
+  calculateItemPrice,
+  DEFAULT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../../utils/pricingUtils';
 
 /**
  * Utility function to create linked flight items for return flights
@@ -74,6 +81,7 @@ interface Trip {
   endDate: string;
   markup?: number;
   discount?: number;
+  markup_strategy?: MarkupStrategy;
 }
 
 interface TripItinerarySectionProps {
@@ -199,6 +207,35 @@ export function TripItinerarySection({
       onMoveItem(draggedItem.fromDayId, toDayId, draggedItem.item.id);
     }
     setDraggedItem(null);
+  };
+
+  // Helper function to calculate item price using unified pricing system
+  const calculateItemPriceUnified = (item: ItineraryItem) => {
+    // Convert to pricing format
+    const pricingItem: PricingItem = {
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.details?.quantity || 1,
+      item_type: item.type,
+      details: item.details
+    };
+
+    const pricingQuote: PricingQuote = {
+      id: `trip-${Date.now()}`, // Temporary ID for trip context
+      markup: trip.markup || 0,
+      discount: trip.discount || 0,
+      markup_strategy: trip.markup_strategy || 'global'
+    };
+
+    // Use unified pricing calculation
+    const pricingOptions = {
+      ...DEFAULT_PRICING_OPTIONS,
+      markupStrategy: trip.markup_strategy || 'global'
+    };
+
+    return calculateItemPrice(pricingItem, pricingQuote, pricingOptions);
   };
 
   return (
@@ -469,7 +506,7 @@ export function TripItinerarySection({
                                 </p>
                               )}
                               <p className="text-xs font-semibold text-indigo-600">
-                                Final: ${(item.cost + (item.markup_type === 'percentage' ? item.cost * (item.markup / 100) : item.markup)).toFixed(2)}
+                                Final: ${calculateItemPriceUnified(item).toFixed(2)}
                               </p>
                             </div>
                             <button

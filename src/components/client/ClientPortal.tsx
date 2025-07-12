@@ -9,6 +9,14 @@ import { ClientDocuments } from './ClientDocuments';
 import { ClientStatus } from './ClientStatus';
 import { ClientOnboardingTimeline } from './ClientOnboardingTimeline';
 import { ClientItinerary } from './ClientItinerary';
+import { ClientEmail } from './ClientEmail';
+import { 
+  calculateItemPrice,
+  CLIENT_PRICING_OPTIONS,
+  type PricingQuote,
+  type PricingItem,
+  type MarkupStrategy
+} from '../../utils/pricingUtils';
 
 interface Booking {
   id: string;
@@ -68,6 +76,7 @@ interface Quote {
   total_price: number;
   markup: number;
   discount: number;
+  markup_strategy: MarkupStrategy;
   notes: string;
   expiry_date: string;
   created_at: string;
@@ -114,7 +123,7 @@ interface Quote {
 }
 
 interface ClientPortalProps {
-  activeSection?: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status';
+  activeSection?: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status' | 'email';
 }
 
 export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
@@ -219,6 +228,8 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
   }, [quoteId, quote?.customer_id, booking?.id]);
 
   const fetchQuoteDetails = async () => {
+    console.log('🎯 Fetching quote details for ID:', quoteId);
+    
     try {
       const { data, error } = await supabase
         .from('quotes')
@@ -245,13 +256,23 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
         .eq('id', quoteId)
         .single();
 
+      console.log('🎯 Quote fetch result:', { data: !!data, error, quoteStatus: data?.status });
+
       if (error) throw error;
       
       // Only show quotes that are 'Sent' or 'Published' to customers
       if (data.status !== 'Sent' && data.status !== 'Published') {
+        console.log('🎯 Quote not available - status:', data.status);
         setError('This quote is not available for viewing yet.');
         return;
       }
+      
+      console.log('🎯 Quote loaded successfully:', { 
+        id: data.id, 
+        itemsCount: data.quote_items?.length,
+        startDate: data.trip_start_date,
+        endDate: data.trip_end_date 
+      });
       
       setQuote(data);
       
@@ -260,6 +281,7 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
         await fetchBookingData(data.id);
       }
     } catch (error: any) {
+      console.error('🎯 Error fetching quote:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -332,22 +354,45 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
     }
   };
 
-  // Calculate customer-facing price (without markup visibility)
+  // Calculate customer-facing price using unified pricing
   const calculateCustomerPrice = (item: Quote['quote_items'][0]) => {
-    const itemTotal = item.cost * item.quantity;
+    if (!quote) return 0;
     
-    // Try to get markup from direct fields first, then from details JSONB field
-    const markup = item.markup || item.details?.markup || 0;
-    const markupType = item.markup_type || item.details?.markup_type || 'percentage';
+    // Convert to pricing format
+    const pricingItem: PricingItem = {
+      id: item.id,
+      cost: item.cost,
+      markup: item.markup || 0,
+      markup_type: item.markup_type || 'percentage',
+      quantity: item.quantity || 1,
+      item_type: item.item_type,
+      details: item.details
+    };
+
+    const pricingQuote: PricingQuote = {
+      id: quote.id,
+      markup: quote.markup || 0,
+      discount: quote.discount || 0,
+      markup_strategy: quote.markup_strategy || 'global'
+    };
+
+    const price = calculateItemPrice(pricingItem, pricingQuote, CLIENT_PRICING_OPTIONS);
     
-    const markupAmount = markupType === 'percentage'
-      ? itemTotal * (markup / 100)
-      : markup;
-    
-    return itemTotal + markupAmount;
+    // Debug logging
+    console.log('🎯 ClientPortal - calculateCustomerPrice:', {
+      itemId: item.id,
+      itemName: item.item_name,
+      baseCost: item.cost,
+      itemMarkup: item.markup,
+      globalMarkup: quote.markup,
+      markupStrategy: quote.markup_strategy,
+      finalPrice: price
+    });
+
+    return price;
   };
 
-  const handleSectionChange = (section: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status') => {
+  const handleSectionChange = (section: 'quote' | 'itinerary' | 'payment' | 'chat' | 'documents' | 'status' | 'email') => {
     setCurrentSection(section);
     // Update URL without page reload
     const newPath = section === 'quote' 
@@ -385,8 +430,19 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
   }
 
   const renderContent = () => {
+    console.log('🎯 ClientPortal renderContent:', { 
+      currentSection, 
+      quote: !!quote, 
+      quoteId: quote?.id,
+      quoteItemsCount: quote?.quote_items?.length 
+    });
+    
     switch (currentSection) {
       case 'itinerary':
+        console.log('🎯 Rendering ClientItinerary with:', { 
+          quote: !!quote, 
+          calculateCustomerPrice: !!calculateCustomerPrice 
+        });
         return <ClientItinerary quote={quote} calculateCustomerPrice={calculateCustomerPrice} />;
       case 'payment':
         return <ClientPayment quote={quote} onSuccess={() => fetchQuoteDetails()} />;
@@ -394,6 +450,8 @@ export function ClientPortal({ activeSection = 'quote' }: ClientPortalProps) {
         return <ClientChat quote={quote} />;
       case 'documents':
         return <ClientDocuments quote={quote} />;
+      case 'email':
+        return <ClientEmail quote={quote} />;
       case 'status':
         return (
           <ClientStatus 

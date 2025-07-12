@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Plus, FileText, Calendar, Filter, X, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, Plus, FileText, Calendar, Filter, X, ChevronDown, RefreshCw, Mail } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { useGoogleOAuth } from '../hooks/useGoogleOAuth';
 
 interface Customer {
   id: number;
@@ -21,6 +22,8 @@ interface CustomerStats {
   potentialValue: number;
   totalBookings: number;
   activeQuotes: number;
+  totalEmailsSent: number;
+  lastEmailDate?: string;
 }
 
 export function CustomerDashboard() {
@@ -33,6 +36,7 @@ export function CustomerDashboard() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const navigate = useNavigate();
+  const { isConnected } = useGoogleOAuth();
 
   // Simplified filter states
   const [filters, setFilters] = useState({
@@ -106,7 +110,7 @@ export function CustomerDashboard() {
 
     await Promise.all(
       customers.map(async (customer) => {
-        const [bookingsResponse, quotesResponse] = await Promise.all([
+        const [bookingsResponse, quotesResponse, emailsResponse] = await Promise.all([
           supabase
             .from('bookings')
             .select('total_price, status')
@@ -116,12 +120,18 @@ export function CustomerDashboard() {
             .select('total_price, status')
             .eq('customer_id', customer.id)
             .eq('status', 'Sent'),
+          supabase
+            .from('email_communications')
+            .select('sent_at')
+            .eq('customer_id', customer.id)
+            .order('sent_at', { ascending: false })
         ]);
 
         const bookings = bookingsResponse.data || [];
         const quotes = quotesResponse.data || [];
+        const emails = emailsResponse.data || [];
 
-        console.log(`Stats for customer ${customer.id}:`, { bookingsCount: bookings.length, quotesCount: quotes.length });
+        console.log(`Stats for customer ${customer.id}:`, { bookingsCount: bookings.length, quotesCount: quotes.length, emailsCount: emails.length });
 
         stats[customer.id] = {
           lifetimeValue: bookings
@@ -130,6 +140,8 @@ export function CustomerDashboard() {
           potentialValue: quotes.reduce((sum, q) => sum + Number(q.total_price), 0),
           totalBookings: bookings.length,
           activeQuotes: quotes.length,
+          totalEmailsSent: emails.length,
+          lastEmailDate: emails[0]?.sent_at
         };
       })
     );
@@ -222,6 +234,11 @@ export function CustomerDashboard() {
 
   const handleCreateQuote = (customerId: number) => {
     navigate(`/quotes/new?customer=${customerId}`);
+  };
+
+  const handleSendEmail = (customerId: number, customerEmail: string) => {
+    // Navigate to communications with pre-selected customer
+    navigate(`/communications?customer=${customerId}&email=${encodeURIComponent(customerEmail)}`);
   };
 
   return (
@@ -561,15 +578,29 @@ export function CustomerDashboard() {
                           )}
                         </div>
                       </div>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent card click
-                          handleCreateQuote(customer.id);
-                        }}
-                        className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 ml-2"
-                      >
-                        Create Quote
-                      </button>
+                      <div className="flex space-x-2">
+                        {isConnected && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendEmail(customer.id, customer.email);
+                            }}
+                            className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                            title="Send email"
+                          >
+                            <Mail className="h-3 w-3" />
+                          </button>
+                        )}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click
+                            handleCreateQuote(customer.id);
+                          }}
+                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700"
+                        >
+                          Create Quote
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -590,10 +621,34 @@ export function CustomerDashboard() {
                           </span>
                         </div>
                         <div className="flex items-center text-sm text-gray-500">
+                          <Mail className="h-5 w-5 mr-1.5 text-gray-400" />
+                          <span>
+                            {customerStats[customer.id]?.totalEmailsSent || 0} Emails
+                            {customerStats[customer.id]?.lastEmailDate && (
+                              <span className="text-xs text-gray-400 ml-1">
+                                • Last: {new Date(customerStats[customer.id].lastEmailDate!).toLocaleDateString()}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="flex items-center text-sm text-gray-500">
                           <span>Joined {new Date(customer.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                       <div className="flex space-x-2">
+                        {isConnected && (
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSendEmail(customer.id, customer.email);
+                            }}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                            title="Send email to customer"
+                          >
+                            <Mail className="h-4 w-4 mr-1" />
+                            Email
+                          </button>
+                        )}
                         <button 
                           onClick={(e) => {
                             e.stopPropagation(); // Prevent card click

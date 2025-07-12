@@ -297,6 +297,44 @@ export function calculateDayTotal(
 }
 
 /**
+ * Calculates the total for a specific day when items have already been filtered
+ * and potentially duplicated by the ClientItinerary component
+ */
+export function calculateFilteredDayTotal(
+  dayItems: PricingItem[], 
+  quote: PricingQuote, 
+  options: PricingOptions = {}
+): number {
+  if (!dayItems || dayItems.length === 0) {
+    return 0;
+  }
+
+  let dayTotal = 0;
+  const processedItems = processMultiDayItems(dayItems);
+
+  for (const item of processedItems) {
+    const itemPrice = calculateItemPrice(item, quote, options);
+    
+    // Check if this item has been marked as a multi-day display item
+    if (item.details?.isMultiDayDisplay && item.details?.originalSpanDays) {
+      // This item has been duplicated across days by ClientItinerary
+      // Calculate the per-day cost
+      const spanDays = item.details.originalSpanDays;
+      dayTotal += itemPrice / spanDays;
+    } else if (item.isMultiDay) {
+      // Standard multi-day item handling
+      const spanDays = item.details?.span_days || 1;
+      dayTotal += itemPrice / spanDays;
+    } else {
+      // Single-day item
+      dayTotal += itemPrice;
+    }
+  }
+
+  return dayTotal;
+}
+
+/**
  * Gets the display price for an item (e.g., per-night for hotels)
  */
 export function getItemDisplayPrice(
@@ -423,3 +461,62 @@ export const CLIENT_PRICING_OPTIONS: PricingOptions = {
   isClientView: true,
   markupStrategy: 'global'
 };
+
+/**
+ * Validates hotel pricing consistency and provides debugging information
+ */
+export function validateHotelPricing(
+  quote: PricingQuote,
+  tolerance: number = 0.01
+): {
+  isValid: boolean;
+  issues: Array<{
+    itemId: string | number;
+    issue: string;
+    severity: 'warning' | 'error';
+    originalCost: number;
+    normalizedCost: number;
+    source: string;
+  }>;
+  totalDiscrepancy: number;
+} {
+  const issues: any[] = [];
+  let totalDiscrepancy = 0;
+  
+  if (!quote.quote_items) {
+    return { isValid: true, issues: [], totalDiscrepancy: 0 };
+  }
+  
+  for (const item of quote.quote_items) {
+    if (item.item_type === 'Hotel') {
+      // Simple validation without normalization
+      if (item.cost > 1000) {
+        issues.push({
+          itemId: item.id,
+          issue: `Hotel cost $${item.cost} seems high - verify if this is per-night or total`,
+          severity: 'warning' as const,
+          originalCost: item.cost,
+          normalizedCost: item.cost,
+          source: 'unknown'
+        });
+      }
+      
+      if (item.cost < 10) {
+        issues.push({
+          itemId: item.id,
+          issue: `Hotel cost $${item.cost} seems low - verify pricing`,
+          severity: 'warning' as const,
+          originalCost: item.cost,
+          normalizedCost: item.cost,
+          source: 'unknown'
+        });
+      }
+    }
+  }
+  
+  return {
+    isValid: issues.filter(i => i.severity === 'error').length === 0,
+    issues,
+    totalDiscrepancy
+  };
+}

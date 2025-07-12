@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Search, Filter, Calendar, DollarSign, CreditCard, FileText, Mail, X } from 'lucide-react';
 import { BookingsList } from './BookingsList';
 import { BookingStats } from './BookingStats';
 import { BookingDetails } from './BookingDetails';
 import { BookingConfirmationView } from './BookingConfirmationView';
+import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 
 export type BookingStatus = 'Confirmed' | 'Cancelled' | 'Completed' | 'Pending' | 'Processing' | 'Failed';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -46,6 +48,8 @@ export interface Booking {
 }
 
 export function BookingsDashboard() {
+  const navigate = useNavigate();
+  const { isConnected } = useGoogleOAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -100,13 +104,54 @@ export function BookingsDashboard() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setBookings(data || []);
+      
+      if (data && data.length > 0) {
+        await fetchEmailStats(data);
+      } else {
+        setBookings(data || []);
+      }
       setLoading(false);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       setLoading(false);
     }
   }
+
+  async function fetchEmailStats(bookings: Booking[]) {
+    try {
+      const bookingsWithStats = await Promise.all(
+        bookings.map(async (booking) => {
+          const { data: emails, error } = await supabase
+            .from('email_communications')
+            .select('sent_at, opened_at')
+            .eq('customer_id', booking.customer.id)
+            .order('sent_at', { ascending: false });
+
+          if (error) {
+            console.error('Error fetching email stats:', error);
+            return booking;
+          }
+
+          const emailStats = {
+            totalSent: emails?.length || 0,
+            lastSent: emails?.[0]?.sent_at,
+            hasOpened: emails?.some(email => email.opened_at) || false
+          };
+
+          return { ...booking, emailStats };
+        })
+      );
+      
+      setBookings(bookingsWithStats);
+    } catch (error) {
+      console.error('Error fetching email stats:', error);
+      setBookings(bookings);
+    }
+  }
+
+  const handleSendEmail = (booking: Booking) => {
+    navigate(`/communications?customer=${booking.customer.id}&email=${encodeURIComponent(booking.customer.email)}`);
+  };
 
   const filteredBookings = bookings.filter(booking => {
     const searchString = searchTerm.toLowerCase();
@@ -205,6 +250,7 @@ export function BookingsDashboard() {
             loading={loading}
             onBookingSelect={handleBookingSelect}
             selectedBookingId={selectedBooking?.id}
+            onSendEmail={isConnected ? handleSendEmail : undefined}
           />
         </div>
 

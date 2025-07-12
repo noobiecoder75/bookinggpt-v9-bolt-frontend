@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, DollarSign, User, MapPin, GitBranch, Settings, FileCheck, Eye } from 'lucide-react';
+import { Calendar, DollarSign, User, MapPin, GitBranch, Settings, FileCheck, Eye, Mail } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Booking } from './BookingsDashboard';
 
@@ -8,9 +8,10 @@ interface Props {
   loading: boolean;
   onBookingSelect: (booking: Booking) => void;
   selectedBookingId?: number;
+  onSendEmail?: (booking: Booking) => void;
 }
 
-export function BookingsList({ bookings, loading, onBookingSelect, selectedBookingId }: Props) {
+export function BookingsList({ bookings, loading, onBookingSelect, selectedBookingId, onSendEmail }: Props) {
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -56,15 +57,31 @@ export function BookingsList({ bookings, loading, onBookingSelect, selectedBooki
                       </div>
                     </div>
                     <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {booking.customer.first_name} {booking.customer.last_name}
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-lg font-medium text-gray-900">
+                          {booking.customer.first_name} {booking.customer.last_name}
+                        </h3>
+                        {booking.emailStats && booking.emailStats.totalSent > 0 && (
+                          <div className="flex items-center space-x-1">
+                            <Mail className="h-3 w-3 text-blue-500" />
+                            <span className="text-xs text-blue-600">{booking.emailStats.totalSent}</span>
+                            {booking.emailStats.hasOpened && (
+                              <Eye className="h-3 w-3 text-green-500" />
+                            )}
+                          </div>
+                        )}
+                      </div>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
                         <span className="truncate">{booking.booking_reference}</span>
                         {isPaidOrCompleted && (
                           <span className="ml-2 flex items-center text-green-600">
                             <Eye className="h-3 w-3 mr-1" />
                             View Confirmations
+                          </span>
+                        )}
+                        {booking.emailStats?.lastSent && (
+                          <span className="ml-2 text-xs text-gray-400">
+                            Last email: {new Date(booking.emailStats.lastSent).toLocaleDateString()}
                           </span>
                         )}
                       </div>
@@ -120,6 +137,19 @@ export function BookingsList({ bookings, loading, onBookingSelect, selectedBooki
                     )}
                   </div>
                   <div className="mt-2 sm:mt-0 flex items-center space-x-2">
+                    {onSendEmail && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSendEmail(booking);
+                        }}
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-full hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                        title="Send email to customer"
+                      >
+                        <Mail className="h-3 w-3 mr-1" />
+                        Email
+                      </button>
+                    )}
                     <Link
                       to={`/bookings/${booking.id}/workflow`}
                       onClick={(e) => e.stopPropagation()}

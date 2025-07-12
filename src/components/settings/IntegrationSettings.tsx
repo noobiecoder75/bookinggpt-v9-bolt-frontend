@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-import { Globe, Database, CreditCard, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Globe, Database, CreditCard, MessageSquare, Mail, CheckCircle, AlertCircle } from 'lucide-react';
+import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { gmailApi } from '../../lib/gmailApi';
+import { TravelProviderSettings } from './TravelProviderSettings';
 
 interface Integration {
   id: string;
@@ -44,6 +47,38 @@ export function IntegrationSettings() {
     },
   ]);
 
+  const {
+    isConnected: gmailConnected,
+    isLoading: gmailLoading,
+    error: gmailError,
+    gmailIntegration,
+    connect: connectGmail,
+    disconnect: disconnectGmail,
+    checkConnection: checkGmailConnection,
+  } = useGoogleOAuth();
+
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  useEffect(() => {
+    checkGmailConnection();
+  }, [checkGmailConnection]);
+
+  const handleTestGmailConnection = async () => {
+    setTestingConnection(true);
+    try {
+      const isWorking = await gmailApi.testConnection();
+      if (isWorking) {
+        alert('Gmail connection test successful!');
+      } else {
+        alert('Gmail connection test failed. Please check your connection.');
+      }
+    } catch (error) {
+      alert('Gmail connection test failed: ' + (error as Error).message);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -51,6 +86,94 @@ export function IntegrationSettings() {
         <button className="text-sm text-indigo-600 hover:text-indigo-900">
           View Integration Logs
         </button>
+      </div>
+
+      {/* Travel API Providers Section */}
+      <div className="mb-12">
+        <TravelProviderSettings onConfigurationChange={() => {
+          console.log('Travel provider configuration changed');
+        }} />
+      </div>
+
+      {/* Gmail Integration - Special Card */}
+      <div className="bg-white shadow sm:rounded-lg overflow-hidden mb-6">
+        <div className="px-4 py-5 sm:p-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                <Mail className="h-8 w-8" />
+              </div>
+            </div>
+            <div className="ml-4 flex-1">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Gmail Integration</h3>
+                <div className="flex items-center space-x-2">
+                  {gmailConnected ? (
+                    <>
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Connected
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-5 w-5 text-gray-400" />
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        Not Connected
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Connect your Gmail account to send emails on behalf of your agency and track email communication with clients.
+              </p>
+              {gmailConnected && gmailIntegration && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-gray-600">
+                    <strong>Connected as:</strong> {gmailIntegration.email}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Last synced: {new Date(gmailIntegration.last_sync || gmailIntegration.updated_at).toLocaleString()}
+                  </p>
+                </div>
+              )}
+              {gmailError && (
+                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-sm text-red-600">{gmailError}</p>
+                </div>
+              )}
+              <div className="mt-4">
+                {gmailConnected ? (
+                  <div className="space-x-3">
+                    <button
+                      onClick={handleTestGmailConnection}
+                      disabled={testingConnection}
+                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      {testingConnection ? 'Testing...' : 'Test Connection'}
+                    </button>
+                    <button
+                      onClick={disconnectGmail}
+                      disabled={gmailLoading}
+                      className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {gmailLoading ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={connectGmail}
+                    disabled={gmailLoading}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {gmailLoading ? 'Connecting...' : 'Connect Gmail'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-6">

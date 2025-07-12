@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { AuthProvider, useAuthContext } from './contexts/AuthContext';
+import { LoginForm } from './components/auth/LoginForm';
 import { Navbar } from './components/Navbar';
 import { NewQuoteWizard } from './components/quotes/NewQuoteWizard';
 import { TripOverviewRefactored } from './components/quotes/TripOverviewRefactored';
@@ -13,6 +15,7 @@ import { BookingsDashboard } from './components/bookings/BookingsDashboard';
 import { ClientPortal } from './components/client/ClientPortal';
 import { BookingWorkflowDashboard } from './components/workflow/BookingWorkflowDashboard';
 import { RecentActivity } from './components/RecentActivity';
+import { CommunicationsDashboard } from './components/communications/CommunicationsDashboard';
 import { DollarSign, Users, FileText, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { KanbanBoard } from './components/quotes/KanbanBoard';
@@ -104,7 +107,9 @@ const kanbanStageToStatus = (stage: string) => {
   }
 };
 
-const App: React.FC = () => {
+// Protected App Content Component
+function AppContent() {
+  const { user, loading } = useAuthContext();
   const [stats, setStats] = useState<DashboardStats>({
     totalRevenue: 0,
     totalCustomers: 0,
@@ -115,47 +120,133 @@ const App: React.FC = () => {
   const [kanbanQuotes, setKanbanQuotes] = useState<any[]>([]);
   const [showCreateTripDialog, setShowCreateTripDialog] = useState(false);
 
+  // Debug state changes
+  console.log('📊 App state:', {
+    stats,
+    kanbanQuotesCount: kanbanQuotes.length,
+    showCreateTripDialog,
+    timestamp: new Date().toISOString()
+  });
+
   // Function to fetch quotes
   const fetchQuotes = async () => {
-    const { data, error } = await supabase
-      .from('quotes')
-      .select(`*, customer:customers (id, first_name, last_name, email), quote_items (id, item_type, item_name, cost, markup, markup_type)`)
-      .order('created_at', { ascending: false });
-    if (!error && data) setKanbanQuotes(data);
+    console.log('🔄 Fetching quotes from Supabase...');
+    try {
+      const { data, error } = await supabase
+        .from('quotes')
+        .select(`*, customer:customers (id, first_name, last_name, email), quote_items (id, item_type, item_name, cost, markup, markup_type)`)
+        .order('created_at', { ascending: false });
+      
+      console.log('📊 Quotes fetch result:', { 
+        success: !error, 
+        quotesCount: data?.length || 0, 
+        error: error?.message,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (!error && data) {
+        setKanbanQuotes(data);
+        console.log('✅ Kanban quotes updated successfully');
+      } else if (error) {
+        console.error('🚨 Error fetching quotes:', error);
+      }
+    } catch (err) {
+      console.error('🚨 Exception during quotes fetch:', err);
+    }
   };
 
   useEffect(() => {
+    console.log('🎣 App useEffect hook triggered - fetching dashboard data...');
+    
     async function fetchDashboardStats() {
-      const [
-        { count: customerCount },
-        { count: quoteCount },
-        { count: activeQuoteCount },
-        { count: bookingCount },
-        { data: bookings },
-      ] = await Promise.all([
-        supabase.from('customers').select('*', { count: 'exact', head: true }),
-        supabase.from('quotes').select('*', { count: 'exact', head: true }),
-        supabase.from('quotes').select('*', { count: 'exact', head: true }).eq('status', 'Sent'),
-        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'Confirmed'),
-        supabase.from('bookings').select('total_price').eq('status', 'Confirmed'),
-      ]);
+      console.log('📈 Starting dashboard stats fetch...');
+      try {
+        const [
+          { count: customerCount },
+          { count: quoteCount },
+          { count: activeQuoteCount },
+          { count: bookingCount },
+          { data: bookings },
+        ] = await Promise.all([
+          supabase.from('customers').select('*', { count: 'exact', head: true }),
+          supabase.from('quotes').select('*', { count: 'exact', head: true }),
+          supabase.from('quotes').select('*', { count: 'exact', head: true }).eq('status', 'Sent'),
+          supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'Confirmed'),
+          supabase.from('bookings').select('total_price').eq('status', 'Confirmed'),
+        ]);
 
-      const totalRevenue = bookings?.reduce((sum, booking) => sum + Number(booking.total_price), 0) || 0;
-      const conversionRate = quoteCount ? ((bookingCount || 0) / quoteCount) * 100 : 0;
+        console.log('📊 Dashboard stats raw data:', {
+          customerCount,
+          quoteCount,
+          activeQuoteCount,
+          bookingCount,
+          bookingsData: bookings?.length || 0,
+          timestamp: new Date().toISOString()
+        });
 
-      setStats({
-        totalRevenue,
-        totalCustomers: customerCount || 0,
-        activeQuotes: activeQuoteCount || 0,
-        confirmedBookings: bookingCount || 0,
-        conversionRate,
-      });
+        const totalRevenue = bookings?.reduce((sum, booking) => sum + Number(booking.total_price), 0) || 0;
+        const conversionRate = quoteCount ? ((bookingCount || 0) / quoteCount) * 100 : 0;
+
+        const newStats = {
+          totalRevenue,
+          totalCustomers: customerCount || 0,
+          activeQuotes: activeQuoteCount || 0,
+          confirmedBookings: bookingCount || 0,
+          conversionRate,
+        };
+
+        console.log('📊 Setting dashboard stats:', newStats);
+        setStats(newStats);
+        console.log('✅ Dashboard stats updated successfully');
+      } catch (error) {
+        console.error('🚨 Error fetching dashboard stats:', error);
+      }
     }
 
     fetchDashboardStats();
     fetchQuotes();
   }, []);
 
+  // 🔐 Console debugging for authentication
+  console.log('🔐 AppContent auth state:', {
+    hasUser: !!user,
+    userId: user?.id,
+    email: user?.email,
+    loading,
+    timestamp: new Date().toISOString()
+  });
+
+  // Show loading while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Loading BookingGPT...</h2>
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login form if not authenticated (unless in dev mode)
+  if (!user && import.meta.env.VITE_DEV_MODE !== 'true') {
+    console.log('🔐 No user found, showing login form', { timestamp: new Date().toISOString() });
+    return <LoginForm />;
+  }
+
+  // Show login form if not authenticated in dev mode (admin auto-login should have worked)
+  if (!user && import.meta.env.VITE_DEV_MODE === 'true') {
+    console.warn('⚠️ Dev mode enabled but no user found - admin auto-login may have failed');
+    return <LoginForm />;
+  }
+
+  console.log('✅ User authenticated, rendering main app', { 
+    userId: user?.id, 
+    email: user?.email,
+    timestamp: new Date().toISOString() 
+  });
+  
   return (
     <Router>
       <Routes>
@@ -165,6 +256,7 @@ const App: React.FC = () => {
         <Route path="/client/:quoteId/payment" element={<ClientPortal activeSection="payment" />} />
         <Route path="/client/:quoteId/chat" element={<ClientPortal activeSection="chat" />} />
         <Route path="/client/:quoteId/documents" element={<ClientPortal activeSection="documents" />} />
+        <Route path="/client/:quoteId/email" element={<ClientPortal activeSection="email" />} />
         <Route path="/client/:quoteId/status" element={<ClientPortal activeSection="status" />} />
         
         {/* Agent/Admin Routes - With agent navbar */}
@@ -183,7 +275,7 @@ const App: React.FC = () => {
                         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
                           <div className="text-center">
                             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                              Welcome to BookingGPT
+                              Welcome to BookingGPT - Pricing Fixed! 🎉
                             </h1>
                             <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed max-w-2xl mx-auto">
                               Manage your travel bookings with AI-powered efficiency and streamlined workflows
@@ -335,6 +427,7 @@ const App: React.FC = () => {
                 <Route path="/bookings/:bookingId/workflow" element={<BookingWorkflowDashboard />} />
                     <Route path="/customers" element={<CustomerDashboard />} />
                     <Route path="/customers/:id" element={<CustomerProfileView />} />
+                    <Route path="/communications" element={<CommunicationsDashboard />} />
                     <Route path="/settings/*" element={<SettingsDashboard />} />
                   </Routes>
                 </div>
@@ -350,6 +443,17 @@ const App: React.FC = () => {
         } />
       </Routes>
     </Router>
+  );
+}
+
+// Main App Component with Auth Provider
+const App: React.FC = () => {
+  console.log('📱 App component initializing...', { timestamp: new Date().toISOString() });
+  
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
