@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
 import { CustomerForm } from './CustomerForm';
 import { supabase } from '../../lib/supabase';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 interface CustomerFormData {
   first_name: string;
@@ -17,6 +18,7 @@ interface CustomerFormData {
 
 export function NewCustomer() {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
@@ -28,6 +30,11 @@ export function NewCustomer() {
     setFeedback(null);
 
     try {
+      // Check if user is authenticated
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Check for duplicate email
       const { data: existingCustomers, error: checkError } = await supabase
         .from('customers')
@@ -47,7 +54,7 @@ export function NewCustomer() {
         return;
       }
 
-      // Create new customer
+      // Create new customer with agent_id
       const { data: newCustomer, error: insertError } = await supabase
         .from('customers')
         .insert([{
@@ -59,6 +66,7 @@ export function NewCustomer() {
           passport_expiry: formData.passport_expiry || null,
           nationality: formData.nationality.trim() || null,
           date_of_birth: formData.date_of_birth || null,
+          agent_id: user.id, // Add agent_id for RLS
         }])
         .select()
         .single();

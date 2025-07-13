@@ -1024,9 +1024,19 @@ export function NewQuoteWizard() {
 
   // Handler for creating a new customer
   const handleCreateCustomer = async () => {
+    // Get current authenticated user
+    const { user } = useAuthContext();
+    if (!user) {
+      alert('User not authenticated');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('customers')
-      .insert([newCustomer])
+      .insert([{
+        ...newCustomer,
+        agent_id: user.id // Add agent_id for RLS
+      }])
       .select()
       .single();
 
