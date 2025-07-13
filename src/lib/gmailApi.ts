@@ -55,8 +55,13 @@ export class GmailApiService {
     return gmailIntegration.tokens.access_token;
   }
 
-  private async refreshAccessToken(integration: GmailIntegration): Promise<boolean> {
+  private async refreshAccessToken(integration: GmailIntegration, retryCount = 0): Promise<boolean> {
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+
     try {
+      console.log(`🔄 Gmail API: Refreshing access token (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+      
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
@@ -71,8 +76,36 @@ export class GmailApiService {
       });
 
       if (!response.ok) {
-        console.error('Failed to refresh token:', await response.text());
-        return false;
+        const errorData = await response.json().catch(() => ({ error: 'unknown_error' }));
+        const errorCode = errorData.error || 'unknown_error';
+        
+        console.error('❌ Gmail API: Token refresh failed:', { 
+          status: response.status, 
+          error: errorData,
+          attempt: retryCount + 1
+        });
+
+        // Handle specific error codes
+        switch (errorCode) {
+          case 'invalid_grant':
+            // Refresh token is revoked - don't retry
+            console.error('Gmail refresh token is invalid or revoked. Re-authentication required.');
+            return false;
+          case 'invalid_client':
+            // Client configuration error - don't retry
+            console.error('OAuth client configuration error.');
+            return false;
+          default:
+            // For other errors, check if we should retry
+            if (retryCount < maxRetries) {
+              const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+              console.log(`⏳ Gmail API: Retrying token refresh in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return this.refreshAccessToken(integration, retryCount + 1);
+            }
+            console.error(`Failed to refresh token after ${maxRetries + 1} attempts:`, errorData);
+            return false;
+        }
       }
 
       const newTokens = await response.json();

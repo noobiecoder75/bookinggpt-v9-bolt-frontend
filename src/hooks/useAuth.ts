@@ -21,7 +21,7 @@ export interface UseAuthResult {
 }
 
 // Admin credentials for development
-const ADMIN_EMAIL = 'admin@bookinggpt.ca';
+const ADMIN_EMAIL = 'info@bookinggpt.ca';
 const ADMIN_PASSWORD = 'admin123';
 
 export function useAuth(): UseAuthResult {

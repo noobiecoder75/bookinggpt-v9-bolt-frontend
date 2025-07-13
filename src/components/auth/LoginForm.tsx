@@ -62,7 +62,7 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
 
   const fillAdminCredentials = () => {
     console.log('🔧 Filling admin credentials', { timestamp: new Date().toISOString() });
-    setEmail('admin@bookinggpt.ca');
+    setEmail('info@bookinggpt.ca');
     setPassword('admin123');
   };
 

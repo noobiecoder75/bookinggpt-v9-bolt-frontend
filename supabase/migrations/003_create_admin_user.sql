@@ -17,7 +17,7 @@ INSERT INTO auth.users (
 ) VALUES (
     '3a956462-621c-47bb-a2f6-69351eff76b0'::uuid,
     '00000000-0000-0000-0000-000000000000'::uuid,
-    'admin@bookinggpt.ca',
+    'info@bookinggpt.ca',
     crypt('admin123', gen_salt('bf')),
     NOW(),
     NOW(),
@@ -43,7 +43,7 @@ INSERT INTO auth.identities (
 ) VALUES (
     gen_random_uuid(),
     '3a956462-621c-47bb-a2f6-69351eff76b0'::uuid,
-    format('{"sub": "%s", "email": "%s"}', '3a956462-621c-47bb-a2f6-69351eff76b0'::uuid, 'admin@bookinggpt.ca')::jsonb,
+    format('{"sub": "%s", "email": "%s"}', '3a956462-621c-47bb-a2f6-69351eff76b0'::uuid, 'info@bookinggpt.ca')::jsonb,
     'email',
     NOW(),
     NOW(),

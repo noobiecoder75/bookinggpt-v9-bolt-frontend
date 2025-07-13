@@ -9,7 +9,6 @@ const REDIRECT_URI = `${window.location.origin}/oauth/gmail/callback`;
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile'
 ];
@@ -37,6 +36,8 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
 
   const exchangeCodeForTokens = useCallback(async (code: string) => {
     try {
+      console.log('🔐 Gmail OAuth: Exchanging authorization code for tokens...');
+      
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
@@ -51,8 +52,33 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
         }),
       });
 
+      console.log('🔐 Gmail OAuth: Token exchange response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to exchange code for tokens');
+        const errorData = await response.json().catch(() => ({ error: 'unknown_error' }));
+        console.error('❌ Gmail OAuth: Token exchange failed:', { 
+          status: response.status, 
+          error: errorData 
+        });
+        
+        // Handle specific OAuth error codes
+        const errorCode = errorData.error || 'unknown_error';
+        const errorDescription = errorData.error_description || 'Token exchange failed';
+        
+        switch (errorCode) {
+          case 'invalid_grant':
+            throw new Error('Authorization code expired or invalid. Please try connecting again.');
+          case 'invalid_client':
+            throw new Error('OAuth client configuration error. Please check your Google Cloud Console settings.');
+          case 'redirect_uri_mismatch':
+            throw new Error('Redirect URI mismatch. Please verify your OAuth configuration.');
+          case 'invalid_request':
+            throw new Error('Invalid OAuth request. Please try again.');
+          case 'unauthorized_client':
+            throw new Error('Client not authorized for this request. Please check your OAuth setup.');
+          default:
+            throw new Error(`OAuth error (${errorCode}): ${errorDescription}`);
+        }
       }
 
       const tokens: GmailOAuthTokens = await response.json();
@@ -72,8 +98,14 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
       const userInfo = await userInfoResponse.json();
 
       // Save integration to Supabase - use authenticated user
+      console.log('👤 Gmail OAuth: Getting authenticated user...');
       const user = await ensureAuthenticatedUser();
       if (!user) throw new Error('User not authenticated');
+      
+      console.log('💾 Gmail OAuth: Saving integration to database...', { 
+        userId: user.id, 
+        email: userInfo.email 
+      });
 
       const { data, error } = await supabase
         .from('user_integrations')
@@ -88,7 +120,12 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Gmail OAuth: Database save failed:', error);
+        throw error;
+      }
+      
+      console.log('✅ Gmail OAuth: Integration saved successfully!', { id: data.id });
 
       setGmailIntegration(data);
       setIsConnected(true);
@@ -288,10 +325,18 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
 
   const connect = useCallback(async (useRedirect = false) => {
     try {
+      console.log('🔗 Gmail OAuth: Starting connection process...', { 
+        useRedirect, 
+        hasClientId: !!GOOGLE_CLIENT_ID,
+        redirectUri: REDIRECT_URI,
+        timestamp: new Date().toISOString()
+      });
+      
       setIsLoading(true);
       setError(null);
 
       if (!GOOGLE_CLIENT_ID) {
+        console.error('❌ Gmail OAuth: Google Client ID not configured');
         throw new Error('Google Client ID not configured. Please add VITE_GOOGLE_CLIENT_ID to your environment variables.');
       }
 
@@ -307,6 +352,7 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
 
       // Use redirect method if requested or if popup fails
       if (useRedirect) {
+        console.log('🔗 Gmail OAuth: Using redirect method...', { authUrl: authUrl.toString() });
         // Store current page URL to return to after OAuth
         sessionStorage.setItem('oauth_return_url', window.location.href);
         window.location.href = authUrl.toString();
@@ -314,6 +360,7 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
       }
 
       // Try popup method first
+      console.log('🔗 Gmail OAuth: Attempting popup method...', { authUrl: authUrl.toString() });
       const popup = window.open(
         authUrl.toString(),
         'gmail-oauth',
@@ -321,6 +368,7 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
       );
 
       if (!popup) {
+        console.log('🔗 Gmail OAuth: Popup blocked, falling back to redirect method...');
         // Fallback to redirect method
         sessionStorage.setItem('oauth_return_url', window.location.href);
         window.location.href = authUrl.toString();
@@ -331,13 +379,21 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
       const handleOAuthCallback = async (event: MessageEvent) => {
         if (event.origin !== window.location.origin) return;
         
+        console.log('🔗 Gmail OAuth: Received message from popup...', { 
+          type: event.data.type, 
+          hasCode: !!event.data.code,
+          error: event.data.error 
+        });
+        
         if (event.data.type === 'GMAIL_OAUTH_SUCCESS') {
           const { code } = event.data;
+          console.log('✅ Gmail OAuth: Success! Received authorization code');
           popup.close();
           window.removeEventListener('message', handleOAuthCallback);
           
           await exchangeCodeForTokens(code);
         } else if (event.data.type === 'GMAIL_OAUTH_ERROR') {
+          console.error('❌ Gmail OAuth: Error received from popup:', event.data.error);
           popup.close();
           window.removeEventListener('message', handleOAuthCallback);
           throw new Error(event.data.error || 'OAuth failed');
@@ -382,15 +438,20 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
 
 
   // Internal function to refresh tokens with specific integration data
-  const refreshTokenWithData = async (integration: GmailIntegration): Promise<boolean> => {
+  const refreshTokenWithData = async (integration: GmailIntegration, retryCount = 0): Promise<boolean> => {
     if (!integration?.tokens?.refresh_token) {
       throw new Error('No refresh token available');
     }
 
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
     try {
+      console.log(`🔄 Gmail OAuth: Refreshing token (attempt ${retryCount + 1}/${maxRetries + 1})...`);
+      
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: {
@@ -408,7 +469,33 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error('Failed to refresh token');
+        const errorData = await response.json().catch(() => ({ error: 'unknown_error' }));
+        const errorCode = errorData.error || 'unknown_error';
+        
+        console.error('❌ Gmail OAuth: Token refresh failed:', { 
+          status: response.status, 
+          error: errorData,
+          attempt: retryCount + 1
+        });
+        
+        // Handle specific error codes - some should not be retried
+        switch (errorCode) {
+          case 'invalid_grant':
+            // Refresh token is revoked or expired - don't retry
+            throw new Error('Gmail access token expired and refresh token is invalid. Please reconnect your Gmail account.');
+          case 'invalid_client':
+            // Client configuration error - don't retry
+            throw new Error('OAuth client configuration error. Please check your Google Cloud Console settings.');
+          default:
+            // For other errors, check if we should retry
+            if (retryCount < maxRetries) {
+              const delay = baseDelay * Math.pow(2, retryCount); // Exponential backoff
+              console.log(`⏳ Gmail OAuth: Retrying token refresh in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              return refreshTokenWithData(integration, retryCount + 1);
+            }
+            throw new Error(`Failed to refresh token after ${maxRetries + 1} attempts: ${errorData.error_description || errorCode}`);
+        }
       }
 
       const newTokens = await response.json();

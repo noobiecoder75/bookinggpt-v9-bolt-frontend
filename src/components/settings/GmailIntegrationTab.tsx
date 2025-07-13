@@ -209,11 +209,48 @@ export function GmailIntegrationTab() {
                 <div className="ml-3">
                   <h4 className="text-sm font-medium text-red-800">Connection Error</h4>
                   <p className="mt-1 text-sm text-red-700">{error}</p>
+                  
+                  {/* Specific error handling and suggestions */}
                   {error.includes('Cross-Origin-Opener-Policy') && (
                     <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                       <p className="text-sm text-blue-800">
                         <strong>Browser Security Issue:</strong> Your browser's security settings are blocking the popup authentication method. 
                         Please try the "Alternative: Use Redirect Method" button above, which works around this limitation.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {error.includes('Authorization code expired') && (
+                    <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Quick Fix:</strong> The authorization process took too long. Please try connecting again and complete the process more quickly.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {error.includes('OAuth client configuration') && (
+                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-800">
+                        <strong>Configuration Issue:</strong> There's a problem with the Google Cloud Console setup. Please check:
+                        <br />• Client ID and Client Secret are correct
+                        <br />• Redirect URI is properly configured: {window.location.origin}/oauth/gmail/callback
+                        <br />• Gmail API is enabled in your Google Cloud project
+                      </p>
+                    </div>
+                  )}
+                  
+                  {error.includes('refresh token is invalid') && (
+                    <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <p className="text-sm text-orange-800">
+                        <strong>Re-authentication Required:</strong> Your Gmail connection has expired. Please disconnect and reconnect your Gmail account.
+                      </p>
+                    </div>
+                  )}
+                  
+                  {error.includes('User not authenticated') && (
+                    <div className="mt-2 p-3 bg-purple-50 border border-purple-200 rounded-md">
+                      <p className="text-sm text-purple-800">
+                        <strong>Session Issue:</strong> You need to be logged in to connect Gmail. Please refresh the page and try again.
                       </p>
                     </div>
                   )}
@@ -331,10 +368,12 @@ export function GmailIntegrationTab() {
                 <h4 className="text-sm font-medium text-gray-800 mb-2">Required Gmail Scopes:</h4>
                 <ul className="text-sm text-gray-600 space-y-1 font-mono">
                   <li>• gmail.send (Send emails on your behalf)</li>
-                  <li>• gmail.readonly (Read email threads)</li>
                   <li>• userinfo.email (Get your email address)</li>
                   <li>• userinfo.profile (Get your profile info)</li>
                 </ul>
+                <p className="text-xs text-gray-500 mt-2">
+                  Note: This app only needs to send emails, not read them. The minimal scope set improves security and reduces permission complexity.
+                </p>
               </div>
             </div>
           </div>
