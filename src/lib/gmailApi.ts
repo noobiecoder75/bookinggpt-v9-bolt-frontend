@@ -141,6 +141,22 @@ export class GmailApiService {
     try {
       const accessToken = await this.getAccessToken();
       
+      // Check if this is a demo token (for demo purposes)
+      if (accessToken === 'demo_token') {
+        console.log('🎭 Gmail API: Demo mode detected - simulating email send');
+        console.log('📧 Demo Email Details:', {
+          to: message.to,
+          subject: message.subject,
+          bodyLength: message.body.length
+        });
+        
+        // Simulate successful send for demo purposes
+        return {
+          success: true,
+          messageId: `demo_message_${Date.now()}`,
+        };
+      }
+      
       // Create email content
       const emailContent = this.createEmailContent(message);
       
@@ -272,6 +288,13 @@ export class GmailApiService {
   async testConnection(): Promise<boolean> {
     try {
       const accessToken = await this.getAccessToken();
+      
+      // Check if this is a demo token (for demo purposes)
+      if (accessToken === 'demo_token') {
+        console.log('🎭 Gmail API: Demo mode detected - simulating successful connection test');
+        // Simulate a successful connection for demo purposes
+        return true;
+      }
       
       // Test connection by getting user profile
       const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', {

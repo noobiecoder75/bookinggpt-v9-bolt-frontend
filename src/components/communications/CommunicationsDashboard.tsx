@@ -14,10 +14,14 @@ import {
   Calendar,
   RefreshCw,
   Settings,
-  BarChart3
+  BarChart3,
+  CheckCircle,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 import { supabase } from '../../lib/supabase';
+import { EmailComposer } from './EmailComposer';
 
 interface EmailCommunication {
   id: string;
@@ -59,6 +63,7 @@ export function CommunicationsDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showComposer, setShowComposer] = useState(false);
+  const [emailFeedback, setEmailFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { isConnected, isLoading: gmailLoading, connect, checkConnection } = useGoogleOAuth();
 
@@ -123,6 +128,23 @@ export function CommunicationsDashboard() {
     return matchesSearch && matchesFilter;
   });
 
+  const handleEmailSent = (success: boolean, message?: string) => {
+    setEmailFeedback({
+      type: success ? 'success' : 'error',
+      message: message || (success ? 'Email sent successfully!' : 'Failed to send email')
+    });
+    
+    if (success) {
+      // Refresh email data to show the new email
+      fetchEmailData();
+    }
+    
+    // Clear feedback after 5 seconds
+    setTimeout(() => {
+      setEmailFeedback(null);
+    }, 5000);
+  };
+
   // Show loading while checking Gmail connection
   if (gmailLoading) {
     return (
@@ -170,6 +192,38 @@ export function CommunicationsDashboard() {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {/* Gmail Connection Notice */}
         {gmailNotice}
+
+        {/* Email Feedback */}
+        {emailFeedback && (
+          <div className={`mb-6 border rounded-lg p-4 ${
+            emailFeedback.type === 'success' 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-center">
+              {emailFeedback.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+              ) : (
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
+              )}
+              <div className="flex-1">
+                <p className={`text-sm font-medium ${
+                  emailFeedback.type === 'success' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {emailFeedback.message}
+                </p>
+              </div>
+              <button
+                onClick={() => setEmailFeedback(null)}
+                className={`text-xs ${
+                  emailFeedback.type === 'success' ? 'text-green-600' : 'text-red-600'
+                } hover:opacity-75`}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mb-8">
@@ -376,34 +430,12 @@ export function CommunicationsDashboard() {
           </div>
         </div>
 
-        {/* Email Composer Modal - Placeholder */}
+        {/* Email Composer Modal */}
         {showComposer && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">Compose Email</h3>
-                  <button
-                    onClick={() => setShowComposer(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <span className="sr-only">Close</span>
-                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="bg-gray-50 rounded-lg p-6 text-center">
-                  <Mail className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Email Composer</h4>
-                  <p className="text-gray-600">
-                    Email composition interface will be integrated here.
-                    This will include template selection, recipient management, and email sending capabilities.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <EmailComposer
+            onClose={() => setShowComposer(false)}
+            onEmailSent={handleEmailSent}
+          />
         )}
       </div>
     </div>

@@ -243,7 +243,7 @@ export async function generateAIEmailDraft(
         'Add urgency if there are limited-time offers',
       ],
     },
-    follow-up: {
+    'follow-up': {
       subject: `How was your amazing trip to ${context.tripDetails?.destination || 'your destination'}?`,
       body: `Hi ${context.customerName},\n\nI hope you're still glowing from your recent adventure! I've been thinking about your trip and would love to hear all about it.\n\nDid everything go smoothly? Were there any unexpected highlights? I'm always looking for ways to make future trips even better for my clients.\n\nAlready thinking about your next getaway? I'm here whenever you're ready!\n\nWarm regards,\n${context.agentName}`,
       confidence: 0.90,
