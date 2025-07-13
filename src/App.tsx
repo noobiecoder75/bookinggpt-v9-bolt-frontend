@@ -16,6 +16,7 @@ import { ClientPortal } from './components/client/ClientPortal';
 import { BookingWorkflowDashboard } from './components/workflow/BookingWorkflowDashboard';
 import { RecentActivity } from './components/RecentActivity';
 import { CommunicationsDashboard } from './components/communications/CommunicationsDashboard';
+import { OAuthCallback } from './components/oauth/OAuthCallback';
 import { DollarSign, Users, FileText, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { KanbanBoard } from './components/quotes/KanbanBoard';
@@ -258,6 +259,9 @@ function AppContent() {
         <Route path="/client/:quoteId/documents" element={<ClientPortal activeSection="documents" />} />
         <Route path="/client/:quoteId/email" element={<ClientPortal activeSection="email" />} />
         <Route path="/client/:quoteId/status" element={<ClientPortal activeSection="status" />} />
+        
+        {/* OAuth Callback Route - No agent navbar */}
+        <Route path="/oauth/gmail/callback" element={<OAuthCallback />} />
         
         {/* Agent/Admin Routes - With agent navbar */}
         <Route path="*" element={
