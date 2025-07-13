@@ -587,6 +587,9 @@ export function NewQuoteWizard() {
   const editQuoteId = searchParams.get('edit');
   const tripId = searchParams.get('tripId');
   const itineraryId = searchParams.get('itineraryId');
+  
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
 
   // State management for wizard steps and form data
   const [step, setStep] = useState(1);
@@ -829,8 +832,7 @@ export function NewQuoteWizard() {
   const saveQuoteToDatabase = async () => {
     if (!selectedCustomer || !quoteDetails.days.length) return;
 
-    // Get current authenticated user
-    const { user } = useAuthContext();
+    // Use the user from the top-level hook call
     if (!user) {
       console.error('User not authenticated');
       setError('User not authenticated. Please sign in again.');
@@ -1024,8 +1026,7 @@ export function NewQuoteWizard() {
 
   // Handler for creating a new customer
   const handleCreateCustomer = async () => {
-    // Get current authenticated user
-    const { user } = useAuthContext();
+    // Use the user from the top-level hook call
     if (!user) {
       alert('User not authenticated');
       return;

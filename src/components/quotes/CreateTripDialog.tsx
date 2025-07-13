@@ -19,6 +19,10 @@ interface CreateTripDialogProps {
 
 export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
   const navigate = useNavigate();
+  
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
+  
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -85,8 +89,7 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
 
   const handleCreateCustomer = async () => {
     try {
-      // Get current authenticated user
-      const { user } = useAuthContext();
+      // Use the user from the top-level hook call
       if (!user) {
         alert('User not authenticated');
         return;
@@ -123,8 +126,7 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
       return;
     }
 
-    // Get current authenticated user
-    const { user } = useAuthContext();
+    // Use the user from the top-level hook call
     if (!user) {
       alert('User not authenticated');
       return;

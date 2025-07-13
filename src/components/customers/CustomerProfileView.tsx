@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -114,19 +114,15 @@ export function CustomerProfileView() {
   const [selectedEmail, setSelectedEmail] = useState<EmailCommunication | null>(null);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { isConnected } = useGoogleOAuth();
+  
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
 
-  useEffect(() => {
-    if (id) {
-      fetchCustomerData();
-    }
-  }, [id]);
-
-  const fetchCustomerData = async () => {
+  const fetchCustomerData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Get current authenticated user for agent filtering
-      const { user } = useAuthContext();
+      // Use the user from the top-level hook call
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -202,7 +198,13 @@ export function CustomerProfileView() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, user]); // Add dependencies for useCallback
+
+  useEffect(() => {
+    if (id) {
+      fetchCustomerData();
+    }
+  }, [id, fetchCustomerData]);
 
   const handleSave = async () => {
     if (!editedCustomer) return;

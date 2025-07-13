@@ -5,6 +5,7 @@ import { RevenueBreakdown } from './analytics/RevenueBreakdown';
 import { ConversionFunnel } from './analytics/ConversionFunnel';
 import { DateRangePicker } from './analytics/DateRangePicker';
 import { RefreshCw, TrendingUp, DollarSign, Users, FileText, Calendar, Target } from 'lucide-react';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface AnalyticsData {
   totalRevenue: number;
@@ -22,6 +23,9 @@ interface AnalyticsData {
 }
 
 export function AnalyticsDashboard() {
+  // Add useAuthContext at the top level
+  const { user } = useAuthContext();
+  
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>({
     start: new Date(new Date().setMonth(new Date().getMonth() - 1)),
     end: new Date(),
@@ -38,10 +42,15 @@ export function AnalyticsDashboard() {
       if (showRefreshing) setRefreshing(true);
       setError(null);
 
+      // Ensure user is authenticated
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const startDate = dateRange.start.toISOString().split('T')[0];
       const endDate = dateRange.end.toISOString().split('T')[0];
 
-      // Fetch all necessary data in parallel
+      // Fetch all necessary data in parallel with agent filtering
       const [
         quotesResponse,
         bookingsResponse,
@@ -55,18 +64,21 @@ export function AnalyticsDashboard() {
             customer:customers(id, first_name, last_name, created_at),
             quote_items(*)
           `)
+          .eq('agent_id', user.id) // Add agent filtering
           .gte('created_at', startDate)
           .lte('created_at', endDate + 'T23:59:59'),
         
         supabase
           .from('bookings')
           .select('*')
+          .eq('agent_id', user.id) // Add agent filtering
           .gte('created_at', startDate)
           .lte('created_at', endDate + 'T23:59:59'),
         
         supabase
           .from('customers')
           .select('*')
+          .eq('agent_id', user.id) // Add agent filtering
           .gte('created_at', startDate)
           .lte('created_at', endDate + 'T23:59:59'),
         
@@ -74,8 +86,9 @@ export function AnalyticsDashboard() {
           .from('quote_items')
           .select(`
             *,
-            quote:quotes!inner(created_at, status)
+            quote:quotes!inner(created_at, status, agent_id)
           `)
+          .eq('quote.agent_id', user.id) // Add agent filtering through join
           .gte('quote.created_at', startDate)
           .lte('quote.created_at', endDate + 'T23:59:59')
       ]);
@@ -119,6 +132,7 @@ export function AnalyticsDashboard() {
       const { data: previousBookings } = await supabase
         .from('bookings')
         .select('total_price, status')
+        .eq('agent_id', user.id) // Add agent filtering
         .gte('created_at', previousPeriodStart.toISOString().split('T')[0])
         .lte('created_at', previousPeriodEnd.toISOString().split('T')[0] + 'T23:59:59');
 
@@ -228,7 +242,7 @@ export function AnalyticsDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [dateRange]);
+  }, [dateRange, user]); // Add user as dependency
 
   // Initial data fetch and date range changes
   useEffect(() => {
