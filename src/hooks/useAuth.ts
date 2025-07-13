@@ -16,6 +16,7 @@ export interface UseAuthResult {
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   signInAsAdmin: () => Promise<void>;
 }
@@ -76,15 +77,18 @@ export function useAuth(): UseAuthResult {
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, metadata?: Record<string, any>) => {
     try {
-      console.log('🔐 Starting sign up process...', { email, timestamp: new Date().toISOString() });
+      console.log('🔐 Starting sign up process...', { email, metadata, timestamp: new Date().toISOString() });
       setLoading(true);
       setError(null);
 
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: metadata || {}
+        }
       });
 
       if (signUpError) {
@@ -112,6 +116,40 @@ export function useAuth(): UseAuthResult {
       }
     } catch (err: any) {
       console.error('🚨 Sign up failed:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      console.log('🔐 Starting Google OAuth sign in...', { timestamp: new Date().toISOString() });
+      setLoading(true);
+      setError(null);
+
+      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (signInError) {
+        console.error('🚨 Google OAuth error:', signInError);
+        throw signInError;
+      }
+
+      console.log('✅ Google OAuth initiated:', { 
+        url: data.url,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Note: The actual user session will be handled by the auth state change listener
+      // after the OAuth redirect completes
+    } catch (err: any) {
+      console.error('🚨 Google sign in failed:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -153,6 +191,46 @@ export function useAuth(): UseAuthResult {
       }
     } catch (err: any) {
       console.error('🚨 Admin sign in failed:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateUserMetadata = useCallback(async (metadata: Record<string, any>) => {
+    try {
+      console.log('🔐 Updating user metadata...', { metadata, timestamp: new Date().toISOString() });
+      setLoading(true);
+      setError(null);
+
+      const { data, error: updateError } = await supabase.auth.updateUser({
+        data: metadata
+      });
+
+      if (updateError) {
+        console.error('🚨 Update metadata error:', updateError);
+        throw updateError;
+      }
+
+      if (data.user) {
+        console.log('✅ User metadata updated:', { 
+          userId: data.user.id,
+          metadata: data.user.user_metadata,
+          timestamp: new Date().toISOString()
+        });
+        
+        const authUser: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          user_metadata: data.user.user_metadata
+        };
+        
+        setUser(authUser);
+        setError(null);
+      }
+    } catch (err: any) {
+      console.error('🚨 Update metadata failed:', err);
       setError(err.message);
       throw err;
     } finally {
@@ -302,8 +380,10 @@ export function useAuth(): UseAuthResult {
     error,
     signIn,
     signUp,
+    signInWithGoogle,
     signOut,
     signInAsAdmin,
+    updateUserMetadata,
   };
 }
 

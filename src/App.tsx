@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
-import { LoginForm } from './components/auth/LoginForm';
+import { AuthLayout } from './components/auth/AuthLayout';
 import { Navbar } from './components/Navbar';
 import { NewQuoteWizard } from './components/quotes/NewQuoteWizard';
 import { TripOverviewRefactored } from './components/quotes/TripOverviewRefactored';
@@ -18,6 +18,7 @@ import { BookingWorkflowDashboard } from './components/workflow/BookingWorkflowD
 import { RecentActivity } from './components/RecentActivity';
 import { CommunicationsDashboard } from './components/communications/CommunicationsDashboard';
 import { OAuthCallback } from './components/oauth/OAuthCallback';
+import { AuthCallback } from './pages/AuthCallback';
 import { DollarSign, Users, FileText, Calendar, TrendingUp, Plus } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import { KanbanBoard } from './components/quotes/KanbanBoard';
@@ -231,16 +232,16 @@ function AppContent() {
     );
   }
 
-  // Show login form if not authenticated (unless in dev mode)
+  // Show auth layout if not authenticated (unless in dev mode)
   if (!user && import.meta.env.VITE_DEV_MODE !== 'true') {
-    console.log('🔐 No user found, showing login form', { timestamp: new Date().toISOString() });
-    return <LoginForm />;
+    console.log('🔐 No user found, showing auth layout', { timestamp: new Date().toISOString() });
+    return <AuthLayout />;
   }
 
-  // Show login form if not authenticated in dev mode (admin auto-login should have worked)
+  // Show auth layout if not authenticated in dev mode (admin auto-login should have worked)
   if (!user && import.meta.env.VITE_DEV_MODE === 'true') {
     console.warn('⚠️ Dev mode enabled but no user found - admin auto-login may have failed');
-    return <LoginForm />;
+    return <AuthLayout />;
   }
 
   console.log('✅ User authenticated, rendering main app', { 
@@ -261,8 +262,9 @@ function AppContent() {
         <Route path="/client/:quoteId/email" element={<ClientPortal activeSection="email" />} />
         <Route path="/client/:quoteId/status" element={<ClientPortal activeSection="status" />} />
         
-        {/* OAuth Callback Route - No agent navbar */}
+        {/* OAuth Callback Routes - No agent navbar */}
         <Route path="/oauth/gmail/callback" element={<OAuthCallback />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         
         {/* Agent/Admin Routes - With agent navbar */}
         <Route path="*" element={

@@ -75,7 +75,6 @@ export function QuoteView() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedDays, setExpandedDays] = useState<number[]>([]);
   const [isEditingMarkup, setIsEditingMarkup] = useState(false);
   const [newMarkup, setNewMarkup] = useState<number>(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -106,7 +105,6 @@ export function QuoteView() {
           filter: `id=eq.${id}`,
         },
         (payload) => {
-          console.log('Quote updated:', payload);
           fetchQuoteDetails();
         }
       )
@@ -119,7 +117,6 @@ export function QuoteView() {
           filter: `quote_id=eq.${id}`,
         },
         (payload) => {
-          console.log('Quote items updated:', payload);
           fetchQuoteDetails();
         }
       )
@@ -187,13 +184,7 @@ export function QuoteView() {
     }
   };
 
-  const toggleDayExpansion = (dayIndex: number) => {
-    setExpandedDays(prev =>
-      prev.includes(dayIndex)
-        ? prev.filter(d => d !== dayIndex)
-        : [...prev, dayIndex]
-    );
-  };
+
 
   const getItemIcon = (type: string) => {
     switch (type) {
@@ -222,36 +213,7 @@ export function QuoteView() {
     return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const calculateDayTotalPrice = (items: Quote['quote_items']) => {
-    if (!quote) return 0;
-    
-    // Convert items to pricing format
-    const pricingItems: PricingItem[] = items.map(item => ({
-      id: item.id,
-      cost: item.cost,
-      markup: item.markup || 0,
-      markup_type: item.markup_type || 'percentage',
-      quantity: item.quantity || 1,
-      item_type: item.item_type,
-      details: item.details
-    }));
 
-    const pricingQuote: PricingQuote = {
-      id: quote.id,
-      markup: quote.markup || 0,
-      discount: quote.discount || 0,
-      markup_strategy: quote.markup_strategy || 'global',
-      quote_items: pricingItems
-    };
-
-    // Use unified pricing calculation with dynamic markup strategy
-    const pricingOptions = {
-      ...DEFAULT_PRICING_OPTIONS,
-      markupStrategy: quote.markup_strategy || determineMarkupStrategy(pricingQuote)
-    };
-
-    return calculateQuoteTotal(pricingQuote, pricingOptions);
-  };
 
   const calculateItemTotal = (item: Quote['quote_items'][0]) => {
     if (!quote) return 0;
@@ -365,34 +327,7 @@ export function QuoteView() {
     }
   };
 
-  const handleCleanupOutOfBoundsItems = async () => {
-    if (!quote || outOfBoundsItems.length === 0) return;
 
-    const confirmCleanup = window.confirm(
-      `Found ${outOfBoundsItems.length} items outside the trip date range. These are likely from when the trip was longer or dates were changed.\n\nDo you want to remove these items?\n\n${outOfBoundsItems.map(item => `- ${item.item_name} (Day ${(item.details.day_index ?? 0) + 1})`).join('\n')}`
-    );
-
-    if (!confirmCleanup) return;
-
-    try {
-      const itemIds = outOfBoundsItems.map(item => item.id);
-      
-      const { error } = await supabase
-        .from('quote_items')
-        .delete()
-        .in('id', itemIds);
-
-      if (error) throw error;
-
-      // Refresh the quote data
-      await fetchQuoteDetails();
-      
-      alert(`Successfully removed ${itemIds.length} out-of-bounds items.`);
-    } catch (error) {
-      console.error('Error cleaning up out-of-bounds items:', error);
-      alert('Failed to clean up items. Please try again.');
-    }
-  };
 
   const handlePaymentSuccess = async (paymentRef: string) => {
     if (!quote) return;
@@ -401,10 +336,10 @@ export function QuoteView() {
       setIsProcessingBooking(true);
       setShowPaymentModal(false);
 
-      console.log('Payment successful, creating booking...', paymentRef);
 
       // Call booking API to create booking and process all items
-      const response = await fetch('http://localhost:3001/api/bookings/create', {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/api/bookings/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -422,7 +357,6 @@ export function QuoteView() {
         throw new Error(result.error || 'Failed to create booking');
       }
 
-      console.log('Booking created successfully:', result);
 
       // Refresh quote data to show updated status
       await fetchQuoteDetails();
@@ -504,16 +438,7 @@ export function QuoteView() {
     return `${days} day${days !== 1 ? 's' : ''}`;
   };
 
-  // Calculate trip duration for boundary checking
-  const getTripDurationInDays = () => {
-    if (!quote?.trip_start_date || !quote?.trip_end_date) return 0;
-    
-    const start = new Date(quote.trip_start_date + 'T00:00:00');
-    const end = new Date(quote.trip_end_date + 'T00:00:00');
-    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    
-    return Math.max(0, days);
-  };
+
 
   const handleSendQuote = async () => {
     if (!quote) return;
@@ -546,8 +471,6 @@ export function QuoteView() {
       const clientPortalLink = `${window.location.origin}/client/${quote.id}`;
       
       // In a real implementation, this would send an email with the client portal link
-      console.log('Client portal link generated:', clientPortalLink);
-      console.log(`Email would be sent to ${quote.customer.email} with client portal link`);
       
       // Wait a moment to show success, then refresh quote data
       setTimeout(async () => {
@@ -607,51 +530,7 @@ export function QuoteView() {
     );
   }
 
-  // Group items by day - matching TripItinerarySection logic with boundaries
-  const itemsByDay = quote.quote_items.reduce((acc, item) => {
-    const dayIndex = item.details.day_index ?? item.details.day?.index ?? 0;
-    const tripDuration = getTripDurationInDays();
-    
-    // Filter out items that are outside the trip boundaries
-    if (tripDuration > 0 && (dayIndex < 0 || dayIndex >= tripDuration)) {
-      console.warn(`Item "${item.item_name}" (ID: ${item.id}) has day_index ${dayIndex} which is outside trip boundaries (0-${tripDuration - 1}). Skipping.`);
-      return acc;
-    }
-    
-    const dayName = item.details.day?.name ?? `Day ${dayIndex + 1}`;
-    
-    if (!acc[dayIndex]) {
-      acc[dayIndex] = {
-        name: dayName,
-        items: []
-      };
-    }
-    acc[dayIndex].items.push(item);
-    return acc;
-  }, {} as Record<number, { name: string; items: Quote['quote_items'] }>);
 
-  // Get out-of-bounds items for debugging/cleanup
-  const outOfBoundsItems = quote.quote_items.filter(item => {
-    const dayIndex = item.details.day_index ?? item.details.day?.index ?? 0;
-    const tripDuration = getTripDurationInDays();
-    return tripDuration > 0 && (dayIndex < 0 || dayIndex >= tripDuration);
-  });
-
-  // Debug logging
-  console.log('Quote items:', quote.quote_items);
-  console.log('Trip duration (days):', getTripDurationInDays());
-  console.log('Out of bounds items:', outOfBoundsItems);
-  console.log('Items by day (filtered):', itemsByDay);
-  console.log('Object entries:', Object.entries(itemsByDay));
-
-  // Calculate trip dates for day headers
-  const getTripDayDate = (dayIndex: number) => {
-    if (!quote.trip_start_date) return null;
-    const startDate = new Date(quote.trip_start_date + 'T00:00:00');
-    const dayDate = new Date(startDate);
-    dayDate.setDate(dayDate.getDate() + dayIndex);
-    return dayDate;
-  };
 
   // Send Quote Modal Component
   const SendQuoteModal = () => (
@@ -990,336 +869,121 @@ export function QuoteView() {
         </div>
       </div>
 
-      {/* Day-wise Itinerary - Matching TripItinerarySection Style */}
+      {/* Itemized Quote Details - Simplified */}
       <div className="bg-white shadow rounded-lg mb-8">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Day-wise Itinerary</h2>
-          <p className="text-sm text-gray-600 mt-1">Detailed breakdown of your trip by day</p>
+          <h2 className="text-lg font-medium text-gray-900">Quote Items</h2>
+          <p className="text-sm text-gray-600 mt-1">All items included in this quote</p>
         </div>
         
-        {/* Out-of-bounds items warning */}
-        {outOfBoundsItems.length > 0 && (
-          <div className="px-6 py-4 bg-amber-50 border-b border-amber-200">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-amber-800">
-                    Found {outOfBoundsItems.length} items outside trip date range
-                  </h3>
-                  <div className="mt-2 text-sm text-amber-700">
-                    <p>These items are from days that no longer exist in your {getTripDurationInDays()}-day trip:</p>
-                    <ul className="mt-1 list-disc list-inside">
-                      {outOfBoundsItems.slice(0, 3).map(item => (
-                        <li key={item.id}>
-                          {item.item_name} (Day {(item.details.day_index ?? 0) + 1})
-                        </li>
-                      ))}
-                      {outOfBoundsItems.length > 3 && (
-                        <li>... and {outOfBoundsItems.length - 3} more items</li>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              <div className="ml-4 flex-shrink-0">
-                <button
-                  onClick={handleCleanupOutOfBoundsItems}
-                  className="inline-flex items-center px-3 py-2 border border-amber-300 shadow-sm text-sm font-medium rounded-md text-amber-800 bg-amber-100 hover:bg-amber-200"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clean Up
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="p-6">
-          <div className="space-y-4">
-            {Object.entries(itemsByDay).length > 0 ? (
-              Object.entries(itemsByDay).map(([dayIndex, { name, items }]) => {
-                const dayDate = getTripDayDate(parseInt(dayIndex));
-                const formattedDate = dayDate ? dayDate.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric'
-                }) : '';
-
-                return (
-                  <div key={dayIndex} className="border rounded-lg overflow-hidden">
-                    <div
-                      className="px-4 py-3 bg-gradient-to-r from-indigo-50 to-blue-50 flex items-center justify-between cursor-pointer"
-                      onClick={() => toggleDayExpansion(parseInt(dayIndex))}
-                    >
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{name}</h3>
-                        {formattedDate && (
-                          <p className="text-xs text-gray-600">{formattedDate}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full">
-                          {items.length} items
+          {quote.quote_items.length > 0 ? (
+            <div className="space-y-4">
+              {quote.quote_items.map((item) => (
+                <div key={item.id} className={`flex items-start justify-between p-4 rounded-lg border ${
+                  isPartOfReturnFlight(item) 
+                    ? 'bg-blue-50 border-blue-200' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-start space-x-3">
+                    {getItemIcon(item.item_type)}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                          item.item_type === 'Flight' ? 'bg-blue-100 text-blue-800' :
+                          item.item_type === 'Hotel' ? 'bg-green-100 text-green-800' :
+                          item.item_type === 'Transfer' ? 'bg-yellow-100 text-yellow-800' :
+                          item.item_type === 'Tour' ? 'bg-purple-100 text-purple-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {item.item_type}
                         </span>
-                        <p className="text-sm font-medium text-gray-900">
-                          ${calculateDayTotalPrice(items).toFixed(2)}
-                        </p>
-                        {expandedDays.includes(parseInt(dayIndex)) ? (
-                          <ChevronUp className="h-5 w-5 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-400" />
+                        {isPartOfReturnFlight(item) && (
+                          <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-200 text-blue-900">
+                            Linked Flight
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        {item.item_name}{getFlightDirectionDisplay(item)}
+                      </p>
+                      {item.details.description && (
+                        <p className="text-sm text-gray-600 mb-1">{item.details.description}</p>
+                      )}
+                      <div className="flex items-center text-xs text-gray-500 space-x-4">
+                        {(item.details.startTime || item.details.endTime) && (
+                          <span>
+                            {item.details.startTime && formatTime(item.details.startTime)}
+                            {item.details.startTime && item.details.endTime && ' - '}
+                            {item.details.endTime && formatTime(item.details.endTime)}
+                          </span>
+                        )}
+                        {item.quantity > 1 && (
+                          <span>Quantity: {item.quantity}</span>
+                        )}
+                        {item.details.day_index !== undefined && (
+                          <span>Day {item.details.day_index + 1}</span>
                         )}
                       </div>
                     </div>
-                    
-                    {expandedDays.includes(parseInt(dayIndex)) && (
-                      <div className="px-4 py-3 space-y-3">
-                        {items.map((item) => (
-                          <div key={item.id} className={`flex items-start justify-between p-3 rounded-lg ${
-                            isPartOfReturnFlight(item) 
-                              ? 'bg-blue-50 border border-blue-200' 
-                              : 'bg-gray-50'
-                          }`}>
-                            <div className="flex items-start space-x-3">
-                              {getItemIcon(item.item_type)}
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                                    item.item_type === 'Flight' ? 'bg-blue-100 text-blue-800' :
-                                    item.item_type === 'Hotel' ? 'bg-green-100 text-green-800' :
-                                    item.item_type === 'Transfer' ? 'bg-yellow-100 text-yellow-800' :
-                                    item.item_type === 'Tour' ? 'bg-purple-100 text-purple-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {item.item_type}
-                                  </span>
-                                  {isPartOfReturnFlight(item) && (
-                                    <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-200 text-blue-900">
-                                      Linked Flight
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {item.item_name}{getFlightDirectionDisplay(item)}
-                                </p>
-                                {item.details.description && (
-                                  <p className="text-sm text-gray-500">{item.details.description}</p>
-                                )}
-                                {(item.details.startTime || item.details.endTime) && (
-                                  <p className="text-xs text-gray-400">
-                                    {item.details.startTime && formatTime(item.details.startTime)}
-                                    {item.details.startTime && item.details.endTime && ' - '}
-                                    {item.details.endTime && formatTime(item.details.endTime)}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-gray-900">
-                                ${(() => {
-                                  // Convert to pricing format for hotel-aware pricing
-                                  const pricingItem: PricingItem = {
-                                    id: item.id,
-                                    cost: item.cost,
-                                    markup: item.markup || 0,
-                                    markup_type: item.markup_type || 'percentage',
-                                    quantity: item.quantity || 1,
-                                    item_type: item.item_type,
-                                    details: item.details || {}
-                                  };
-                                  
-                                  const pricingQuote: PricingQuote = {
-                                    id: quote?.id || 'temp-quote',
-                                    markup: quote?.markup || 0,
-                                    discount: quote?.discount || 0,
-                                    markup_strategy: quote?.markup_strategy || 'individual'
-                                  };
-                                  
-                                  // For hotels with quantity > 1 (TripOverviewRefactored's cost-per-day model),
-                                  // the cost is already per-day, so just show the cost with markup applied
-                                  if (item.item_type === 'Hotel' && item.quantity > 1) {
-                                    // Calculate markup on the per-day cost
-                                    let perDayCost = item.cost;
-                                    const effectiveMarkup = pricingQuote.markup_strategy === 'individual' 
-                                      ? (item.markup || 0) 
-                                      : (pricingQuote.markup || 0);
-                                    
-                                    if (effectiveMarkup > 0) {
-                                      perDayCost = perDayCost * (1 + effectiveMarkup / 100);
-                                    }
-                                    return perDayCost.toFixed(2);
-                                  }
-                                  
-                                  // For non-hotels or single-day hotels, use standard display price logic
-                                  const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
-                                  return displayPrice.toFixed(2);
-                                })()}
-                                {item.item_type === 'Hotel' && item.quantity > 1 && (
-                                  <span className="text-xs text-gray-500 block">per night</span>
-                                )}
-                              </p>
-                              {item.markup > 0 && (
-                                <p className="text-xs text-green-600">
-                                  +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
-                                </p>
-                              )}
-                              {item.quantity > 1 && item.item_type !== 'Hotel' && (
-                                <p className="text-xs text-gray-500">
-                                  Quantity: {item.quantity}
-                                </p>
-                              )}
-                              <p className="text-xs font-semibold text-indigo-600">
-                                Total: ${calculateItemTotal(item).toFixed(2)}
-                                {item.item_type === 'Hotel' && item.quantity > 1 && (
-                                  <span className="block text-xs text-gray-500">
-                                    ({item.quantity} {item.quantity === 1 ? 'day' : 'days'})
-                                  </span>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
-                );
-              })
-            ) : quote.quote_items.length > 0 ? (
-              /* Fallback: Show all items in a simple list when day grouping fails */
-              <div className="border rounded-lg overflow-hidden">
-                <div className="px-4 py-3 bg-gradient-to-r from-gray-50 to-gray-100 border-b">
-                  <h3 className="text-sm font-medium text-gray-900">All Items</h3>
-                  <p className="text-xs text-gray-600">Items not assigned to specific days</p>
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900 mb-1">
+                      ${(() => {
+                        const pricingItem: PricingItem = {
+                          id: item.id,
+                          cost: item.cost,
+                          markup: item.markup || 0,
+                          markup_type: item.markup_type || 'percentage',
+                          quantity: item.quantity || 1,
+                          item_type: item.item_type,
+                          details: item.details || {}
+                        };
+                        
+                        const pricingQuote: PricingQuote = {
+                          id: quote?.id || 'temp-quote',
+                          markup: quote?.markup || 0,
+                          discount: quote?.discount || 0,
+                          markup_strategy: quote?.markup_strategy || 'individual'
+                        };
+                        
+                        return getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS).toFixed(2);
+                      })()}
+                      {item.item_type === 'Hotel' && item.quantity > 1 && (
+                        <span className="text-xs text-gray-500 block">per night</span>
+                      )}
+                    </p>
+                    {item.markup > 0 && (
+                      <p className="text-xs text-green-600 mb-1">
+                        +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
+                      </p>
+                    )}
+                    <p className="text-sm font-semibold text-indigo-600">
+                      Total: ${calculateItemTotal(item).toFixed(2)}
+                      {item.item_type === 'Hotel' && item.quantity > 1 && (
+                        <span className="block text-xs text-gray-500">
+                          ({item.quantity} {item.quantity === 1 ? 'day' : 'days'})
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
-                <div className="px-4 py-3 space-y-3">
-                  {quote.quote_items.map((item) => (
-                    <div key={item.id} className={`flex items-start justify-between p-3 rounded-lg ${
-                      isPartOfReturnFlight(item) 
-                        ? 'bg-blue-50 border border-blue-200' 
-                        : 'bg-gray-50'
-                    }`}>
-                      <div className="flex items-start space-x-3">
-                        {getItemIcon(item.item_type)}
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                              item.item_type === 'Flight' ? 'bg-blue-100 text-blue-800' :
-                              item.item_type === 'Hotel' ? 'bg-green-100 text-green-800' :
-                              item.item_type === 'Transfer' ? 'bg-yellow-100 text-yellow-800' :
-                              item.item_type === 'Tour' ? 'bg-purple-100 text-purple-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {item.item_type}
-                            </span>
-                            {isPartOfReturnFlight(item) && (
-                              <span className="px-2 py-1 text-xs rounded-full font-medium bg-blue-200 text-blue-900">
-                                Linked Flight
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.item_name}{getFlightDirectionDisplay(item)}
-                          </p>
-                          {item.details.description && (
-                            <p className="text-sm text-gray-500">{item.details.description}</p>
-                          )}
-                          {(item.details.startTime || item.details.endTime) && (
-                            <p className="text-xs text-gray-400">
-                              {item.details.startTime && formatTime(item.details.startTime)}
-                              {item.details.startTime && item.details.endTime && ' - '}
-                              {item.details.endTime && formatTime(item.details.endTime)}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">
-                          ${(() => {
-                            // Convert to pricing format for hotel-aware pricing
-                            const pricingItem: PricingItem = {
-                              id: item.id,
-                              cost: item.cost,
-                              markup: item.markup || 0,
-                              markup_type: item.markup_type || 'percentage',
-                              quantity: item.quantity || 1,
-                              item_type: item.item_type,
-                              details: item.details || {}
-                            };
-                            
-                            const pricingQuote: PricingQuote = {
-                              id: quote?.id || 'temp-quote',
-                              markup: quote?.markup || 0,
-                              discount: quote?.discount || 0,
-                              markup_strategy: quote?.markup_strategy || 'individual'
-                            };
-                            
-                            // For hotels with quantity > 1 (TripOverviewRefactored's cost-per-day model),
-                            // the cost is already per-day, so just show the cost with markup applied
-                            if (item.item_type === 'Hotel' && item.quantity > 1) {
-                              // Calculate markup on the per-day cost
-                              let perDayCost = item.cost;
-                              const effectiveMarkup = pricingQuote.markup_strategy === 'individual' 
-                                ? (item.markup || 0) 
-                                : (pricingQuote.markup || 0);
-                              
-                              if (effectiveMarkup > 0) {
-                                perDayCost = perDayCost * (1 + effectiveMarkup / 100);
-                              }
-                              return perDayCost.toFixed(2);
-                            }
-                            
-                            // For non-hotels or single-day hotels, use standard display price logic
-                            const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
-                            return displayPrice.toFixed(2);
-                          })()}
-                          {item.item_type === 'Hotel' && item.quantity > 1 && (
-                            <span className="text-xs text-gray-500 block">per night</span>
-                          )}
-                        </p>
-                        {item.markup > 0 && (
-                          <p className="text-xs text-green-600">
-                            +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
-                          </p>
-                        )}
-                        {item.quantity > 1 && item.item_type !== 'Hotel' && (
-                          <p className="text-xs text-gray-500">
-                            Quantity: {item.quantity}
-                          </p>
-                        )}
-                        <p className="text-xs font-semibold text-indigo-600">
-                          Total: ${calculateItemTotal(item).toFixed(2)}
-                          {item.item_type === 'Hotel' && item.quantity > 1 && (
-                            <span className="block text-xs text-gray-500">
-                              ({item.quantity} {item.quantity === 1 ? 'day' : 'days'})
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              /* No items at all */
-              <div className="text-center py-12 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Added</h3>
-                <p className="text-sm">This quote doesn't have any items yet.</p>
-                <button
-                  onClick={handleEditQuote}
-                  className="mt-4 inline-flex items-center px-4 py-2 border border-indigo-600 text-indigo-700 bg-white hover:bg-indigo-50 shadow-sm text-sm font-medium rounded-md"
-                >
-                  <Edit2 className="h-4 w-4 mr-2" />
-                  Add Items to Quote
-                </button>
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Items Added</h3>
+              <p className="text-sm">This quote doesn't have any items yet.</p>
+              <button
+                onClick={handleEditQuote}
+                className="mt-4 inline-flex items-center px-4 py-2 border border-indigo-600 text-indigo-700 bg-white hover:bg-indigo-50 shadow-sm text-sm font-medium rounded-md"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                Add Items to Quote
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1363,7 +1027,28 @@ export function QuoteView() {
                   </div>
                 ) : (
                   <div className="flex items-center space-x-2">
-                    <span>Markup ({quote.markup}%)</span>
+                    <span>Markup ({(() => {
+                      // Check if items have individual markups
+                      const hasIndividualMarkups = quote.quote_items.some(item => item.markup && item.markup > 0);
+                      
+                      if (hasIndividualMarkups) {
+                        // Calculate weighted average of individual markups
+                        let totalCost = 0;
+                        let totalMarkup = 0;
+                        
+                        quote.quote_items.forEach(item => {
+                          const itemCost = item.cost * (item.quantity || 1);
+                          totalCost += itemCost;
+                          totalMarkup += itemCost * ((item.markup || 0) / 100);
+                        });
+                        
+                        const avgMarkup = totalCost > 0 ? (totalMarkup / totalCost) * 100 : 0;
+                        return Math.max(avgMarkup, 0).toFixed(1);
+                      }
+                      
+                      // Fall back to global markup if no individual markups
+                      return Math.max(quote.markup || 0, 0).toFixed(1);
+                    })()}%)</span>
                     {quote.status === 'Draft' && (
                       <button
                         onClick={() => {

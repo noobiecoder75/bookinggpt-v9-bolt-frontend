@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
 interface LoginFormProps {
   onSwitchToSignup?: () => void;
@@ -78,6 +79,21 @@ export function LoginForm({ onSwitchToSignup }: LoginFormProps) {
         </div>
 
         <div className="bg-white shadow-xl rounded-2xl p-8">
+          {/* Google Sign In Button */}
+          <div className="mb-6">
+            <GoogleSignInButton disabled={isFormLoading} />
+          </div>
+
+          {/* Divider */}
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Email Field */}
             <div>
