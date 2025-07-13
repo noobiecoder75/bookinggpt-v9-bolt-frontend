@@ -163,7 +163,7 @@ export function IntegrationSettings() {
                   </div>
                 ) : (
                   <button
-                    onClick={connectGmail}
+                    onClick={() => connectGmail(false)} // Force popup/new window mode
                     disabled={gmailLoading}
                     className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                   >
