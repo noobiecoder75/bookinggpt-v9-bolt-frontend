@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Search, Filter, Calendar, DollarSign, CreditCard, FileText, Mail, X } from 'lucide-react';
@@ -51,6 +51,10 @@ export interface Booking {
 export function BookingsDashboard() {
   const navigate = useNavigate();
   const { isConnected } = useGoogleOAuth();
+  
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
+  
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -62,14 +66,9 @@ export function BookingsDashboard() {
     end: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
   });
 
-  useEffect(() => {
-    fetchBookings();
-  }, [statusFilter, dateRange]);
-
-  async function fetchBookings() {
+  const fetchBookings = useCallback(async () => {
     try {
-      // Get current authenticated user for agent filtering
-      const { user } = useAuthContext();
+      // Use the user from the top-level hook call
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -100,7 +99,7 @@ export function BookingsDashboard() {
             error_details
           )
         `)
-        .eq('agent_id', user.id) // Explicit agent filtering
+        .eq('agent_id', user.id) // Use user from top-level hook
         .gte('travel_start_date', dateRange.start)
         .lte('travel_start_date', dateRange.end)
         .order('travel_start_date', { ascending: true });
@@ -123,7 +122,11 @@ export function BookingsDashboard() {
       console.error('Error fetching bookings:', error);
       setLoading(false);
     }
-  }
+  }, [user, dateRange, statusFilter]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   async function fetchEmailStats(bookings: Booking[]) {
     try {

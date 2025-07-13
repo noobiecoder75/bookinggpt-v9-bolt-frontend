@@ -38,6 +38,9 @@ export function CustomerDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const navigate = useNavigate();
   const { isConnected } = useGoogleOAuth();
+  
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
 
   // Simplified filter states
   const [filters, setFilters] = useState({
@@ -76,8 +79,7 @@ export function CustomerDashboard() {
 
       console.log('Fetching customers with search term:', searchTerm);
       
-      // Get current authenticated user for agent filtering
-      const { user } = useAuthContext();
+      // Use the user from the top-level hook call
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -121,15 +123,14 @@ export function CustomerDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [searchTerm]);
+  }, [user, searchTerm]); // Add user as dependency
 
-  async function fetchCustomerStats(customers: Customer[]) {
+  const fetchCustomerStats = useCallback(async (customers: Customer[]) => {
     const stats: Record<number, CustomerStats> = {};
 
     console.log('Fetching stats for customers:', customers.length);
 
-    // Get current authenticated user for agent filtering
-    const { user } = useAuthContext();
+    // Use the user from the top-level hook call
     if (!user) {
       console.warn('User not authenticated, skipping stats fetch');
       return;
@@ -177,7 +178,7 @@ export function CustomerDashboard() {
 
     console.log('All customer stats fetched:', Object.keys(stats).length);
     setCustomerStats(stats);
-  }
+  }, [user]); // Add user as dependency
 
   // Filter helper functions
   const handleFilterChange = (filterType: string, value: any) => {

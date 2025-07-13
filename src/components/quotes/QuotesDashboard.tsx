@@ -56,6 +56,9 @@ export function QuotesDashboard() {
   const navigate = useNavigate();
   const { isConnected } = useGoogleOAuth();
   
+  // Move useAuthContext to the top level of the component
+  const { user } = useAuthContext();
+  
   // Simplified filter states
   const [filters, setFilters] = useState({
     priceRange: {
@@ -182,8 +185,7 @@ export function QuotesDashboard() {
       if (showRefreshing) setRefreshing(true);
       setError(null);
 
-      // Get current authenticated user for agent filtering
-      const { user } = useAuthContext();
+      // Use the user from the top-level hook call
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -209,7 +211,7 @@ export function QuotesDashboard() {
             details
           )
         `)
-        .eq('agent_id', user.id) // Explicit agent filtering
+        .eq('agent_id', user.id) // Use user from top-level hook
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -230,7 +232,7 @@ export function QuotesDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchEmailStats]);
+  }, [user, fetchEmailStats]); // Add user as dependency
 
   // Set up real-time subscriptions
   useEffect(() => {
