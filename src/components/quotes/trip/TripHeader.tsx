@@ -278,7 +278,7 @@ This link can be shared with anyone - no login required.`;
                   <Users className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm font-medium text-gray-900">
-                      {trip.customer.first_name} {trip.customer.last_name}
+                      {trip.customer?.first_name || 'Unknown'} {trip.customer?.last_name || 'Customer'}
                     </p>
                     <p className="text-xs text-gray-500">{trip.customer.email}</p>
                   </div>

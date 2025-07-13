@@ -246,7 +246,7 @@ export function OperationsDashboard() {
                             {operation.booking && (
                               <p className="text-sm text-gray-600 mt-1">
                                 {operation.booking.booking_reference} - 
-                                {operation.booking.customer.first_name} {operation.booking.customer.last_name}
+                                {operation.booking.customer?.first_name || 'Unknown'} {operation.booking.customer?.last_name || 'Customer'}
                               </p>
                             )}
                             <div className="flex items-center mt-2 text-xs text-gray-500">

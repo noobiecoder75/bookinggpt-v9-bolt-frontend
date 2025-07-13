@@ -189,7 +189,7 @@ export function NotificationCenter({
                             {notification.booking.booking_reference}
                           </span>
                           <span>
-                            {notification.booking.customer.first_name} {notification.booking.customer.last_name}
+                            {notification.booking.customer?.first_name || 'Unknown'} {notification.booking.customer?.last_name || 'Customer'}
                           </span>
                         </div>
                       )}

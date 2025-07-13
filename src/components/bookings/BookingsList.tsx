@@ -59,7 +59,7 @@ export function BookingsList({ bookings, loading, onBookingSelect, selectedBooki
                     <div className="ml-4">
                       <div className="flex items-center space-x-2">
                         <h3 className="text-lg font-medium text-gray-900">
-                          {booking.customer.first_name} {booking.customer.last_name}
+                          {booking.customer?.first_name || 'Unknown'} {booking.customer?.last_name || 'Customer'}
                         </h3>
                         {booking.emailStats && booking.emailStats.totalSent > 0 && (
                           <div className="flex items-center space-x-1">

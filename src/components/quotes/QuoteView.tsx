@@ -651,7 +651,7 @@ export function QuoteView() {
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
-              Quote for {quote.customer.first_name} {quote.customer.last_name}
+              Quote for {quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}
             </h1>
             <p className="mt-2 text-sm text-gray-500">Created on {formatDate(quote.created_at)}</p>
             {quote.trip_start_date && quote.trip_end_date && (
@@ -844,7 +844,7 @@ export function QuoteView() {
               <Users className="h-5 w-5 text-gray-400 mr-2" />
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {quote.customer.first_name} {quote.customer.last_name}
+                  {quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}
                 </p>
                 <p className="text-sm text-gray-500">{quote.customer.email}</p>
                 <p className="text-sm text-gray-500">{quote.customer.phone}</p>

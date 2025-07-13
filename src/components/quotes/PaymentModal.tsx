@@ -89,7 +89,7 @@ export function PaymentModal({ isOpen, onClose, quote, onPaymentSuccess }: Payme
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Name</label>
-                      <p className="text-sm text-gray-900">{quote.customer.first_name} {quote.customer.last_name}</p>
+                      <p className="text-sm text-gray-900">{quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Email</label>

@@ -270,7 +270,7 @@ export function BookingConfirmationView({ booking, onClose, onUpdate }: Props) {
                 <div className="flex items-center gap-4 text-indigo-100">
                   <span className="flex items-center gap-1">
                     <User className="h-4 w-4" />
-                    {booking.customer.first_name} {booking.customer.last_name}
+                    {booking.customer?.first_name || 'Unknown'} {booking.customer?.last_name || 'Customer'}
                   </span>
                   <span className="flex items-center gap-1">
                     <Calendar className="h-4 w-4" />
@@ -360,7 +360,7 @@ export function BookingConfirmationView({ booking, onClose, onUpdate }: Props) {
                       <div className="flex items-center">
                         <User className="h-5 w-5 text-gray-400 mr-3" />
                         <span className="text-gray-900">
-                          {booking.customer.first_name} {booking.customer.last_name}
+                          {booking.customer?.first_name || 'Unknown'} {booking.customer?.last_name || 'Customer'}
                         </span>
                       </div>
                       <div className="flex items-center">

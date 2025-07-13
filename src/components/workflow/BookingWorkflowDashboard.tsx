@@ -161,7 +161,7 @@ export function BookingWorkflowDashboard() {
                   Booking Workflow - {booking.booking_reference}
                 </h1>
                 <p className="text-gray-600 mt-1">
-                  {booking.customer.first_name} {booking.customer.last_name} • 
+                  {booking.customer?.first_name || 'Unknown'} {booking.customer?.last_name || 'Customer'} • 
                   {new Date(booking.travel_start_date).toLocaleDateString()} - 
                   {new Date(booking.travel_end_date).toLocaleDateString()}
                 </p>

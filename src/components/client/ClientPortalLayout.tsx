@@ -93,7 +93,7 @@ export function ClientPortalLayout({
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h1 className="text-2xl font-bold text-white mb-1">
-                  Your Dream Trip Awaits, {quote.customer.first_name}!
+                  Your Dream Trip Awaits, {quote.customer?.first_name || 'Traveler'}!
                 </h1>
                 <p className="text-blue-100 text-sm">
                   Quote {quote.quote_reference} • Created for your adventure

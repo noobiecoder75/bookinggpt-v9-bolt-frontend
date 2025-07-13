@@ -64,7 +64,7 @@ export function TripRightSidebar({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-900">
-                    {trip.customer.first_name} {trip.customer.last_name}
+                    {trip.customer?.first_name || 'Unknown'} {trip.customer?.last_name || 'Customer'}
                   </p>
                   <p className="text-xs text-gray-600">{trip.customer.email}</p>
                   {trip.customer.phone && (

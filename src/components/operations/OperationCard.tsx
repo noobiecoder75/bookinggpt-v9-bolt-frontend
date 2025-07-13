@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
-import type { BookingOperation } from './OperationsDashboard';
+import type { BookingOperation } from '../../types/booking';
 
 interface Props {
   operation: BookingOperation;
@@ -56,7 +56,7 @@ export function OperationCard({ operation, onUpdate }: Props) {
               {formatOperationType(operation.operation_type)}
             </h3>
             <p className="text-sm text-gray-500">
-              {operation.booking?.booking_reference} • {operation.booking?.customer.first_name} {operation.booking?.customer.last_name}
+              {operation.booking?.booking_reference} • {operation.booking?.customer?.first_name || 'Unknown'} {operation.booking?.customer?.last_name || 'Customer'}
             </p>
           </div>
         </div>

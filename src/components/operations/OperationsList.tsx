@@ -44,7 +44,7 @@ export function OperationsList({
     const matchesSearch = 
       operation.reason.toLowerCase().includes(searchString) ||
       operation.booking?.booking_reference.toLowerCase().includes(searchString) ||
-      `${operation.booking?.customer.first_name} ${operation.booking?.customer.last_name}`.toLowerCase().includes(searchString);
+      `${operation.booking?.customer?.first_name || ''} ${operation.booking?.customer?.last_name || ''}`.toLowerCase().includes(searchString);
     
     return matchesSearch;
   });
@@ -174,7 +174,7 @@ export function OperationsList({
                             {operation.booking.booking_reference}
                           </span>
                           <span>
-                            {operation.booking.customer.first_name} {operation.booking.customer.last_name}
+                            {operation.booking.customer?.first_name || 'Unknown'} {operation.booking.customer?.last_name || 'Customer'}
                           </span>
                           <Link
                             to={`/bookings/${operation.booking_id}/workflow`}
