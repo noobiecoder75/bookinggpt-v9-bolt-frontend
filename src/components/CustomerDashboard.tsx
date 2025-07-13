@@ -84,16 +84,11 @@ export function CustomerDashboard() {
         throw new Error('User not authenticated');
       }
 
-      // Fetch customers that the agent has access to through quotes or bookings
-      // This query explicitly includes agent context for clarity, though RLS policies will enforce this
+      // Fetch customers that the agent has access to
       let query = supabase
         .from('customers')
-        .select(`
-          *,
-          quotes!inner(agent_id),
-          bookings!inner(agent_id)
-        `)
-        .or(`quotes.agent_id.eq.${user.id},bookings.agent_id.eq.${user.id}`)
+        .select(`*`)
+        .eq('agent_id', user.id)
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
@@ -107,13 +102,8 @@ export function CustomerDashboard() {
       if (error) throw error;
       console.log('Customers fetched successfully:', { count: data?.length });
 
-      // Remove duplicates that might occur from joins
-      const uniqueCustomers = data ? data.filter((customer, index, self) => 
-        index === self.findIndex(c => c.id === customer.id)
-      ) : [];
-
-      setCustomers(uniqueCustomers);
-      await fetchCustomerStats(uniqueCustomers);
+      setCustomers(data || []);
+      await fetchCustomerStats(data || []);
       setLastUpdated(new Date());
       setLoading(false);
       setRefreshing(false);
@@ -123,62 +113,83 @@ export function CustomerDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, searchTerm]); // Add user as dependency
+  }, [user, searchTerm]);
 
   const fetchCustomerStats = useCallback(async (customers: Customer[]) => {
-    const stats: Record<number, CustomerStats> = {};
-
-    console.log('Fetching stats for customers:', customers.length);
-
-    // Use the user from the top-level hook call
     if (!user) {
       console.warn('User not authenticated, skipping stats fetch');
       return;
     }
 
-    await Promise.all(
-      customers.map(async (customer) => {
-        const [bookingsResponse, quotesResponse, emailsResponse] = await Promise.all([
-          supabase
-            .from('bookings')
-            .select('total_price, status')
-            .eq('customer_id', customer.id)
-            .eq('agent_id', user.id), // Explicit agent filtering
-          supabase
-            .from('quotes')
-            .select('total_price, status')
-            .eq('customer_id', customer.id)
-            .eq('agent_id', user.id) // Explicit agent filtering
-            .eq('status', 'Sent'),
-          supabase
-            .from('email_communications')
-            .select('sent_at')
-            .eq('customer_id', customer.id)
-            .order('sent_at', { ascending: false })
-        ]);
+    const customerIds = customers.map(c => c.id);
+    if (customerIds.length === 0) {
+      setCustomerStats({});
+      return;
+    }
 
-        const bookings = bookingsResponse.data || [];
-        const quotes = quotesResponse.data || [];
-        const emails = emailsResponse.data || [];
+    // Fetch all stats in bulk for performance
+    const [bookingsResponse, quotesResponse, emailsResponse] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('customer_id, total_price, status')
+        .in('customer_id', customerIds)
+        .eq('agent_id', user.id),
+      supabase
+        .from('quotes')
+        .select('customer_id, total_price, status')
+        .in('customer_id', customerIds)
+        .eq('agent_id', user.id)
+        .eq('status', 'Sent'),
+      supabase
+        .from('email_communications')
+        .select('customer_id, sent_at')
+        .in('customer_id', customerIds)
+    ]);
 
-        console.log(`Stats for customer ${customer.id}:`, { bookingsCount: bookings.length, quotesCount: quotes.length, emailsCount: emails.length });
+    const bookingsByCustomer = (bookingsResponse.data || []).reduce((acc, b) => {
+      if (!acc[b.customer_id]) acc[b.customer_id] = [];
+      acc[b.customer_id].push(b);
+      return acc;
+    }, {} as Record<number, any[]>);
 
-        stats[customer.id] = {
-          lifetimeValue: bookings
-            .filter((b) => b.status === 'Completed')
-            .reduce((sum, b) => sum + Number(b.total_price), 0),
-          potentialValue: quotes.reduce((sum, q) => sum + Number(q.total_price), 0),
-          totalBookings: bookings.length,
-          activeQuotes: quotes.length,
-          totalEmailsSent: emails.length,
-          lastEmailDate: emails[0]?.sent_at
-        };
-      })
-    );
+    const quotesByCustomer = (quotesResponse.data || []).reduce((acc, q) => {
+      if (!acc[q.customer_id]) acc[q.customer_id] = [];
+      acc[q.customer_id].push(q);
+      return acc;
+    }, {} as Record<number, any[]>);
+
+    const emailsByCustomer = (emailsResponse.data || []).reduce((acc, e) => {
+      if (!acc[e.customer_id]) acc[e.customer_id] = [];
+      acc[e.customer_id].push(e);
+      return acc;
+    }, {} as Record<number, any[]>);
+    
+    // Sort emails to find the latest one easily
+    for (const customerId in emailsByCustomer) {
+      emailsByCustomer[customerId].sort((a, b) => new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime());
+    }
+
+    const stats: Record<number, CustomerStats> = {};
+    for (const customer of customers) {
+      const bookings = bookingsByCustomer[customer.id] || [];
+      const quotes = quotesByCustomer[customer.id] || [];
+      const emails = emailsByCustomer[customer.id] || [];
+      
+      stats[customer.id] = {
+        lifetimeValue: bookings
+          .filter((b) => b.status === 'Completed')
+          .reduce((sum, b) => sum + Number(b.total_price), 0),
+        potentialValue: quotes.reduce((sum, q) => sum + Number(q.total_price), 0),
+        totalBookings: bookings.length,
+        activeQuotes: quotes.length,
+        totalEmailsSent: emails.length,
+        lastEmailDate: emails[0]?.sent_at,
+      };
+    }
 
     console.log('All customer stats fetched:', Object.keys(stats).length);
     setCustomerStats(stats);
-  }, [user]); // Add user as dependency
+  }, [user]);
 
   // Filter helper functions
   const handleFilterChange = (filterType: string, value: any) => {
@@ -526,14 +537,14 @@ export function CustomerDashboard() {
                           <div className="flex-shrink-0">
                             <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-100 flex items-center justify-center">
                               <span className="text-sm sm:text-lg font-medium text-indigo-600">
-                                {customer.first_name[0]}
-                                {customer.last_name[0]}
+                                {customer.first_name?.[0] || '?'}
+                                {customer.last_name?.[0] || '?'}
                               </span>
                             </div>
                           </div>
                           <div className="ml-3 sm:ml-4 flex-1 min-w-0">
                             <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
-                              {customer.first_name} {customer.last_name}
+                              {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'}
                             </h2>
                             {/* Show email only on desktop */}
                             <div className="hidden sm:block mt-1">

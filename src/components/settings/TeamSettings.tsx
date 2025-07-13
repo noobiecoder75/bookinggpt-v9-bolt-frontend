@@ -66,14 +66,14 @@ export function TeamSettings() {
                   <div className="flex-shrink-0">
                     <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
                       <span className="text-lg font-medium text-indigo-600">
-                        {member.first_name[0]}
-                        {member.last_name[0]}
+                        {member.first_name?.[0] || '?'}
+                        {member.last_name?.[0] || '?'}
                       </span>
                     </div>
                   </div>
                   <div className="ml-4">
                     <h3 className="text-lg font-medium text-gray-900">
-                      {member.first_name} {member.last_name}
+                      {member.first_name || 'Unknown'} {member.last_name || 'Member'}
                     </h3>
                     <div className="flex items-center mt-1">
                       <Mail className="h-4 w-4 text-gray-400 mr-2" />

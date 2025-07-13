@@ -324,13 +324,13 @@ export function CustomerProfileView() {
           <div className="flex items-center">
             <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-indigo-100 flex items-center justify-center">
               <span className="text-lg sm:text-2xl font-medium text-indigo-600">
-                {customer.first_name[0]}
-                {customer.last_name[0]}
+                {customer.first_name?.[0] || '?'}
+                {customer.last_name?.[0] || '?'}
               </span>
             </div>
             <div className="ml-3 sm:ml-4">
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">
-                {customer.first_name} {customer.last_name}
+                {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'}
               </h1>
               <p className="mt-1 text-xs sm:text-sm text-gray-500">
                 Customer since {new Date(customer.created_at).toLocaleDateString()}

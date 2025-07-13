@@ -40,7 +40,7 @@ export function ClientChat({ quote }: ClientChatProps) {
     {
       id: '1',
       sender: 'agent',
-      content: `Hi ${quote.customer.first_name}! I'm Sarah, your dedicated travel consultant. I'm so excited to help make your dream trip a reality! 🌟`,
+              content: `Hi ${quote.customer?.first_name || 'there'}! I'm Sarah, your dedicated travel consultant. I'm so excited to help make your dream trip a reality! 🌟`,
       timestamp: new Date(Date.now() - 1000 * 60 * 5),
       type: 'text'
     },

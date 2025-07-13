@@ -293,7 +293,7 @@ export function QuotesDashboard() {
       const matchesSearch = searchTerm === '' || 
         (quote.quote_reference && quote.quote_reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (quote.customer.first_name && quote.customer.last_name && 
-         `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
+         `${quote.customer?.first_name || ''} ${quote.customer?.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (quote.customer.email && quote.customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Status filter
@@ -302,7 +302,7 @@ export function QuotesDashboard() {
       // Customer name filter
       const matchesCustomerName = filters.customerName === '' ||
         (quote.customer.first_name && quote.customer.last_name && 
-         `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(filters.customerName.toLowerCase()));
+         `${quote.customer?.first_name || ''} ${quote.customer?.last_name || ''}`.toLowerCase().includes(filters.customerName.toLowerCase()));
       
       // Price range filter
       const matchesPriceRange = 
@@ -731,15 +731,15 @@ export function QuotesDashboard() {
                           <div className="flex-shrink-0">
                             <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-100 flex items-center justify-center">
                               <span className="text-sm sm:text-lg font-medium text-indigo-600">
-                                {quote.customer.first_name[0]}
-                                {quote.customer.last_name[0]}
+                                {quote.customer?.first_name?.[0] || '?'}
+                                {quote.customer?.last_name?.[0] || '?'}
                               </span>
                             </div>
                           </div>
                           <div className="ml-3 sm:ml-4 flex-1 min-w-0">
                             <div className="flex items-center space-x-2">
                               <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
-                                {quote.customer.first_name} {quote.customer.last_name}
+                                {quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}
                               </h2>
                               {/* Email stats temporarily disabled - needs proper implementation */}
                             </div>

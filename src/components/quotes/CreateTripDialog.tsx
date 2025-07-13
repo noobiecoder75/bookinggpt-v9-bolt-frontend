@@ -81,7 +81,7 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
   // Generate default trip name based on customer and dates
   useEffect(() => {
     if (selectedCustomer) {
-      const customerName = `${selectedCustomer.first_name} ${selectedCustomer.last_name}`;
+      const customerName = `${selectedCustomer.first_name || 'Unknown'} ${selectedCustomer.last_name || 'Customer'}`;
       const currentYear = new Date().getFullYear();
       setTripName(`${customerName} - ${tripLength} Day Trip ${currentYear}`);
     }
@@ -151,7 +151,7 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
           discount: 0,
           trip_start_date: departureDate,
           trip_end_date: returnDate,
-          notes: `Trip for ${selectedCustomer.first_name} ${selectedCustomer.last_name} - ${tripLength} days`,
+          notes: `Trip for ${selectedCustomer.first_name || 'Unknown'} ${selectedCustomer.last_name || 'Customer'} - ${tripLength} days`,
         }])
         .select()
         .single();

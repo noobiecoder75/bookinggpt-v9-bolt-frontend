@@ -218,7 +218,7 @@ export function useAuth(): UseAuthResult {
           }
         }, 300000); // 5 minute timeout
       }
-      
+
     } catch (err: any) {
       console.error('🚨 Google sign in failed:', err);
       setError(err.message);

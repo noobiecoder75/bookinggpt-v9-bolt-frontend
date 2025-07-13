@@ -195,7 +195,7 @@ export function TripOverviewRefactored() {
           
           setTrip({
             id: quoteData.id,
-            name: tripName ? decodeURIComponent(tripName) : `Trip for ${quoteData.customer?.first_name} ${quoteData.customer?.last_name}`,
+            name: tripName ? decodeURIComponent(tripName) : `Trip for ${quoteData.customer?.first_name || 'Unknown'} ${quoteData.customer?.last_name || 'Customer'}`,
             status: quoteData.status || 'Planning',
             type: 'Regular Trip',
             startDate,

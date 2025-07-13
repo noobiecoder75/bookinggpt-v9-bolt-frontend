@@ -232,7 +232,7 @@ export const KanbanBoard: React.FC<{
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="font-medium text-gray-900 text-sm truncate">
-                                  {quote.quote_reference || `${quote.customer.first_name} ${quote.customer.last_name}`}
+                                  {quote.quote_reference || `${quote.customer?.first_name || 'Unknown'} ${quote.customer?.last_name || 'Customer'}`}
                                 </div>
                                 <div className="text-xs text-gray-500 truncate">
                                   {quote.customer.first_name} {quote.customer.last_name}
