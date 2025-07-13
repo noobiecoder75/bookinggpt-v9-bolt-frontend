@@ -1140,14 +1140,26 @@ export function QuoteView() {
                                     markup_strategy: quote?.markup_strategy || 'individual'
                                   };
                                   
+                                  // For hotels with quantity > 1 (TripOverviewRefactored's cost-per-day model),
+                                  // the cost is already per-day, so just show the cost with markup applied
+                                  if (item.item_type === 'Hotel' && item.quantity > 1) {
+                                    // Calculate markup on the per-day cost
+                                    let perDayCost = item.cost;
+                                    const effectiveMarkup = pricingQuote.markup_strategy === 'individual' 
+                                      ? (item.markup || 0) 
+                                      : (pricingQuote.markup || 0);
+                                    
+                                    if (effectiveMarkup > 0) {
+                                      perDayCost = perDayCost * (1 + effectiveMarkup / 100);
+                                    }
+                                    return perDayCost.toFixed(2);
+                                  }
+                                  
+                                  // For non-hotels or single-day hotels, use standard display price logic
                                   const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
                                   return displayPrice.toFixed(2);
                                 })()}
-                                {item.item_type === 'Hotel' && (
-                                  item.details?.nights > 1 || item.details?.numberOfNights > 1 || 
-                                  (item.details?.checkInDate && item.details?.checkOutDate && 
-                                   Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
-                                ) && (
+                                {item.item_type === 'Hotel' && item.quantity > 1 && (
                                   <span className="text-xs text-gray-500 block">per night</span>
                                 )}
                               </p>
@@ -1246,14 +1258,26 @@ export function QuoteView() {
                               markup_strategy: quote?.markup_strategy || 'individual'
                             };
                             
+                            // For hotels with quantity > 1 (TripOverviewRefactored's cost-per-day model),
+                            // the cost is already per-day, so just show the cost with markup applied
+                            if (item.item_type === 'Hotel' && item.quantity > 1) {
+                              // Calculate markup on the per-day cost
+                              let perDayCost = item.cost;
+                              const effectiveMarkup = pricingQuote.markup_strategy === 'individual' 
+                                ? (item.markup || 0) 
+                                : (pricingQuote.markup || 0);
+                              
+                              if (effectiveMarkup > 0) {
+                                perDayCost = perDayCost * (1 + effectiveMarkup / 100);
+                              }
+                              return perDayCost.toFixed(2);
+                            }
+                            
+                            // For non-hotels or single-day hotels, use standard display price logic
                             const displayPrice = getItemDisplayPrice(pricingItem, pricingQuote, DEFAULT_PRICING_OPTIONS);
                             return displayPrice.toFixed(2);
                           })()}
-                          {item.item_type === 'Hotel' && (
-                            item.details?.nights > 1 || item.details?.numberOfNights > 1 || 
-                            (item.details?.checkInDate && item.details?.checkOutDate && 
-                             Math.ceil((new Date(item.details.checkOutDate).getTime() - new Date(item.details.checkInDate).getTime()) / (1000 * 60 * 60 * 24)) > 1)
-                          ) && (
+                          {item.item_type === 'Hotel' && item.quantity > 1 && (
                             <span className="text-xs text-gray-500 block">per night</span>
                           )}
                         </p>

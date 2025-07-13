@@ -285,6 +285,10 @@ export function calculateDayTotal(
     const itemPrice = calculateItemPrice(item, quote, options);
     
     // For multi-day items, distribute cost across days
+    // NOTE: This works correctly with TripOverviewRefactored's cost-per-day model:
+    // - TripOverviewRefactored stores: cost = totalCost/spanDays, quantity = spanDays
+    // - calculateItemPrice computes: itemPrice = cost * quantity = totalCost
+    // - Day calculation: itemPrice / spanDays = totalCost / spanDays (correct per-day amount)
     if (item.isMultiDay) {
       const spanDays = item.details?.span_days || 1;
       dayTotal += itemPrice / spanDays;
