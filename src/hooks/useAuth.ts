@@ -125,14 +125,20 @@ export function useAuth(): UseAuthResult {
 
   const signInWithGoogle = useCallback(async () => {
     try {
-      console.log('🔐 Starting Google OAuth sign in...', { timestamp: new Date().toISOString() });
+      console.log('🔐 Starting Google OAuth sign in with popup...', { timestamp: new Date().toISOString() });
       setLoading(true);
       setError(null);
 
+      // Use popup flow instead of redirect to preserve current page
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: `${window.location.origin}/auth/callback`,
+          // This will open in a popup window
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
@@ -141,19 +147,51 @@ export function useAuth(): UseAuthResult {
         throw signInError;
       }
 
-      console.log('✅ Google OAuth initiated:', { 
+      console.log('✅ Google OAuth popup initiated:', { 
         url: data.url,
         timestamp: new Date().toISOString()
       });
+
+      // Open popup window for OAuth
+      if (data.url) {
+        const popup = window.open(
+          data.url,
+          'google-oauth',
+          'width=500,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        // Monitor popup for completion
+        const checkClosed = setInterval(() => {
+          if (popup?.closed) {
+            clearInterval(checkClosed);
+            setLoading(false);
+            console.log('🔄 OAuth popup closed, checking session...');
+            
+            // Check for session after popup closes
+            setTimeout(async () => {
+              const { data: sessionData } = await supabase.auth.getSession();
+              if (sessionData.session) {
+                console.log('✅ OAuth session established successfully');
+              }
+            }, 1000);
+          }
+        }, 1000);
+
+        // Handle timeout
+        setTimeout(() => {
+          if (popup && !popup.closed) {
+            popup.close();
+            clearInterval(checkClosed);
+            setLoading(false);
+            console.warn('⚠️ OAuth popup timeout');
+          }
+        }, 300000); // 5 minute timeout
+      }
       
-      // Note: The actual user session will be handled by the auth state change listener
-      // after the OAuth redirect completes
     } catch (err: any) {
       console.error('🚨 Google sign in failed:', err);
       setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -361,6 +399,35 @@ export function useAuth(): UseAuthResult {
     return () => {
       console.log('🧹 Cleaning up auth state listener...', { timestamp: new Date().toISOString() });
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Listen for popup OAuth messages
+  useEffect(() => {
+    const handlePopupMessage = (event: MessageEvent) => {
+      // Verify origin for security
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      console.log('📨 Received popup message:', event.data);
+
+      if (event.data.type === 'oauth_success') {
+        console.log('✅ OAuth popup success, updating session...');
+        // Session will be updated via auth state change listener
+        setLoading(false);
+        setError(null);
+      } else if (event.data.type === 'oauth_error') {
+        console.error('🚨 OAuth popup error:', event.data.error);
+        setError(event.data.error);
+        setLoading(false);
+      }
+    };
+
+    window.addEventListener('message', handlePopupMessage);
+
+    return () => {
+      window.removeEventListener('message', handlePopupMessage);
     };
   }, []);
 
