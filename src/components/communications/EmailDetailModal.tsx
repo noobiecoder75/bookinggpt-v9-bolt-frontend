@@ -29,7 +29,6 @@ export function EmailDetailModal({ email, isOpen, onClose }: EmailDetailModalPro
   
   useEffect(() => {
     if (isOpen && email) {
-      console.log('EmailDetailModal rendering with email:', email);
       // Simulate brief loading for better UX
       setIsLoading(true);
       const timer = setTimeout(() => setIsLoading(false), 300);
@@ -179,16 +178,18 @@ export function EmailDetailModal({ email, isOpen, onClose }: EmailDetailModalPro
               </div>
             </div>
 
-            {/* Raw content (for debugging/template viewing) */}
-            {email.raw_content && email.raw_content !== email.body && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Original Template Content</h4>
-                <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 max-h-32 overflow-y-auto">
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap">
-                    {email.raw_content}
-                  </pre>
-                </div>
-              </div>
+                {/* Raw content (for debugging/template viewing) */}
+                {email.raw_content && email.raw_content !== email.body && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Original Template Content</h4>
+                    <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 max-h-32 overflow-y-auto">
+                      <pre className="text-xs text-gray-600 whitespace-pre-wrap">
+                        {email.raw_content}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

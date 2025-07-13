@@ -206,7 +206,6 @@ export function CustomerProfileView() {
   };
 
   const viewEmail = (email: EmailCommunication) => {
-    console.log('Viewing email:', email);
     setSelectedEmail(email);
     setIsEmailModalOpen(true);
   };
