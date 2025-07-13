@@ -266,7 +266,10 @@ export function CustomerDashboard() {
               Last updated: {lastUpdated.toLocaleTimeString()}
             </p>
           </div>
-          <button className="inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl">
+          <button 
+            onClick={() => navigate('/customers/new')}
+            className="inline-flex items-center justify-center px-4 sm:px-6 py-3 border border-transparent shadow-lg text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-xl"
+          >
             <Plus className="h-5 w-5 mr-2" />
             Add Customer
           </button>

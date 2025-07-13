@@ -9,6 +9,7 @@ import { CreateTripDialog } from './components/quotes/CreateTripDialog';
 import { SettingsDashboard } from './components/settings/SettingsDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
 import { CustomerProfileView } from './components/customers/CustomerProfileView';
+import { NewCustomer } from './components/customers/NewCustomer';
 import { QuotesDashboard } from './components/quotes/QuotesDashboard';
 import { QuoteView } from './components/quotes/QuoteView';
 import { BookingsDashboard } from './components/bookings/BookingsDashboard';
@@ -430,6 +431,7 @@ function AppContent() {
                 <Route path="/bookings" element={<BookingsDashboard />} />
                 <Route path="/bookings/:bookingId/workflow" element={<BookingWorkflowDashboard />} />
                     <Route path="/customers" element={<CustomerDashboard />} />
+                    <Route path="/customers/new" element={<NewCustomer />} />
                     <Route path="/customers/:id" element={<CustomerProfileView />} />
                     <Route path="/communications" element={<CommunicationsDashboard />} />
                     <Route path="/settings/*" element={<SettingsDashboard />} />

@@ -19,7 +19,9 @@ import { gmailApi } from '../../lib/gmailApi';
 import { 
   EMAIL_TEMPLATES, 
   createEmailFromTemplate, 
-  replaceTemplateVariables 
+  replaceTemplateVariables,
+  getTemplateContent,
+  htmlToPlainText
 } from '../../utils/emailTemplates';
 import { EmailMessage, EmailTemplate } from '../../types/gmail';
 
@@ -63,6 +65,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
   const [isPreview, setIsPreview] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [emailFormat, setEmailFormat] = useState<'html' | 'text'>('html');
 
   // Template variables
   const [templateVars, setTemplateVars] = useState<Record<string, string>>({
@@ -76,9 +79,11 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
 
   useEffect(() => {
     if (selectedTemplate) {
-      // Pre-fill subject and body from template
-      setSubject(selectedTemplate.subject);
-      setBody(selectedTemplate.body);
+      const templateContent = getTemplateContent(selectedTemplate.id, emailFormat);
+      if (templateContent) {
+        setSubject(templateContent.subject);
+        setBody(templateContent.body);
+      }
       
       // Initialize template variables with defaults
       const defaultVars: Record<string, string> = {
@@ -88,7 +93,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
       };
       setTemplateVars(defaultVars);
     }
-  }, [selectedTemplate, selectedCustomers]);
+  }, [selectedTemplate, selectedCustomers, emailFormat]);
 
   const fetchCustomers = async () => {
     setLoadingCustomers(true);
@@ -199,15 +204,16 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
               customer_id: customer.id,
               email_type: selectedTemplate?.category || 'custom',
               subject: processedSubject,
-              body: processedBody, // Final processed HTML content
+              body: processedBody, // Final processed content
               raw_content: body, // Original content with template variables
               template_id: selectedTemplate?.id || null, // Template reference
-              content_type: selectedTemplate ? 'template' : 'html', // Content type
+              content_type: selectedTemplate ? 'template' : emailFormat, // Content type (html/text/template)
               metadata: { 
                 templateVars, 
                 agentName: templateVars.agentName,
                 customerName: customer.first_name,
-                sentToCount: selectedCustomers.length
+                sentToCount: selectedCustomers.length,
+                emailFormat: emailFormat
               }, // Additional context
               recipients: [customer.email],
               status: 'sent',
@@ -266,6 +272,43 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Format Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email Format
+            </label>
+            <div className="flex space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  value="html"
+                  checked={emailFormat === 'html'}
+                  onChange={(e) => setEmailFormat(e.target.value as 'html' | 'text')}
+                  className="form-radio h-4 w-4 text-indigo-600"
+                  disabled={isSending}
+                />
+                <span className="ml-2 text-sm text-gray-700">Rich HTML (Recommended)</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  value="text"
+                  checked={emailFormat === 'text'}
+                  onChange={(e) => setEmailFormat(e.target.value as 'html' | 'text')}
+                  className="form-radio h-4 w-4 text-indigo-600"
+                  disabled={isSending}
+                />
+                <span className="ml-2 text-sm text-gray-700">Plain Text</span>
+              </label>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              {emailFormat === 'html' 
+                ? 'Rich HTML format with styling, colors, and formatting'
+                : 'Simple plain text format for better deliverability'
+              }
+            </p>
           </div>
 
           {/* Template Variables */}
@@ -392,16 +435,51 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Body
             </label>
-            <ReactQuill
-              value={body}
-              onChange={setBody}
-              modules={quillModules}
-              formats={quillFormats}
-              placeholder="Enter email content..."
-              className="bg-white"
-              readOnly={isSending}
-              style={{ minHeight: '500px' }}
-            />
+            {emailFormat === 'html' ? (
+              <ReactQuill
+                value={body}
+                onChange={setBody}
+                modules={quillModules}
+                formats={quillFormats}
+                placeholder="Enter email content..."
+                className="bg-white"
+                readOnly={isSending}
+                style={{ minHeight: '500px' }}
+              />
+            ) : (
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Enter email content..."
+                className="w-full px-3 py-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                rows={20}
+                disabled={isSending}
+                style={{ fontFamily: 'monospace', fontSize: '14px' }}
+              />
+            )}
+            <div className="mt-2 flex justify-between text-xs text-gray-500">
+              <span>
+                {emailFormat === 'html' 
+                  ? 'Use the toolbar above to format your email with rich text'
+                  : 'Plain text format - no HTML styling available'
+                }
+              </span>
+              {emailFormat === 'html' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (body) {
+                      setEmailFormat('text');
+                      setBody(htmlToPlainText(body));
+                    }
+                  }}
+                  className="text-indigo-600 hover:text-indigo-800 underline"
+                  disabled={isSending}
+                >
+                  Convert to plain text
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Preview Toggle */}
@@ -460,12 +538,18 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                 </div>
                 <div>
                   <div className="text-sm text-gray-600 mb-1">Body:</div>
-                  <div 
-                    className="prose max-w-none"
-                    dangerouslySetInnerHTML={{ 
-                      __html: getProcessedContent().processedBody || 'No content' 
-                    }}
-                  />
+                  {emailFormat === 'html' ? (
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{ 
+                        __html: getProcessedContent().processedBody || 'No content' 
+                      }}
+                    />
+                  ) : (
+                    <div className="bg-white border rounded p-3 whitespace-pre-wrap font-mono text-sm">
+                      {getProcessedContent().processedBody || 'No content'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

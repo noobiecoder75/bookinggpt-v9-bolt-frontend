@@ -536,17 +536,48 @@ export function CustomerProfileView() {
                                 />
                               )}
                               <div 
-                                className="relative flex space-x-3 cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors duration-150"
+                                className={`relative flex space-x-3 rounded-lg p-2 transition-colors duration-150 ${
+                                  (event.event_type.includes('QUOTE') && event.quote_id) || 
+                                  (event.event_type.includes('BOOKING') && event.booking_id) ||
+                                  event.event_type === 'PAYMENT_RECEIVED'
+                                    ? 'cursor-pointer hover:bg-gray-50 hover:shadow-sm'
+                                    : 'cursor-default'
+                                }`}
                                 onClick={() => handleEventClick(event)}
+                                title={
+                                  event.event_type.includes('QUOTE') && event.quote_id ? 'Click to view quote' :
+                                  event.event_type.includes('BOOKING') && event.booking_id ? 'Click to view booking' :
+                                  event.event_type === 'PAYMENT_RECEIVED' ? 'Click to view payments' :
+                                  undefined
+                                }
                               >
                                 <div>
-                                  <span className="h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white bg-gray-50">
+                                  <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white ${
+                                    (event.event_type.includes('QUOTE') && event.quote_id) || 
+                                    (event.event_type.includes('BOOKING') && event.booking_id) ||
+                                    event.event_type === 'PAYMENT_RECEIVED'
+                                      ? 'bg-indigo-50 hover:bg-indigo-100' 
+                                      : 'bg-gray-50'
+                                  }`}>
                                     {getEventIcon(event.event_type)}
                                   </span>
                                 </div>
                                 <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
                                   <div>
-                                    <p className="text-sm text-gray-500">{event.description}</p>
+                                    <p className={`text-sm ${
+                                      (event.event_type.includes('QUOTE') && event.quote_id) || 
+                                      (event.event_type.includes('BOOKING') && event.booking_id) ||
+                                      event.event_type === 'PAYMENT_RECEIVED'
+                                        ? 'text-gray-700 hover:text-indigo-600'
+                                        : 'text-gray-500'
+                                    }`}>
+                                      {event.description}
+                                      {((event.event_type.includes('QUOTE') && event.quote_id) || 
+                                        (event.event_type.includes('BOOKING') && event.booking_id) ||
+                                        event.event_type === 'PAYMENT_RECEIVED') && (
+                                        <span className="ml-2 text-xs text-indigo-600 opacity-75">Click to view →</span>
+                                      )}
+                                    </p>
                                   </div>
                                   <div className="whitespace-nowrap text-right text-sm text-gray-500">
                                     <time dateTime={event.created_at}>
@@ -603,9 +634,30 @@ export function CustomerProfileView() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {quotes.map((quote) => (
-                      <tr key={quote.id} className="hover:bg-gray-50">
+                      <tr 
+                        key={quote.id} 
+                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-150 focus-within:bg-indigo-50 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:ring-offset-2"
+                        onClick={() => navigate(`/quotes/${quote.id}`)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/quotes/${quote.id}`);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        aria-label={`View quote ${quote.quote_reference}`}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {quote.quote_reference}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/quotes/${quote.id}`);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-900 font-medium underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 rounded"
+                          >
+                            {quote.quote_reference}
+                          </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -625,12 +677,28 @@ export function CustomerProfileView() {
                           {new Date(quote.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => navigate(`/quotes/${quote.id}`)}
-                            className="text-indigo-600 hover:text-indigo-900"
-                          >
-                            View
-                          </button>
+                          <div className="flex items-center space-x-2 justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/quotes/${quote.id}`);
+                              }}
+                              className="text-indigo-600 hover:text-indigo-900 font-medium"
+                              title="View quote details"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/quotes/new?customer=${customer.id}&duplicate=${quote.id}`);
+                              }}
+                              className="text-gray-600 hover:text-gray-900 font-medium"
+                              title="Duplicate this quote"
+                            >
+                              Duplicate
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -840,7 +908,7 @@ export function CustomerProfileView() {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-medium text-gray-900">Payments</h2>
                 <button
-                  onClick={() => {/* TODO: Implement payment creation */}}
+                  onClick={() => alert('Payment functionality coming soon! This feature will allow you to record and track customer payments.')}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
                   Record Payment
@@ -855,7 +923,7 @@ export function CustomerProfileView() {
                 <div className="mt-6">
                   <button
                     type="button"
-                    onClick={() => {/* TODO: Implement payment creation */}}
+                    onClick={() => alert('Payment functionality coming soon! This feature will allow you to record and track customer payments.')}
                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     <Plus className="h-5 w-5 mr-2" />

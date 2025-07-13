@@ -1,7 +1,13 @@
 import { EmailMessage, EmailTemplate, AIEmailDraft } from '../types/gmail';
 
+// Extended template interface with plain text support
+interface EnhancedEmailTemplate extends EmailTemplate {
+  bodyText?: string; // Plain text version
+  format?: 'html' | 'text' | 'both'; // Supported formats
+}
+
 // Email template configurations
-export const EMAIL_TEMPLATES: EmailTemplate[] = [
+export const EMAIL_TEMPLATES: EnhancedEmailTemplate[] = [
   {
     id: 'welcome',
     name: 'Welcome Email',
@@ -26,8 +32,25 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         </body>
       </html>
     `,
+    bodyText: `Welcome to Your Travel Journey!
+
+Dear {{customerName}},
+
+Thank you for choosing us for your travel planning needs. I'm {{agentName}}, and I'll be your dedicated travel agent throughout this exciting journey.
+
+Here's what you can expect:
+• Personalized trip recommendations
+• Real-time updates on your bookings
+• 24/7 support during your travels
+• Access to your dedicated client portal
+
+I'll be in touch soon with your customized travel options. In the meantime, feel free to reach out if you have any questions.
+
+Best regards,
+{{agentName}}`,
     variables: ['customerName', 'agentName'],
     category: 'welcome',
+    format: 'both',
   },
   {
     id: 'quote-ready',
@@ -61,8 +84,29 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         </body>
       </html>
     `,
+    bodyText: `Your Travel Quote is Ready!
+
+Dear {{customerName}},
+
+Great news! I've prepared a customized travel quote based on your preferences.
+
+=== VIEW YOUR QUOTE ===
+Click the link below to view your detailed itinerary, pricing, and booking options:
+{{clientPortalUrl}}
+
+Your quote includes:
+• Detailed itinerary with activities
+• Transparent pricing breakdown
+• Flexible payment options
+• Easy booking process
+
+This quote is valid for {{validityDays}} days. If you have any questions or would like to make changes, please don't hesitate to reach out.
+
+Best regards,
+{{agentName}}`,
     variables: ['customerName', 'quoteId', 'clientPortalUrl', 'validityDays', 'agentName'],
     category: 'quote',
+    format: 'both',
   },
   {
     id: 'booking-confirmed',
@@ -97,8 +141,30 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         </body>
       </html>
     `,
+    bodyText: `🎉 Your Trip is Confirmed!
+
+Dear {{customerName}},
+
+Exciting news! Your travel booking has been confirmed and you're all set for your upcoming adventure.
+
+=== BOOKING DETAILS ===
+Booking Reference: {{bookingReference}}
+Travel Dates: {{travelDates}}
+Destination: {{destination}}
+
+What happens next:
+• You'll receive detailed confirmation documents shortly
+• Check-in instructions will be sent 24 hours before departure
+• Access your trip details anytime in your client portal
+• Our 24/7 support team is here if you need anything
+
+We're so excited for your upcoming trip! Safe travels and have an amazing time.
+
+Best regards,
+{{agentName}}`,
     variables: ['customerName', 'bookingReference', 'travelDates', 'destination', 'agentName'],
     category: 'booking',
+    format: 'both',
   },
   {
     id: 'payment-reminder',
@@ -133,8 +199,27 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         </body>
       </html>
     `,
+    bodyText: `Payment Reminder
+
+Dear {{customerName}},
+
+This is a friendly reminder that a payment is due for your upcoming trip.
+
+=== PAYMENT DETAILS ===
+Amount Due: {{amountDue}}
+Due Date: {{dueDate}}
+Booking Reference: {{bookingReference}}
+
+You can make your payment securely through your client portal:
+{{paymentUrl}}
+
+If you have any questions about your payment or need assistance, please don't hesitate to contact me.
+
+Best regards,
+{{agentName}}`,
     variables: ['customerName', 'amountDue', 'dueDate', 'bookingReference', 'paymentUrl', 'agentName'],
     category: 'payment',
+    format: 'both',
   },
   {
     id: 'follow-up',
@@ -164,8 +249,28 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
         </body>
       </html>
     `,
+    bodyText: `Welcome Back!
+
+Dear {{customerName}},
+
+I hope you had an incredible time in {{destination}}! I'd love to hear about your experiences and how everything went with your trip.
+
+Your feedback is incredibly valuable to us and helps us continue to provide exceptional travel experiences. If you have a few minutes, I'd appreciate if you could:
+
+• Share any highlights from your trip
+• Let me know if everything went smoothly
+• Suggest any improvements for future travelers
+• Consider leaving a review of our services
+
+Already planning your next adventure? I'm here to help make it just as amazing as this one!
+
+Thank you again for choosing us for your travel needs. Looking forward to hearing from you!
+
+Best regards,
+{{agentName}}`,
     variables: ['customerName', 'destination', 'agentName'],
     category: 'follow-up',
+    format: 'both',
   },
 ];
 
@@ -189,19 +294,61 @@ export function getTemplatesByCategory(category: EmailTemplate['category']): Ema
   return EMAIL_TEMPLATES.filter(template => template.category === category);
 }
 
-// Create email from template
+// Create email from template with format option
 export function createEmailFromTemplate(
   templateId: string,
   variables: Record<string, string>,
-  recipients: string[]
+  recipients: string[],
+  format: 'html' | 'text' = 'html'
 ): EmailMessage | null {
-  const template = getEmailTemplate(templateId);
+  const template = getEmailTemplate(templateId) as EnhancedEmailTemplate;
   if (!template) return null;
+
+  const body = format === 'text' && template.bodyText 
+    ? replaceTemplateVariables(template.bodyText, variables)
+    : replaceTemplateVariables(template.body, variables);
 
   return {
     to: recipients,
     subject: replaceTemplateVariables(template.subject, variables),
-    body: replaceTemplateVariables(template.body, variables),
+    body,
+  };
+}
+
+// Auto-generate plain text from HTML (fallback)
+export function htmlToPlainText(html: string): string {
+  return html
+    // Remove HTML tags
+    .replace(/<[^>]*>/g, '')
+    // Convert common HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    // Clean up whitespace
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s+/g, '\n')
+    .trim();
+}
+
+// Get template content in specified format
+export function getTemplateContent(
+  templateId: string, 
+  format: 'html' | 'text' = 'html'
+): { subject: string; body: string } | null {
+  const template = getEmailTemplate(templateId) as EnhancedEmailTemplate;
+  if (!template) return null;
+
+  const body = format === 'text' && template.bodyText
+    ? template.bodyText
+    : format === 'text' 
+    ? htmlToPlainText(template.body)
+    : template.body;
+
+  return {
+    subject: template.subject,
+    body
   };
 }
 
