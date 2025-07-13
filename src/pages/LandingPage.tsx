@@ -14,7 +14,13 @@ import {
   Menu,
   X,
   Mail,
-  Phone
+  Phone,
+  DollarSign,
+  Clock,
+  TrendingDown,
+  AlertTriangle,
+  Target,
+  Briefcase
 } from 'lucide-react';
 
 export function LandingPage() {
@@ -107,53 +113,64 @@ export function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 lg:py-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative py-20 lg:py-32 overflow-hidden">
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(34,197,94,0.1),transparent_50%)]"></div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-20 left-10 w-20 h-20 bg-indigo-200 rounded-full opacity-20 animate-pulse"></div>
+        <div className="absolute top-40 right-16 w-16 h-16 bg-cyan-200 rounded-full opacity-30 animate-bounce delay-1000"></div>
+        <div className="absolute bottom-20 left-20 w-12 h-12 bg-purple-200 rounded-full opacity-25 animate-pulse delay-500"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-4xl mx-auto">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              The Complete Agency Management Platform
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-gray-900 bg-clip-text text-transparent mb-6 leading-tight">
+              Stop Losing $50K+ Annually to Inefficient Travel Operations
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 mb-8">
-              AI-Powered Booking Engine + Team Management + CRM + Payments in One Solution
+            <p className="text-xl md:text-2xl text-gray-700 mb-8 leading-relaxed">
+              The Only AI-Powered Platform That Eliminates Revenue Leaks, Saves 20+ Hours/Week, and Prevents Client Churn
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
               <button
                 onClick={handleGetStarted}
-                className="bg-indigo-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-indigo-700 transition-all duration-200 transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl flex items-center justify-center shadow-lg"
               >
-                Start Free Trial
+                Start Free Trial - No Credit Card
                 <ArrowRight className="ml-2 h-5 w-5" />
               </button>
               <button
                 onClick={handleSignIn}
-                className="border border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors"
+                className="border-2 border-indigo-200 bg-white text-indigo-700 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-200 shadow-sm"
               >
                 Access Your Account
               </button>
             </div>
             
             {/* Key Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-3xl mx-auto">
-              <div className="text-center">
-                <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-8 w-8 text-indigo-600" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-emerald-100 to-emerald-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 transition-all duration-300 shadow-lg">
+                  <DollarSign className="h-10 w-10 text-emerald-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Efficiency</h3>
-                <p className="text-gray-600">Smart pricing and automated workflows</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Save $50K+ Annually</h3>
+                <p className="text-gray-600">Eliminate pricing errors and capture missed revenue opportunities</p>
               </div>
-              <div className="text-center">
-                <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-indigo-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-blue-100 to-blue-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 transition-all duration-300 shadow-lg">
+                  <Clock className="h-10 w-10 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Team Management</h3>
-                <p className="text-gray-600">Coordinate teams with role-based permissions</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">20+ Hours/Week Saved</h3>
+                <p className="text-gray-600">Automated workflows eliminate manual quote creation and admin tasks</p>
               </div>
-              <div className="text-center">
-                <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Globe className="h-8 w-8 text-indigo-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-purple-100 to-purple-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 transition-all duration-300 shadow-lg">
+                  <Target className="h-10 w-10 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">All-in-One Solution</h3>
-                <p className="text-gray-600">Replace 5+ tools with one platform</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">40% More Conversions</h3>
+                <p className="text-gray-600">Faster response times and AI-optimized pricing increase bookings</p>
               </div>
             </div>
           </div>
@@ -161,81 +178,87 @@ export function LandingPage() {
       </section>
 
       {/* Problem Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-red-50 via-gray-50 to-orange-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="text-center max-w-4xl mx-auto mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-              Stop Juggling Multiple Tools
+              Is Your Travel Agency Bleeding Money Every Day?
             </h2>
-            <p className="text-xl text-gray-600">
-              Most travel agencies struggle with disconnected systems, manual processes, and lack of team visibility.
+            <p className="text-xl text-gray-700 leading-relaxed">
+              <span className="text-red-600 font-semibold">95% of travel agencies</span> lose significant revenue due to operational inefficiencies, pricing errors, and manual processes. Here's what it's really costing you:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Current Pain Points:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start">
-                  <X className="h-6 w-6 text-red-500 mt-1 mr-3 flex-shrink-0" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-8 flex items-center">
+                <AlertTriangle className="h-8 w-8 text-red-500 mr-3" />
+                The Hidden Costs of Inefficiency:
+              </h3>
+              <div className="space-y-6">
+                <div className="flex items-start bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-400">
+                  <DollarSign className="h-8 w-8 text-red-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Multiple Disconnected Tools</h4>
-                    <p className="text-gray-600">Separate systems for booking, CRM, payments, and communication</p>
+                    <h4 className="font-bold text-gray-900 text-lg">$50K+ Annual Revenue Loss</h4>
+                    <p className="text-gray-600 mt-1">Pricing errors, missed upsells, and competitors stealing clients with faster service</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <X className="h-6 w-6 text-red-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-white p-6 rounded-xl shadow-lg border-l-4 border-orange-400">
+                  <Clock className="h-8 w-8 text-orange-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">No Team Visibility</h4>
-                    <p className="text-gray-600">Managers can't see what agents are working on or performance metrics</p>
+                    <h4 className="font-bold text-gray-900 text-lg">20+ Hours Weekly Waste</h4>
+                    <p className="text-gray-600 mt-1">Manual quote creation, data entry, and switching between 5+ different tools</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <X className="h-6 w-6 text-red-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-400">
+                  <TrendingDown className="h-8 w-8 text-purple-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Manual Processes</h4>
-                    <p className="text-gray-600">Time-consuming quote creation and customer communication</p>
+                    <h4 className="font-bold text-gray-900 text-lg">30% Client Loss Rate</h4>
+                    <p className="text-gray-600 mt-1">Slow response times, communication gaps, and poor follow-up systems</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <X className="h-6 w-6 text-red-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-white p-6 rounded-xl shadow-lg border-l-4 border-red-400">
+                  <Briefcase className="h-8 w-8 text-red-500 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Inconsistent Pricing</h4>
-                    <p className="text-gray-600">Different agents using different markup strategies</p>
+                    <h4 className="font-bold text-gray-900 text-lg">$15K+ Per Agent Turnover</h4>
+                    <p className="text-gray-600 mt-1">Burnout from repetitive tasks and frustration with outdated systems</p>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Our Solution:</h3>
-              <div className="space-y-4">
-                <div className="flex items-start">
-                  <CheckCircle className="h-6 w-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-8 flex items-center">
+                <CheckCircle className="h-8 w-8 text-green-500 mr-3" />
+                BookingGPT Transforms Everything:
+              </h3>
+              <div className="space-y-6">
+                <div className="flex items-start bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl shadow-lg border-l-4 border-green-400">
+                  <DollarSign className="h-8 w-8 text-green-600 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Unified Platform</h4>
-                    <p className="text-gray-600">Booking, CRM, payments, and communication in one system</p>
+                    <h4 className="font-bold text-gray-900 text-lg">Recover Lost Revenue</h4>
+                    <p className="text-gray-600 mt-1">AI-powered pricing prevents errors and captures every upsell opportunity automatically</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <CheckCircle className="h-6 w-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-gradient-to-r from-blue-50 to-cyan-50 p-6 rounded-xl shadow-lg border-l-4 border-blue-400">
+                  <Zap className="h-8 w-8 text-blue-600 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Complete Team Management</h4>
-                    <p className="text-gray-600">Real-time visibility into all agent activities and performance</p>
+                    <h4 className="font-bold text-gray-900 text-lg">Automate Everything</h4>
+                    <p className="text-gray-600 mt-1">One-click quote generation, automated follow-ups, and integrated booking management</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <CheckCircle className="h-6 w-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-xl shadow-lg border-l-4 border-purple-400">
+                  <Users className="h-8 w-8 text-purple-600 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">AI-Powered Automation</h4>
-                    <p className="text-gray-600">Smart quote generation and automated customer communication</p>
+                    <h4 className="font-bold text-gray-900 text-lg">Keep Clients Happy</h4>
+                    <p className="text-gray-600 mt-1">Instant responses, real-time updates, and seamless communication that prevents churn</p>
                   </div>
                 </div>
-                <div className="flex items-start">
-                  <CheckCircle className="h-6 w-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
+                <div className="flex items-start bg-gradient-to-r from-indigo-50 to-blue-50 p-6 rounded-xl shadow-lg border-l-4 border-indigo-400">
+                  <BarChart3 className="h-8 w-8 text-indigo-600 mt-1 mr-4 flex-shrink-0" />
                   <div>
-                    <h4 className="font-semibold text-gray-900">Unified Pricing Strategy</h4>
-                    <p className="text-gray-600">Agency-wide pricing controls with AI optimization</p>
+                    <h4 className="font-bold text-gray-900 text-lg">Scale Your Team</h4>
+                    <p className="text-gray-600 mt-1">Built-in training, performance tracking, and role-based permissions reduce turnover</p>
                   </div>
                 </div>
               </div>
@@ -285,66 +308,66 @@ export function LandingPage() {
           {/* Tab Content */}
           {activeTab === 'individual' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="text-center">
-                <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-8 w-8 text-blue-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-blue-100 to-blue-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <Zap className="h-10 w-10 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Booking</h3>
-                <p className="text-gray-600">Smart quote generation with optimal pricing strategies</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">AI-Powered Booking</h3>
+                <p className="text-gray-600 leading-relaxed">Smart quote generation with optimal pricing strategies that maximize profits</p>
               </div>
-              <div className="text-center">
-                <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-green-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-green-100 to-green-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <Users className="h-10 w-10 text-green-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Customer Management</h3>
-                <p className="text-gray-600">Complete traveler profiles with passport tracking</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Customer Management</h3>
+                <p className="text-gray-600 leading-relaxed">Complete traveler profiles with passport tracking and preference management</p>
               </div>
-              <div className="text-center">
-                <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CreditCard className="h-8 w-8 text-purple-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-purple-100 to-purple-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <CreditCard className="h-10 w-10 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Payment Processing</h3>
-                <p className="text-gray-600">Secure payments with real-time commission tracking</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Payment Processing</h3>
+                <p className="text-gray-600 leading-relaxed">Secure payments with real-time commission tracking and automated invoicing</p>
               </div>
-              <div className="text-center">
-                <div className="bg-orange-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageCircle className="h-8 w-8 text-orange-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-orange-100 to-orange-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <MessageCircle className="h-10 w-10 text-orange-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Email Automation</h3>
-                <p className="text-gray-600">Automated client communication with tracking</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Email Automation</h3>
+                <p className="text-gray-600 leading-relaxed">Automated client communication with open tracking and follow-up sequences</p>
               </div>
             </div>
           )}
 
           {activeTab === 'agency' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="text-center">
-                <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="h-8 w-8 text-indigo-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <Users className="h-10 w-10 text-indigo-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Team Management</h3>
-                <p className="text-gray-600">Role-based permissions and agent oversight</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Team Management</h3>
+                <p className="text-gray-600 leading-relaxed">Role-based permissions with real-time agent oversight and performance tracking</p>
               </div>
-              <div className="text-center">
-                <div className="bg-cyan-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <BarChart3 className="h-8 w-8 text-cyan-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-cyan-100 to-cyan-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <BarChart3 className="h-10 w-10 text-cyan-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Performance Analytics</h3>
-                <p className="text-gray-600">Real-time team performance and revenue tracking</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Performance Analytics</h3>
+                <p className="text-gray-600 leading-relaxed">Comprehensive dashboards showing team performance and revenue metrics</p>
               </div>
-              <div className="text-center">
-                <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Shield className="h-8 w-8 text-red-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-red-100 to-red-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <Shield className="h-10 w-10 text-red-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Access Control</h3>
-                <p className="text-gray-600">Granular permissions for different user roles</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Access Control</h3>
+                <p className="text-gray-600 leading-relaxed">Granular permissions and security controls for different user roles and data access</p>
               </div>
-              <div className="text-center">
-                <div className="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Globe className="h-8 w-8 text-yellow-600" />
+              <div className="text-center group">
+                <div className="bg-gradient-to-br from-yellow-100 to-yellow-200 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 shadow-lg group-hover:shadow-xl">
+                  <Globe className="h-10 w-10 text-yellow-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Shared Resources</h3>
-                <p className="text-gray-600">Centralized customer database and pricing controls</p>
+                <h3 className="font-bold text-gray-900 mb-2 text-lg">Shared Resources</h3>
+                <p className="text-gray-600 leading-relaxed">Centralized customer database and unified pricing controls across all agents</p>
               </div>
             </div>
           )}
@@ -352,29 +375,63 @@ export function LandingPage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 bg-indigo-50">
+      <section className="py-20 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-              Measurable Results for Your Business
+          <div className="text-center max-w-4xl mx-auto mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-indigo-900 to-purple-900 bg-clip-text text-transparent mb-6">
+              Real Results From Real Agencies
             </h2>
+            <p className="text-xl text-gray-700">
+              Join hundreds of agencies already experiencing these measurable improvements
+            </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 mb-2">15+</div>
-              <div className="text-lg font-semibold text-gray-900 mb-2">Hours Saved Per Week</div>
-              <p className="text-gray-600">Automated workflows eliminate manual tasks</p>
+            <div className="text-center bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-indigo-100">
+              <div className="bg-gradient-to-br from-emerald-500 to-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="h-8 w-8 text-white" />
+              </div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent mb-2">20+</div>
+              <div className="text-xl font-bold text-gray-900 mb-3">Hours Saved Per Week</div>
+              <p className="text-gray-600 leading-relaxed">Automated workflows eliminate manual quote creation and administrative tasks</p>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 mb-2">40%</div>
-              <div className="text-lg font-semibold text-gray-900 mb-2">Increase in Conversions</div>
-              <p className="text-gray-600">AI-powered pricing and faster quote delivery</p>
+            <div className="text-center bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-purple-100">
+              <div className="bg-gradient-to-br from-purple-500 to-indigo-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingDown className="h-8 w-8 text-white" />
+              </div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">45%</div>
+              <div className="text-xl font-bold text-gray-900 mb-3">Increase in Conversions</div>
+              <p className="text-gray-600 leading-relaxed">AI-powered pricing optimization and faster response times boost booking rates</p>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-indigo-600 mb-2">60%</div>
-              <div className="text-lg font-semibold text-gray-900 mb-2">Faster Team Onboarding</div>
-              <p className="text-gray-600">Built-in training tools and shared resources</p>
+            <div className="text-center bg-white p-8 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 border border-pink-100">
+              <div className="bg-gradient-to-br from-pink-500 to-rose-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DollarSign className="h-8 w-8 text-white" />
+              </div>
+              <div className="text-5xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent mb-2">$50K+</div>
+              <div className="text-xl font-bold text-gray-900 mb-3">Annual Revenue Recovery</div>
+              <p className="text-gray-600 leading-relaxed">Eliminate pricing errors and capture missed upsell opportunities automatically</p>
+            </div>
+          </div>
+          
+          {/* Additional Statistics Row */}
+          <div className="mt-16 bg-white rounded-2xl p-8 shadow-xl border border-gray-100">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+              <div>
+                <div className="text-3xl font-bold text-indigo-600 mb-2">2 mins</div>
+                <div className="text-gray-700 font-medium">Average Quote Creation</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-purple-600 mb-2">90%</div>
+                <div className="text-gray-700 font-medium">Agent Satisfaction</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-green-600 mb-2">24/7</div>
+                <div className="text-gray-700 font-medium">Client Support</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-pink-600 mb-2">3x</div>
+                <div className="text-gray-700 font-medium">Faster Onboarding</div>
+              </div>
             </div>
           </div>
         </div>
@@ -664,29 +721,54 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-            Ready to Transform Your Travel Business?
+      <section className="py-20 bg-gradient-to-br from-indigo-600 via-purple-700 to-pink-700 relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+        
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
+            Stop Losing Money Every Day Your Agency Operates Inefficiently
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Join hundreds of agencies already using our platform to streamline operations and increase revenue.
+          <p className="text-xl md:text-2xl text-indigo-100 mb-8 leading-relaxed">
+            Join <span className="font-bold text-white">500+ agencies</span> already saving $50K+ annually and 20+ hours per week
           </p>
+          
+          {/* Urgency Indicators */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-3xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="text-3xl font-bold text-white mb-1">$137</div>
+              <div className="text-indigo-100 text-sm">Lost per day without optimization</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="text-3xl font-bold text-white mb-1">4 hrs</div>
+              <div className="text-indigo-100 text-sm">Wasted daily on manual tasks</div>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+              <div className="text-3xl font-bold text-white mb-1">30%</div>
+              <div className="text-indigo-100 text-sm">Of clients likely to churn</div>
+            </div>
+          </div>
+          
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
               onClick={handleGetStarted}
-              className="bg-indigo-600 text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-indigo-700 transition-all duration-200 transform hover:-translate-y-1 hover:shadow-xl flex items-center justify-center"
+              className="bg-white text-indigo-700 px-10 py-5 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all duration-300 transform hover:-translate-y-2 hover:shadow-2xl flex items-center justify-center shadow-xl"
             >
-              Start Your Free Trial
+              Start Free Trial - See Results in 24 Hours
               <ArrowRight className="ml-2 h-5 w-5" />
             </button>
             <button
               onClick={handleSignIn}
-              className="border border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-50 transition-colors"
+              className="border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white px-8 py-5 rounded-xl font-semibold text-lg hover:bg-white/20 transition-all duration-200"
             >
-              Sign In to Your Account
+              Access Your Account
             </button>
           </div>
+          
+          <p className="text-indigo-200 text-sm mt-6">
+            ✓ No credit card required ✓ 14-day free trial ✓ Setup in under 10 minutes
+          </p>
         </div>
       </section>
 
