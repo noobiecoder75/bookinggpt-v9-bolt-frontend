@@ -61,6 +61,20 @@ If you don't update the redirect URI in Google Cloud Console:
 - Users will see an error message from Google
 - Gmail integration will not work
 
+### Re-authorization Required After Scope Update
+
+**⚠️ IMPORTANT**: If you were previously connected to Gmail and encounter a 403 Forbidden error when testing the connection:
+
+1. **Disconnect Gmail**: Go to Settings → Gmail Integration → Click "Disconnect"
+2. **Reconnect Gmail**: Click "Connect Gmail" to authorize with the new scopes
+3. **Why this is needed**: OAuth tokens are tied to specific scopes. Adding `gmail.readonly` scope requires re-authorization.
+
+The new scopes include:
+- `gmail.send` - Send emails on your behalf
+- `gmail.readonly` - Read Gmail profile information (fixes 403 error)
+- `userinfo.email` - Access your email address  
+- `userinfo.profile` - Access your basic profile information
+
 ### Testing the Fix
 
 1. **Development Testing:**

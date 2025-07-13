@@ -9,6 +9,7 @@ const REDIRECT_URI = `${window.location.origin}/oauth/gmail/callback`;
 
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile'
 ];
