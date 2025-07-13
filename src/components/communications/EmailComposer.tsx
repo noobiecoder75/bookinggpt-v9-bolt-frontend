@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
+import '../../styles/quill-custom.css';
 import { 
   X, 
   Send, 
@@ -32,6 +35,22 @@ interface EmailComposerProps {
   onClose: () => void;
   onEmailSent: (success: boolean, message?: string) => void;
 }
+
+// Quill toolbar configuration for email-appropriate formatting
+const quillModules = {
+  toolbar: [
+    ['bold', 'italic', 'underline'],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+    ['link'],
+    ['clean']
+  ],
+};
+
+const quillFormats = [
+  'bold', 'italic', 'underline',
+  'list', 'bullet',
+  'link'
+];
 
 export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
@@ -93,9 +112,9 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
     
     const term = searchTerm.toLowerCase();
     return customers.filter(customer => 
-      customer.first_name.toLowerCase().includes(term) ||
-      customer.last_name.toLowerCase().includes(term) ||
-      customer.email.toLowerCase().includes(term)
+      (customer.first_name && customer.first_name.toLowerCase().includes(term)) ||
+      (customer.last_name && customer.last_name.toLowerCase().includes(term)) ||
+      (customer.email && customer.email.toLowerCase().includes(term))
     );
   };
 
@@ -180,6 +199,16 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
               customer_id: customer.id,
               email_type: selectedTemplate?.category || 'custom',
               subject: processedSubject,
+              body: processedBody, // Final processed HTML content
+              raw_content: body, // Original content with template variables
+              template_id: selectedTemplate?.id || null, // Template reference
+              content_type: selectedTemplate ? 'template' : 'html', // Content type
+              metadata: { 
+                templateVars, 
+                agentName: templateVars.agentName,
+                customerName: customer.first_name,
+                sentToCount: selectedCustomers.length
+              }, // Additional context
               recipients: [customer.email],
               status: 'sent',
               sent_at: new Date().toISOString()
@@ -227,7 +256,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                 const template = EMAIL_TEMPLATES.find(t => t.id === e.target.value);
                 setSelectedTemplate(template || null);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 h-12"
               disabled={isSending}
             >
               <option value="">Select a template or compose custom email</option>
@@ -256,7 +285,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                       value={templateVars[variable] || ''}
                       onChange={(e) => updateTemplateVar(variable, e.target.value)}
                       placeholder={`Enter ${variable}`}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                      className="w-full px-3 py-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm h-12"
                       disabled={isSending}
                     />
                   </div>
@@ -304,7 +333,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                   setShowCustomerDropdown(true);
                 }}
                 onFocus={() => setShowCustomerDropdown(true)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full pl-10 pr-4 py-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 h-12"
                 disabled={isSending}
               />
               
@@ -353,7 +382,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="Enter email subject"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-4 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 h-12"
               disabled={isSending}
             />
           </div>
@@ -363,13 +392,15 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Body
             </label>
-            <textarea
+            <ReactQuill
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
+              modules={quillModules}
+              formats={quillFormats}
               placeholder="Enter email content..."
-              rows={12}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
-              disabled={isSending}
+              className="bg-white"
+              readOnly={isSending}
+              style={{ minHeight: '500px' }}
             />
           </div>
 

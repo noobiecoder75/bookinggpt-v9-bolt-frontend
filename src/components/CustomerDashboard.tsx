@@ -192,11 +192,11 @@ export function CustomerDashboard() {
       
       // Basic search term matching
       const matchesSearch = searchTerm === '' || 
-        customer.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.nationality.toLowerCase().includes(searchTerm.toLowerCase());
+        (customer.first_name && customer.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.last_name && customer.last_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.phone && customer.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.nationality && customer.nationality.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Lifetime value range filter
       const matchesLifetimeValue = 
@@ -205,7 +205,7 @@ export function CustomerDashboard() {
 
       // Nationality filter
       const matchesNationality = filters.nationality === '' ||
-        customer.nationality.toLowerCase().includes(filters.nationality.toLowerCase());
+        (customer.nationality && customer.nationality.toLowerCase().includes(filters.nationality.toLowerCase()));
 
       // Created date range filter
       const customerCreatedDate = new Date(customer.created_at).toISOString().split('T')[0];

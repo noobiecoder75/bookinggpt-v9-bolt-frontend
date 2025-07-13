@@ -200,44 +200,58 @@ export class GmailApiService {
   }
 
   private createEmailContent(message: EmailMessage): string {
-    const boundary = `boundary_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    // Check if content is HTML or plain text
+    const isHtml = message.body.includes('<') && message.body.includes('>');
     
-    // Create headers
+    // Create headers for HTML email
     const headers = [
       `To: ${message.to.join(', ')}`,
       message.cc && message.cc.length > 0 ? `Cc: ${message.cc.join(', ')}` : '',
       message.bcc && message.bcc.length > 0 ? `Bcc: ${message.bcc.join(', ')}` : '',
       `Subject: ${message.subject}`,
       'MIME-Version: 1.0',
-      `Content-Type: multipart/mixed; boundary="${boundary}"`,
-      '',
-    ].filter(header => header !== '').join('\r\n');
+    ].filter(header => header !== '');
 
-    // Create body
-    let body = `--${boundary}\r\n`;
-    body += 'Content-Type: text/html; charset=UTF-8\r\n';
-    body += 'Content-Transfer-Encoding: quoted-printable\r\n\r\n';
-    body += this.quotedPrintableEncode(message.body);
-    body += '\r\n\r\n';
-
-    // Add attachments if any
-    if (message.attachments && message.attachments.length > 0) {
-      for (const attachment of message.attachments) {
-        body += `--${boundary}\r\n`;
-        body += `Content-Type: ${attachment.contentType}\r\n`;
-        body += `Content-Disposition: attachment; filename="${attachment.filename}"\r\n`;
-        body += 'Content-Transfer-Encoding: base64\r\n\r\n';
-        body += attachment.content;
-        body += '\r\n\r\n';
-      }
-    }
-
-    body += `--${boundary}--`;
-
-    const email = headers + '\r\n' + body;
+    let emailContent = '';
     
-    // Base64 encode the entire email
-    return btoa(unescape(encodeURIComponent(email)))
+    if (message.attachments && message.attachments.length > 0) {
+      // Use multipart for attachments
+      const boundary = `boundary_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+      headers.push('');
+      
+      emailContent = headers.join('\r\n');
+      
+      // HTML/Text part
+      emailContent += `--${boundary}\r\n`;
+      emailContent += `Content-Type: ${isHtml ? 'text/html' : 'text/plain'}; charset=UTF-8\r\n`;
+      emailContent += 'Content-Transfer-Encoding: base64\r\n\r\n';
+      emailContent += btoa(unescape(encodeURIComponent(message.body)));
+      emailContent += '\r\n\r\n';
+      
+      // Attachments
+      for (const attachment of message.attachments) {
+        emailContent += `--${boundary}\r\n`;
+        emailContent += `Content-Type: ${attachment.contentType}\r\n`;
+        emailContent += `Content-Disposition: attachment; filename="${attachment.filename}"\r\n`;
+        emailContent += 'Content-Transfer-Encoding: base64\r\n\r\n';
+        emailContent += attachment.content;
+        emailContent += '\r\n\r\n';
+      }
+      
+      emailContent += `--${boundary}--`;
+    } else {
+      // Simple HTML email without attachments
+      headers.push(`Content-Type: ${isHtml ? 'text/html' : 'text/plain'}; charset=UTF-8`);
+      headers.push('Content-Transfer-Encoding: base64');
+      headers.push('');
+      
+      emailContent = headers.join('\r\n');
+      emailContent += btoa(unescape(encodeURIComponent(message.body)));
+    }
+    
+    // Base64 encode the entire email for Gmail API
+    return btoa(unescape(encodeURIComponent(emailContent)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');

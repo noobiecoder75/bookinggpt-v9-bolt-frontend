@@ -156,9 +156,10 @@ export function BookingsDashboard() {
   const filteredBookings = bookings.filter(booking => {
     const searchString = searchTerm.toLowerCase();
     return (
-      booking.booking_reference.toLowerCase().includes(searchString) ||
-      `${booking.customer.first_name} ${booking.customer.last_name}`.toLowerCase().includes(searchString) ||
-      booking.customer.email.toLowerCase().includes(searchString)
+      (booking.booking_reference && booking.booking_reference.toLowerCase().includes(searchString)) ||
+      (booking.customer.first_name && booking.customer.last_name && 
+       `${booking.customer.first_name} ${booking.customer.last_name}`.toLowerCase().includes(searchString)) ||
+      (booking.customer.email && booking.customer.email.toLowerCase().includes(searchString))
     );
   });
 

@@ -281,16 +281,18 @@ export function QuotesDashboard() {
     return processedQuotes.filter(quote => {
       // Basic search term matching
       const matchesSearch = searchTerm === '' || 
-        quote.quote_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.customer.email.toLowerCase().includes(searchTerm.toLowerCase());
+        (quote.quote_reference && quote.quote_reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (quote.customer.first_name && quote.customer.last_name && 
+         `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (quote.customer.email && quote.customer.email.toLowerCase().includes(searchTerm.toLowerCase()));
       
       // Status filter
       const matchesStatus = statusFilter === 'all' || quote.status === statusFilter;
       
       // Customer name filter
       const matchesCustomerName = filters.customerName === '' ||
-        `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(filters.customerName.toLowerCase());
+        (quote.customer.first_name && quote.customer.last_name && 
+         `${quote.customer.first_name} ${quote.customer.last_name}`.toLowerCase().includes(filters.customerName.toLowerCase()));
       
       // Price range filter
       const matchesPriceRange = 
@@ -729,15 +731,7 @@ export function QuotesDashboard() {
                               <h2 className="text-base sm:text-lg font-medium text-gray-900 truncate">
                                 {quote.customer.first_name} {quote.customer.last_name}
                               </h2>
-                              {quote.emailStats && quote.emailStats.totalSent > 0 && (
-                                <div className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3 text-blue-500" />
-                                  <span className="text-xs text-blue-600">{quote.emailStats.totalSent}</span>
-                                  {quote.emailStats.hasOpened && (
-                                    <Eye className="h-3 w-3 text-green-500" />
-                                  )}
-                                </div>
-                              )}
+                              {/* Email stats temporarily disabled - needs proper implementation */}
                             </div>
                             <div className="mt-1 flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0">
                               {/* Show quote reference only on desk*/}
@@ -769,11 +763,7 @@ export function QuotesDashboard() {
                             {/* Show email on mobile */}
                             <div className="mt-1 sm:hidden">
                               <span className="text-xs text-gray-400">{quote.customer.email}</span>
-                              {quote.emailStats?.lastSent && (
-                                <span className="text-xs text-gray-400 block">
-                                  Last email: {new Date(quote.emailStats.lastSent).toLocaleDateString()}
-                                </span>
-                              )}
+                              {/* Email stats temporarily disabled - needs proper implementation */}
                             </div>
                           </div>
                         </div>

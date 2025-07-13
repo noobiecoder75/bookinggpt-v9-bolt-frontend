@@ -7,6 +7,7 @@ import {
   Download, Send, CheckCircle, AlertCircle, Plus, Eye
 } from 'lucide-react';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { EmailDetailModal } from '../communications/EmailDetailModal';
 
 interface StatCardProps {
   title: string;
@@ -85,6 +86,11 @@ interface EmailCommunication {
   quote_id?: string;
   email_type: string;
   subject: string;
+  body?: string;
+  raw_content?: string;
+  template_id?: string;
+  content_type?: string;
+  metadata?: any;
   recipients: string[];
   status: 'sent' | 'failed' | 'bounced' | 'opened';
   sent_at: string;
@@ -104,6 +110,8 @@ export function CustomerProfileView() {
   const [activeTab, setActiveTab] = useState<'overview' | 'quotes' | 'bookings' | 'payments' | 'emails'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEmail, setSelectedEmail] = useState<EmailCommunication | null>(null);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const { isConnected } = useGoogleOAuth();
 
   useEffect(() => {
@@ -195,6 +203,33 @@ export function CustomerProfileView() {
   const handleCancel = () => {
     setEditedCustomer(customer);
     setIsEditing(false);
+  };
+
+  const viewEmail = (email: EmailCommunication) => {
+    console.log('Viewing email:', email);
+    setSelectedEmail(email);
+    setIsEmailModalOpen(true);
+  };
+
+  const closeEmailModal = () => {
+    setSelectedEmail(null);
+    setIsEmailModalOpen(false);
+  };
+
+  const stripHtmlTags = (html: string) => {
+    return html.replace(/<[^>]*>/g, '');
+  };
+
+  const getTemplateName = (templateId?: string) => {
+    // Simple template name mapping - could be enhanced with actual template lookup
+    const templateNames: Record<string, string> = {
+      'welcome': 'Welcome Email',
+      'quote-ready': 'Quote Ready',
+      'booking-confirmed': 'Booking Confirmed',
+      'payment-reminder': 'Payment Reminder',
+      'follow-up': 'Follow-up'
+    };
+    return templateId ? templateNames[templateId] || 'Template' : 'Custom';
   };
 
   const getEventIcon = (eventType: CustomerEvent['event_type']) => {
@@ -706,7 +741,7 @@ export function CustomerProfileView() {
               {emails.length > 0 ? (
                 <div className="space-y-4">
                   {emails.map((email) => (
-                    <div key={email.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div key={email.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => viewEmail(email)}>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
@@ -716,23 +751,49 @@ export function CustomerProfileView() {
                               email.status === 'failed' ? 'bg-red-500' :
                               'bg-gray-400'
                             }`} />
-                            <h4 className="text-sm font-medium text-gray-900">{email.subject}</h4>
+                            <h4 className="text-sm font-medium text-gray-900 hover:text-indigo-600">{email.subject}</h4>
                             <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                              {email.email_type}
+                              {getTemplateName(email.template_id)}
                             </span>
                           </div>
+                          
+                          {/* Email content preview */}
+                          {email.body && (
+                            <div className="text-sm text-gray-600 mb-2 line-clamp-2">
+                              {stripHtmlTags(email.body).substring(0, 150)}
+                              {stripHtmlTags(email.body).length > 150 && '...'}
+                            </div>
+                          )}
+                          
+                          {/* Click to view indicator */}
+                          <div className="text-xs text-indigo-600 opacity-75 hover:opacity-100 transition-opacity">
+                            Click to view full email details
+                          </div>
+                          
                           <div className="text-sm text-gray-500 space-y-1">
                             <div>To: {email.recipients.join(', ')}</div>
-                            <div>Sent: {new Date(email.sent_at).toLocaleString()}</div>
-                            {email.opened_at && (
-                              <div className="flex items-center space-x-1">
-                                <Eye className="h-4 w-4 text-green-600" />
-                                <span className="text-green-600">Opened: {new Date(email.opened_at).toLocaleString()}</span>
-                              </div>
-                            )}
+                            <div className="flex items-center space-x-4">
+                              <span>Sent: {new Date(email.sent_at).toLocaleString()}</span>
+                              {email.opened_at && (
+                                <div className="flex items-center space-x-1">
+                                  <Eye className="h-4 w-4 text-green-600" />
+                                  <span className="text-green-600">Opened: {new Date(email.opened_at).toLocaleString()}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewEmail(email);
+                            }}
+                            className="text-indigo-600 hover:text-indigo-800 p-2 rounded-md hover:bg-indigo-50 transition-colors"
+                            title="View email details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             email.status === 'opened' ? 'bg-green-100 text-green-800' :
                             email.status === 'sent' ? 'bg-blue-100 text-blue-800' :
@@ -807,6 +868,13 @@ export function CustomerProfileView() {
           </div>
         )}
       </div>
+
+      {/* Email Detail Modal */}
+      <EmailDetailModal
+        email={selectedEmail}
+        isOpen={isEmailModalOpen}
+        onClose={closeEmailModal}
+      />
     </div>
   );
 } 
