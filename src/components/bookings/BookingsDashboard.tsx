@@ -135,7 +135,8 @@ export function BookingsDashboard() {
           const { data: emails, error } = await supabase
             .from('email_communications')
             .select('sent_at, opened_at')
-            .eq('customer_id', booking.customer.id)
+            .eq('customer_id', booking.customer?.id)
+            .or('quote_id.is.null')
             .order('sent_at', { ascending: false });
 
           if (error) {
@@ -161,16 +162,16 @@ export function BookingsDashboard() {
   }
 
   const handleSendEmail = (booking: Booking) => {
-    navigate(`/communications?customer=${booking.customer.id}&email=${encodeURIComponent(booking.customer.email)}`);
+    navigate(`/communications?customer=${booking.customer?.id}&email=${encodeURIComponent(booking.customer?.email || '')}`);
   };
 
   const filteredBookings = bookings.filter(booking => {
     const searchString = searchTerm.toLowerCase();
     return (
       (booking.booking_reference && booking.booking_reference.toLowerCase().includes(searchString)) ||
-      (booking.customer.first_name && booking.customer.last_name && 
+      (booking.customer?.first_name && booking.customer?.last_name && 
                `${booking.customer?.first_name || ''} ${booking.customer?.last_name || ''}`.toLowerCase().includes(searchString)) ||
-      (booking.customer.email && booking.customer.email.toLowerCase().includes(searchString))
+      (booking.customer?.email && booking.customer?.email.toLowerCase().includes(searchString))
     );
   });
 

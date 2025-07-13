@@ -46,8 +46,9 @@ export function ClientEmail({ quote }: ClientEmailProps) {
     try {
       const { data, error } = await supabase
         .from('email_communications')
-        .select('*')
-        .eq('customer_id', quote.customer.id)
+        .select('id, email_type, subject, status, sent_at, opened_at, body, recipients')
+        .eq('customer_id', quote.customer?.id)
+        .or('quote_id.is.null')
         .order('sent_at', { ascending: false });
 
       if (error) {

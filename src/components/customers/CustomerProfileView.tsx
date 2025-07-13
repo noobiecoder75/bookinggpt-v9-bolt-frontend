@@ -186,8 +186,9 @@ export function CustomerProfileView() {
       // Email communications are linked to customers through agent relationships
       const { data: emailsData, error: emailsError } = await supabase
         .from('email_communications')
-        .select('*')
+        .select('id, email_type, subject, status, sent_at, opened_at, body, recipients')
         .eq('customer_id', id)
+        .or('quote_id.is.null')
         .order('sent_at', { ascending: false });
 
       if (emailsError) throw emailsError;

@@ -120,7 +120,7 @@ export function QuotesDashboard() {
           const { data: emails, error } = await supabase
             .from('email_communications')
             .select('sent_at, opened_at')
-            .eq('customer_id', quote.customer.id)
+            .eq('customer_id', quote.customer?.id)
             .or(`quote_id.eq.${quote.id},quote_id.is.null`)
             .order('sent_at', { ascending: false });
 
@@ -348,7 +348,7 @@ export function QuotesDashboard() {
   };
 
   const handleSendEmail = (quote: Quote) => {
-    navigate(`/communications?customer=${quote.customer.id}&email=${encodeURIComponent(quote.customer.email)}&quote=${quote.id}`);
+    navigate(`/communications?customer=${quote.customer?.id}&email=${encodeURIComponent(quote.customer?.email || '')}&quote=${quote.id}`);
   };
 
   const handleFilterChange = (filterType: string, value: any) => {
