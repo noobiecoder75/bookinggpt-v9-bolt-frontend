@@ -116,6 +116,9 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
           tokens,
           is_connected: true,
           last_sync: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,integration_type'
         })
         .select()
         .single();
@@ -209,6 +212,9 @@ export function useGoogleOAuth(): UseGoogleOAuthResult {
               tokens,
               is_connected: true,
               last_sync: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'user_id,integration_type'
             })
             .select()
             .single();

@@ -243,6 +243,26 @@ export async function generateAIEmailDraft(
         'Add urgency if there are limited-time offers',
       ],
     },
+    booking: {
+      subject: `Great news! Your ${context.tripDetails?.destination || 'trip'} is confirmed!`,
+      body: `Hi ${context.customerName},\n\nFantastic news! I've successfully booked your ${context.tripDetails?.destination || 'trip'} and everything is confirmed.\n\nYour confirmation details are attached, and I'll be sending you a detailed itinerary shortly. I'm so excited for you!\n\nIf you have any questions before your departure, don't hesitate to reach out.\n\nHappy travels,\n${context.agentName}`,
+      confidence: 0.95,
+      suggestions: [
+        'Include confirmation numbers',
+        'Add pre-trip checklist',
+        'Provide emergency contact information',
+      ],
+    },
+    payment: {
+      subject: `Payment reminder for your ${context.tripDetails?.destination || 'trip'}`,
+      body: `Hi ${context.customerName},\n\nI hope you're getting excited about your upcoming ${context.tripDetails?.destination || 'trip'}!\n\nThis is a friendly reminder that your payment is due. You can complete the payment through the secure link I'll send separately.\n\nOnce payment is received, I'll finalize all your bookings and send you the complete itinerary.\n\nLooking forward to making this trip amazing for you!\n\nBest regards,\n${context.agentName}`,
+      confidence: 0.85,
+      suggestions: [
+        'Include payment deadline',
+        'Add payment methods accepted',
+        'Mention what happens after payment',
+      ],
+    },
     'follow-up': {
       subject: `How was your amazing trip to ${context.tripDetails?.destination || 'your destination'}?`,
       body: `Hi ${context.customerName},\n\nI hope you're still glowing from your recent adventure! I've been thinking about your trip and would love to hear all about it.\n\nDid everything go smoothly? Were there any unexpected highlights? I'm always looking for ways to make future trips even better for my clients.\n\nAlready thinking about your next getaway? I'm here whenever you're ready!\n\nWarm regards,\n${context.agentName}`,
@@ -251,6 +271,16 @@ export async function generateAIEmailDraft(
         'Ask about specific experiences you recommended',
         'Include a photo request for future marketing',
         'Offer a referral incentive',
+      ],
+    },
+    custom: {
+      subject: `Following up on your travel inquiry`,
+      body: `Hi ${context.customerName},\n\n${context.customPrompt || 'I wanted to follow up on our recent conversation about your travel plans.'}\n\nI'm here to help make your travel dreams come true. What would you like to explore next?\n\nBest regards,\n${context.agentName}`,
+      confidence: 0.70,
+      suggestions: [
+        'Customize based on specific customer needs',
+        'Add relevant travel suggestions',
+        'Include call-to-action',
       ],
     },
   };
