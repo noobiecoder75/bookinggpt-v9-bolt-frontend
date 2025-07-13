@@ -222,17 +222,17 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
 
                 {customers.length > 0 && (
                   <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                    {customers.map((customer) => (
+                    {customers.filter(customer => customer && customer.id).map((customer) => (
                       <button
                         key={customer.id}
                         onClick={() => setSelectedCustomer(customer)}
                         className="w-full p-4 text-left border-b border-gray-200 last:border-b-0 hover:bg-gray-50 transition-colors"
                       >
                         <div className="font-medium text-gray-900">
-                          {customer.first_name} {customer.last_name}
+                          {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'}
                         </div>
-                        <div className="text-sm text-gray-600">{customer.email}</div>
-                        <div className="text-sm text-gray-600">{customer.phone}</div>
+                        <div className="text-sm text-gray-600">{customer.email || 'No email'}</div>
+                        <div className="text-sm text-gray-600">{customer.phone || 'No phone'}</div>
                       </button>
                     ))}
                   </div>

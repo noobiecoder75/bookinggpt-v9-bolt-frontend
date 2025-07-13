@@ -185,7 +185,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
 
     try {
       const { processedSubject, processedBody } = getProcessedContent();
-      const recipients = selectedCustomers.map(c => c.email);
+      const recipients = selectedCustomers.filter(c => c && c.email).map(c => c.email);
 
       const emailMessage: EmailMessage = {
         to: recipients,
@@ -346,12 +346,12 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
             {/* Selected Customers */}
             {selectedCustomers.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-3">
-                {selectedCustomers.map(customer => (
+                {selectedCustomers.filter(customer => customer && customer.id).map(customer => (
                   <span
                     key={customer.id}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800"
                   >
-                    {customer.first_name} {customer.last_name} ({customer.email})
+                    {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'} ({customer.email || 'No email'})
                     <button
                       onClick={() => removeCustomer(customer.id)}
                       className="ml-2 text-indigo-600 hover:text-indigo-800"
@@ -389,19 +389,19 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                       <span className="text-sm text-gray-500 mt-1">Loading customers...</span>
                     </div>
                   ) : filteredCustomers.length > 0 ? (
-                    filteredCustomers.map(customer => (
+                    filteredCustomers.filter(customer => customer && customer.id).map(customer => (
                       <button
                         key={customer.id}
                         onClick={() => addCustomer(customer)}
                         className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-3"
-                        disabled={selectedCustomers.find(c => c.id === customer.id) !== undefined}
+                        disabled={selectedCustomers.find(c => c && c.id === customer.id) !== undefined}
                       >
                         <User className="h-4 w-4 text-gray-400" />
                         <div>
                           <div className="font-medium text-gray-900">
-                            {customer.first_name} {customer.last_name}
+                            {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'}
                           </div>
-                          <div className="text-sm text-gray-500">{customer.email}</div>
+                          <div className="text-sm text-gray-500">{customer.email || 'No email'}</div>
                         </div>
                       </button>
                     ))
@@ -529,7 +529,7 @@ export function EmailComposer({ onClose, onEmailSent }: EmailComposerProps) {
                 <div className="mb-4">
                   <div className="text-sm text-gray-600 mb-1">To:</div>
                   <div className="font-medium">
-                    {selectedCustomers.map(c => c.email).join(', ') || 'No recipients selected'}
+                    {selectedCustomers.filter(c => c && c.email).map(c => c.email).join(', ') || 'No recipients selected'}
                   </div>
                 </div>
                 <div className="mb-4">

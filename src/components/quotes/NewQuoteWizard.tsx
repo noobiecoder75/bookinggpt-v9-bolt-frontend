@@ -1333,7 +1333,7 @@ export function NewQuoteWizard() {
 
           {customers.length > 0 && (
                         <div className="border border-gray-200 rounded-lg">
-              {customers.map((customer) => (
+              {customers.filter(customer => customer && customer.id).map((customer) => (
                 <div
                   key={customer.id}
                               className="p-4 border-b border-gray-200 last:border-b-0 hover:bg-gray-50 cursor-pointer"
@@ -1342,10 +1342,10 @@ export function NewQuoteWizard() {
                               <div className="flex justify-between items-center">
                                 <div>
                                   <h3 className="font-medium">
-                        {customer.first_name} {customer.last_name}
+                        {customer.first_name || 'Unknown'} {customer.last_name || 'Customer'}
                                   </h3>
-                                  <p className="text-sm text-gray-600">{customer.email}</p>
-                                  <p className="text-sm text-gray-600">{customer.phone}</p>
+                                  <p className="text-sm text-gray-600">{customer.email || 'No email'}</p>
+                                  <p className="text-sm text-gray-600">{customer.phone || 'No phone'}</p>
                     </div>
                   </div>
                 </div>
