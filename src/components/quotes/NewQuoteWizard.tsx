@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Calendar, Users, MapPin, Plane, Building, Car, ArrowLeft, ArrowRight, Plus, Trash2, DollarSign, Clock, Edit2, Save, AlertCircle, X, Loader, ChevronUp, ChevronDown, CheckCircle, Eye } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, Plane, Building, Car, ArrowLeft, ArrowRight, Plus, Trash2, DollarSign, Clock, Edit2, Save, AlertCircle, X, Loader, ChevronUp, ChevronDown, CheckCircle, Eye, Globe, Database } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { QuoteServices } from './QuoteServices';
 import { QuoteReview } from './QuoteReview';
 import { Modal } from '../../components/Modal';
 import { FlightSearchModal } from './FlightSearchModal';
+import { useAuthContext } from '../../contexts/AuthContext';
+import { providerFactory } from '../../lib/providers/ProviderFactory';
+import { ProviderError } from '../../types/providers';
 
 // Interface for Customer data structure
 interface Customer {
@@ -635,6 +638,7 @@ export function NewQuoteWizard() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [finalizedQuoteId, setFinalizedQuoteId] = useState<string | null>(null);
   const [showHotelSearch, setShowHotelSearch] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Add new state for delete confirmation
   const [dayToDelete, setDayToDelete] = useState<string | null>(null);
@@ -825,24 +829,51 @@ export function NewQuoteWizard() {
   const saveQuoteToDatabase = async () => {
     if (!selectedCustomer || !quoteDetails.days.length) return;
 
+    // Get current authenticated user
+    const { user } = useAuthContext();
+    if (!user) {
+      console.error('User not authenticated');
+      setError('User not authenticated. Please sign in again.');
+      return;
+    }
+
+    console.log('Saving quote with user:', { 
+      userId: user.id, 
+      email: user.email,
+      customerId: selectedCustomer.id,
+      quoteId: quoteDetails.id 
+    });
+
     setIsSaving(true);
     try {
       // First, save or update the main quote
+      const quoteData = {
+        id: quoteDetails.id,
+        customer_id: selectedCustomer.id,
+        agent_id: user.id, // Add the missing agent_id field
+        status: quoteDetails.status,
+        total_price: calculateTotalPrice(),
+        markup: quoteDetails.markup,
+        discount: quoteDetails.discount,
+        notes: quoteDetails.notes,
+        origin: travelRequirements.origin,
+        destination: travelRequirements.destination,
+      };
+
+      console.log('Attempting to save quote with data:', quoteData);
+
       const { data: quote, error: quoteError } = await supabase
         .from('quotes')
-        .upsert({
-          id: quoteDetails.id,
-          customer_id: selectedCustomer.id,
-          status: quoteDetails.status,
-          total_price: calculateTotalPrice(),
-          markup: quoteDetails.markup,
-          discount: quoteDetails.discount,
-          notes: quoteDetails.notes,
-          origin: travelRequirements.origin,
-          destination: travelRequirements.destination,
-        })
+        .upsert(quoteData)
         .select()
         .single();
+
+      if (quoteError) {
+        console.error('Quote save error:', quoteError);
+        throw new Error(`Failed to save quote: ${quoteError.message}`);
+      }
+
+      console.log('Quote saved successfully:', quote);
 
       if (quoteError) throw quoteError;
 

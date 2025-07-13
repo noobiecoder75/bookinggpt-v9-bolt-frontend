@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { X, Search, Users, Calendar, Plus, Loader } from 'lucide-react';
+import { X, Search, Plus, Calendar, Users, MapPin, Loader } from 'lucide-react';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 interface Customer {
   id: number;
@@ -112,6 +113,13 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
       return;
     }
 
+    // Get current authenticated user
+    const { user } = useAuthContext();
+    if (!user) {
+      alert('User not authenticated');
+      return;
+    }
+
     setIsCreating(true);
     try {
       // Calculate trip dates based on trip length
@@ -124,6 +132,7 @@ export function CreateTripDialog({ isOpen, onClose }: CreateTripDialogProps) {
         .from('quotes')
         .insert([{
           customer_id: selectedCustomer.id,
+          agent_id: user.id, // Add the missing agent_id field
           status: 'Draft',
           total_price: 0,
           markup: 0,

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, MapPin, ChevronDown, ChevronUp, Edit2, Car, Trash2, Move, CreditCard, Send, FileText, Check, CheckCircle, Copy, ExternalLink, Eye, X } from 'lucide-react';
 import { PaymentModal } from './PaymentModal';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { 
   calculateQuoteTotal, 
   calculateItemPrice, 
@@ -266,11 +267,19 @@ export function QuoteView() {
     } else {
       // For sent quotes, create a copy
       try {
+        // Get current authenticated user
+        const { user } = useAuthContext();
+        if (!user) {
+          alert('User not authenticated');
+          return;
+        }
+
         // Create new quote with draft status
         const { data: newQuote, error: quoteError } = await supabase
           .from('quotes')
           .insert([{
             customer_id: quote.customer.id,
+            agent_id: user.id, // Add the missing agent_id field
             status: 'Draft',
             total_price: quote.total_price,
             markup: quote.markup,
