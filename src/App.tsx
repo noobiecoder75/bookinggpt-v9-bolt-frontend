@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { LandingPage } from './pages/LandingPage';
@@ -233,18 +233,6 @@ function AppContent() {
     );
   }
 
-  // Show auth layout if not authenticated (unless in dev mode)
-  if (!user && import.meta.env.VITE_DEV_MODE !== 'true') {
-    console.log('🔐 No user found, showing auth layout', { timestamp: new Date().toISOString() });
-    return <AuthLayout />;
-  }
-
-  // Show auth layout if not authenticated in dev mode (admin auto-login should have worked)
-  if (!user && import.meta.env.VITE_DEV_MODE === 'true') {
-    console.warn('⚠️ Dev mode enabled but no user found - admin auto-login may have failed');
-    return <AuthLayout />;
-  }
-
   return (
     <Router>
       <Routes>
@@ -261,168 +249,8 @@ function AppContent() {
         <Route path="/oauth/gmail/callback" element={<OAuthCallback />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         
-        {/* Public Marketing Website */}
-        <Route path="/" element={user ? (
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-            <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
-            <main className="transition-all duration-300">
-              <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-                <div className="sm:px-0">
-                  <div className="mb-8">
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-8">
-                      <div className="text-center">
-                        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
-                          Welcome to BookingGPT - Pricing Fixed! 🎉
-                        </h1>
-                        <p className="text-gray-600 text-base sm:text-lg lg:text-xl leading-relaxed max-w-2xl mx-auto">
-                          Manage your travel bookings with AI-powered efficiency and streamlined workflows
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mb-8 sm:mb-10">
-                    <StatCard
-                      title="Total Revenue"
-                      value={`$${stats.totalRevenue.toLocaleString()}`}
-                      icon={<DollarSign />}
-                      color="text-emerald-600"
-                      bgColor="bg-emerald-100"
-                      subtitle="From confirmed bookings"
-                    />
-                    <StatCard
-                      title="Total Customers"
-                      value={stats.totalCustomers.toString()}
-                      icon={<Users />}
-                      color="text-blue-600"
-                      bgColor="bg-blue-100"
-                      subtitle="Active customers"
-                    />
-                    <StatCard
-                      title="Active Quotes"
-                      value={stats.activeQuotes.toString()}
-                      icon={<FileText />}
-                      color="text-amber-600"
-                      bgColor="bg-amber-100"
-                      subtitle="Pending response"
-                    />
-                    <StatCard
-                      title="Confirmed Bookings"
-                      value={stats.confirmedBookings.toString()}
-                      icon={<Calendar />}
-                      color="text-purple-600"
-                      bgColor="bg-purple-100"
-                      subtitle="Ready for travel"
-                    />
-                    <StatCard
-                      title="Conversion Rate"
-                      value={`${stats.conversionRate.toFixed(1)}%`}
-                      icon={<TrendingUp />}
-                      color="text-indigo-600"
-                      bgColor="bg-indigo-100"
-                      subtitle="Quotes to bookings"
-                    />
-                  </div>
-
-                  {/* Kanban Board */}
-                  <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-                    <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-blue-50">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h2 className="text-xl font-bold text-gray-900">Quote Pipeline</h2>
-                          <p className="text-sm text-gray-600 mt-1">Track your quotes through the sales process</p>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-white/80 backdrop-blur-sm text-indigo-700 border border-white/50 shadow-sm">
-                            {kanbanQuotes.length} Total Quotes
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <KanbanBoard 
-                        quotes={kanbanQuotes} 
-                        onMoveStage={(quoteId, newStage) => {
-                          setKanbanQuotes(prev => 
-                            prev.map(quote => 
-                              quote.id === quoteId 
-                                ? { ...quote, status: kanbanStageToStatus(newStage) }
-                                : quote
-                            )
-                          );
-                        }}
-                        onQuoteUpdate={fetchQuotes}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {/* Recent Activity */}
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
-                      <div className="border-b border-gray-100 pb-4 mb-4 sm:mb-6">
-                        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Recent Activity</h2>
-                        <p className="text-sm text-gray-600 mt-1">Latest updates and changes</p>
-                      </div>
-                      <RecentActivity />
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6">
-                      <div className="border-b border-gray-100 pb-4 mb-4 sm:mb-6">
-                        <h2 className="text-lg sm:text-xl font-bold text-gray-900">Quick Actions</h2>
-                        <p className="text-sm text-gray-600 mt-1">Get started with common tasks</p>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4">
-                        <button
-                          onClick={() => setShowCreateTripDialog(true)}
-                          className="text-left p-6 border border-gray-200 rounded-xl hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-100/50 transition-all duration-300 hover:-translate-y-1 group bg-white"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors duration-200">Create New Trip</h3>
-                              <p className="mt-2 text-sm text-gray-600 leading-relaxed">Start planning a new trip with comprehensive overview</p>
-                            </div>
-                            <div className="ml-4 flex-shrink-0">
-                              <div className="w-10 h-10 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg flex items-center justify-center group-hover:from-indigo-500 group-hover:to-indigo-600 transition-all duration-300">
-                                <span className="text-indigo-600 group-hover:text-white transition-colors duration-300 text-lg font-bold">→</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="mt-4 flex items-center text-sm font-medium text-indigo-600 group-hover:text-indigo-700">
-                            <span>Get started</span>
-                            <span className="ml-2 transform group-hover:translate-x-1 transition-transform duration-200">→</span>
-                          </div>
-                        </button>
-                        <QuickActionCard
-                          title="Create New Quote"
-                          description="Generate a new travel quote for a customer"
-                          link="/quotes/new"
-                        />
-                        <QuickActionCard
-                          title="Add Customer"
-                          description="Add a new customer to the system"
-                          link="/customers/new"
-                        />
-                        <QuickActionCard
-                          title="View Bookings"
-                          description="Check your upcoming and recent bookings"
-                          link="/bookings"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </main>
-            
-            {/* Create Trip Dialog */}
-            <CreateTripDialog 
-              isOpen={showCreateTripDialog}
-              onClose={() => setShowCreateTripDialog(false)}
-            />
-          </div>
-        ) : <LandingPage />} />
+        {/* Root Route - Marketing Landing Page for unauthenticated, Dashboard redirect for authenticated */}
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
         
         {/* Authentication Routes */}
         <Route path="/login" element={<AuthLayout defaultMode="login" />} />
