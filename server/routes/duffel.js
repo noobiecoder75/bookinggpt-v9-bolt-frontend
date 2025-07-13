@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import { authenticateUser } from '../lib/supabase.js';
 
 const router = express.Router();
 
@@ -26,9 +27,10 @@ const getDuffelHeaders = () => ({
 });
 
 // POST /api/duffel/offer-requests - Create flight search
-router.post('/offer-requests', checkDuffelToken, async (req, res) => {
+router.post('/offer-requests', authenticateUser, checkDuffelToken, async (req, res) => {
   try {
     console.log('Creating Duffel offer request with data:', req.body);
+    console.log('Authenticated user:', req.user.id);
     
     const response = await axios.post(
       `${DUFFEL_BASE_URL}/air/offer_requests`,
@@ -48,7 +50,7 @@ router.post('/offer-requests', checkDuffelToken, async (req, res) => {
 });
 
 // GET /api/duffel/offers - Get flight offers
-router.get('/offers', checkDuffelToken, async (req, res) => {
+router.get('/offers', authenticateUser, checkDuffelToken, async (req, res) => {
   try {
     const { offer_request_id, ...otherParams } = req.query;
     
@@ -59,6 +61,7 @@ router.get('/offers', checkDuffelToken, async (req, res) => {
     }
 
     console.log('Fetching Duffel offers for request:', offer_request_id);
+    console.log('Authenticated user:', req.user.id);
     
     const response = await axios.get(
       `${DUFFEL_BASE_URL}/air/offers`,
@@ -80,9 +83,10 @@ router.get('/offers', checkDuffelToken, async (req, res) => {
 });
 
 // POST /api/duffel/orders - Create booking
-router.post('/orders', checkDuffelToken, async (req, res) => {
+router.post('/orders', authenticateUser, checkDuffelToken, async (req, res) => {
   try {
     console.log('Creating Duffel order with data:', req.body);
+    console.log('Authenticated user:', req.user.id);
     
     const response = await axios.post(
       `${DUFFEL_BASE_URL}/air/orders`,
@@ -124,9 +128,10 @@ router.get('/orders/:id', checkDuffelToken, async (req, res) => {
 });
 
 // GET /api/duffel/test - Test API connection
-router.get('/test', checkDuffelToken, async (req, res) => {
+router.get('/test', authenticateUser, checkDuffelToken, async (req, res) => {
   try {
     console.log('Testing Duffel API connection...');
+    console.log('Authenticated user:', req.user.id);
     
     const response = await axios.get(
       `${DUFFEL_BASE_URL}/air/airlines`,

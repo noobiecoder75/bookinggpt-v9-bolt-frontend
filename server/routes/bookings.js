@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { supabase } from '../lib/supabase.js';
+import { supabase, authenticateUser, verifyQuoteAccess, verifyBookingAccess } from '../lib/supabase.js';
 
 const router = express.Router();
 
@@ -17,10 +17,11 @@ const DUFFEL_BASE_URL = 'https://api.duffel.com'; // Duffel API base URL
  * Create a booking from a quote after payment is processed
  * POST /api/bookings/create
  */
-router.post('/create', async (req, res) => {
+router.post('/create', authenticateUser, async (req, res) => {
   try {
     console.log('=== Booking Creation Request ===');
     console.log('Request body:', req.body);
+    console.log('Authenticated user:', req.user.id);
 
     const { quoteId, paymentReference, customerInfo } = req.body;
 
@@ -39,7 +40,10 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Get quote details from database
+    // Verify user has access to this quote
+    await verifyQuoteAccess(req.user.id, quoteIdInt);
+
+    // Get quote details from database with agent filtering
     const { data: quote, error: quoteError } = await supabase
       .from('quotes')
       .select(`
@@ -48,12 +52,13 @@ router.post('/create', async (req, res) => {
         quote_items (*)
       `)
       .eq('id', quoteIdInt)
+      .eq('agent_id', req.user.id) // Explicit agent filtering
       .single();
 
     if (quoteError || !quote) {
       console.error('Error fetching quote:', quoteError);
       return res.status(404).json({
-        error: 'Quote not found',
+        error: 'Quote not found or access denied',
         details: quoteError?.message
       });
     }
@@ -65,21 +70,26 @@ router.post('/create', async (req, res) => {
       return sum + (item.cost * item.quantity);
     }, 0);
 
+    console.log('Total amount calculated:', totalAmount);
+
     // Create booking record
+    const bookingData = {
+      booking_reference: `BKG-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`,
+      quote_id: quote.id,
+      customer_id: quote.customer.id,
+      agent_id: req.user.id, // Explicit agent assignment
+      status: 'Confirmed',
+      total_price: totalAmount,
+      amount_paid: 0, // Will be updated when payment is processed
+      payment_status: 'Unpaid',
+      payment_reference: paymentReference,
+      travel_start_date: quote.trip_start_date || new Date().toISOString().split('T')[0],
+      travel_end_date: quote.trip_end_date || new Date().toISOString().split('T')[0]
+    };
+
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .insert([{
-        quote_id: quoteIdInt,
-        customer_id: quote.customer_id,
-        agent_id: quote.agent_id || null, // Handle case where agent_id might be null
-        status: 'Pending', // Will be updated based on API confirmations
-        total_price: totalAmount,
-        amount_paid: totalAmount, // Assuming full payment for now
-        payment_status: 'Paid',
-        payment_reference: paymentReference,
-        travel_start_date: quote.trip_start_date,
-        travel_end_date: quote.trip_end_date
-      }])
+      .insert([bookingData])
       .select()
       .single();
 
@@ -821,35 +831,40 @@ router.get('/debug-confirmations/:bookingId', async (req, res) => {
  * Get booking details with confirmations
  * GET /api/bookings/:id
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateUser, async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('Fetching booking details for ID:', id);
+    console.log('Fetching booking details for ID:', id, 'by user:', req.user.id);
 
-    // First, get the basic booking data
+    // Verify user has access to this booking
+    await verifyBookingAccess(req.user.id, id);
+
+    // First, get the basic booking data with agent filtering
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('*')
       .eq('id', id)
+      .eq('agent_id', req.user.id) // Explicit agent filtering
       .single();
 
     if (bookingError) {
       console.error('Booking query error:', bookingError);
       return res.status(404).json({
-        error: 'Booking not found',
+        error: 'Booking not found or access denied',
         details: bookingError.message
       });
     }
 
     if (!booking) {
       return res.status(404).json({
-        error: 'Booking not found'
+        error: 'Booking not found or access denied'
       });
     }
 
     console.log('Booking found:', booking.booking_reference);
 
     // Fetch related data separately to avoid complex join issues
+    // All related data should be accessible since we verified booking access
     const [
       { data: customer, error: customerError },
       { data: booking_items, error: itemsError },
@@ -868,24 +883,22 @@ router.get('/:id', async (req, res) => {
     if (confirmationsError) console.error('Confirmations query error:', confirmationsError);
     if (paymentsError) console.error('Payments query error:', paymentsError);
 
-    // Construct the response with available data
-    const response = {
-      booking: {
-        ...booking,
-        customer: customer || null,
-        booking_items: booking_items || [],
-        booking_confirmations: booking_confirmations || [],
-        payments: payments || []
-      }
+    // Combine all data
+    const fullBooking = {
+      ...booking,
+      customer: customer || null,
+      booking_items: booking_items || [],
+      booking_confirmations: booking_confirmations || [],
+      payments: payments || []
     };
 
-    console.log('Returning booking data with confirmations:', booking_confirmations?.length || 0);
-    res.json(response);
+    console.log('Booking details compiled successfully');
+    res.json(fullBooking);
 
   } catch (error) {
-    console.error('Error fetching booking:', error);
+    console.error('Error fetching booking details:', error);
     res.status(500).json({
-      error: 'Internal server error',
+      error: 'Failed to fetch booking details',
       details: error.message
     });
   }

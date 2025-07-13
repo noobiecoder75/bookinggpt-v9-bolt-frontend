@@ -446,7 +446,7 @@ export function TripOverviewRefactored() {
     }
   };
 
-  const updateItemInDatabase = async (itemId: string, updates: Partial<ItineraryItem>, dayIndex?: number) => {
+  const updateItemInDatabase = async (itemId: string, updates: Partial<ItineraryItem>) => {
     if (!tripId) return;
 
     try {
@@ -457,7 +457,7 @@ export function TripOverviewRefactored() {
       if (updates.markup !== undefined) updateData.markup = updates.markup;
       if (updates.markup_type) updateData.markup_type = updates.markup_type;
       
-      if (updates.details || dayIndex !== undefined) {
+      if (updates.details) {
         // Get current details first
         const { data: currentItem } = await supabase
           .from('quote_items')
@@ -467,8 +467,7 @@ export function TripOverviewRefactored() {
 
         updateData.details = {
           ...(currentItem?.details || {}),
-          ...updates.details,
-          ...(dayIndex !== undefined && { day_index: dayIndex })
+          ...updates.details
         };
       }
 
@@ -759,39 +758,62 @@ export function TripOverviewRefactored() {
     });
   };
 
+  const handleUpdateItem = async (dayId: string, itemId: string, updates: Partial<ItineraryItem>) => {
+    // Update in database
+    await updateItemInDatabase(itemId, updates);
+    
+    // Update in local state
+    setDays(prev => prev.map(day => 
+      day.id === dayId
+        ? {
+            ...day,
+            items: day.items.map(item => 
+              item.id === itemId
+                ? { ...item, ...updates }
+                : item
+            )
+          }
+        : day
+    ));
+  };
+
   const handleRemoveLinkedFlights = async (itemId: string) => {
+    if (!tripId) return;
+
     try {
-      // Find all linked flight items
-      const linkedItemIds: string[] = [];
+      // Find the linked flight item
+      let linkedItemId: string | null = null;
       
       for (const day of days) {
-        for (const item of day.items) {
-          if (item.id === itemId || item.linkedItemId === itemId) {
-            linkedItemIds.push(item.id);
-          }
+        const item = day.items.find(i => i.id === itemId);
+        if (item && item.linkedItemId) {
+          linkedItemId = item.linkedItemId;
+          break;
         }
       }
 
-      // Remove from database
-      if (tripId && linkedItemIds.length > 0) {
-        const { error } = await supabase
-          .from('quote_items')
-          .delete()
-          .in('id', linkedItemIds);
+      // Delete both items from database
+      const itemsToDelete = linkedItemId ? [itemId, linkedItemId] : [itemId];
+      
+      const { error } = await supabase
+        .from('quote_items')
+        .delete()
+        .in('id', itemsToDelete);
 
-        if (error) throw error;
-      }
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error deleting linked flights from database:', error);
+    }
 
-      // Remove from local state
-      setDays(prev => prev.map(day => ({
+    // Remove both items from local state
+    setDays(prevDays => {
+      return prevDays.map(day => ({
         ...day,
         items: day.items.filter(item => 
-          !linkedItemIds.includes(item.id)
+          item.id !== itemId && item.linkedItemId !== itemId
         )
-      })));
-    } catch (error) {
-      console.error('Error removing linked flights:', error);
-    }
+      }));
+    });
   };
 
 
@@ -1258,6 +1280,7 @@ export function TripOverviewRefactored() {
                   onAddCustomItem={handleAddCustomItem}
                   onRemoveItem={handleRemoveItem}
                   onMoveItem={handleMoveItem}
+                  onUpdateItem={handleUpdateItem}
                   calculateTotalPrice={calculateTotalPrice}
                   onRemoveLinkedFlights={handleRemoveLinkedFlights}
                 />

@@ -1,6 +1,6 @@
 import express from 'express';
 import crypto from 'crypto';
-import { supabase } from '../lib/supabase.js';
+import { supabase, authenticateUser } from '../lib/supabase.js';
 
 const router = express.Router();
 
@@ -35,10 +35,11 @@ router.get('/test', (req, res) => {
 });
 
 // Search hotels endpoint
-router.post('/search', async (req, res) => {
+router.post('/search', authenticateUser, async (req, res) => {
   try {
     console.log('=== Hotelbeds API Search Request ===');
     console.log('Request body:', req.body);
+    console.log('Authenticated user:', req.user.id);
     
     // Read environment variables at runtime, not at module load time
     const HOTELBEDS_API_KEY = process.env.VITE_HOTELBEDS_API_KEY;

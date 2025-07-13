@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, Plus, Plane, Building, Car, MapPin, Trash2, Move } from 'lucide-react';
+import { Calendar, Plus, Plane, Building, Car, MapPin, Trash2, Move, Edit2, Check, X } from 'lucide-react';
 import { 
   calculateItemPrice,
   DEFAULT_PRICING_OPTIONS,
@@ -7,6 +7,12 @@ import {
   type PricingItem,
   type MarkupStrategy
 } from '../../../utils/pricingUtils';
+import { 
+  validateMarkup, 
+  enforceMinimumMarkup, 
+  createMarkupValidationError,
+  type MarkupValidationError 
+} from '../../../utils/markupUtils';
 
 /**
  * Utility function to create linked flight items for return flights
@@ -97,6 +103,7 @@ interface TripItinerarySectionProps {
   onAddCustomItem: (dayId: string) => void;
   onRemoveItem: (dayId: string, itemId: string) => void;
   onMoveItem: (fromDayId: string, toDayId: string, itemId: string) => void;
+  onUpdateItem: (dayId: string, itemId: string, updates: Partial<ItineraryItem>) => void;
   calculateTotalPrice: () => number;
   onRemoveLinkedFlights: (itemId: string) => void;
 }
@@ -114,6 +121,7 @@ export function TripItinerarySection({
   onAddCustomItem,
   onRemoveItem,
   onMoveItem,
+  onUpdateItem,
   calculateTotalPrice,
   onRemoveLinkedFlights
 }: TripItinerarySectionProps) {
@@ -125,6 +133,14 @@ export function TripItinerarySection({
     fromDayId: string;
   } | null>(null);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+
+  // Markup editing state
+  const [editingMarkup, setEditingMarkup] = useState<{
+    itemId: string;
+    dayId: string;
+    newMarkup: number;
+    validationError: MarkupValidationError | null;
+  } | null>(null);
 
   // Helper function to find linked flight
   const findLinkedFlight = (itemId: string): ItineraryItem | null => {
@@ -236,6 +252,74 @@ export function TripItinerarySection({
     };
 
     return calculateItemPrice(pricingItem, pricingQuote, pricingOptions);
+  };
+
+  // Markup editing handlers
+  const handleStartMarkupEdit = (item: ItineraryItem, dayId: string) => {
+    setEditingMarkup({
+      itemId: item.id,
+      dayId: dayId,
+      newMarkup: item.markup || 0,
+      validationError: null
+    });
+  };
+
+  const handleMarkupChange = async (newMarkup: number) => {
+    if (!editingMarkup) return;
+
+    // Find the item being edited
+    const day = days.find(d => d.id === editingMarkup.dayId);
+    const item = day?.items.find(i => i.id === editingMarkup.itemId);
+    
+    if (!item) return;
+
+    // Validate the new markup
+    const validation = await validateMarkup(item.type, newMarkup, item.markup_type);
+    
+    setEditingMarkup(prev => prev ? {
+      ...prev,
+      newMarkup,
+      validationError: validation.isValid ? null : createMarkupValidationError(
+        item.type,
+        newMarkup,
+        validation.minimumMarkup
+      )
+    } : null);
+  };
+
+  const handleSaveMarkup = async () => {
+    if (!editingMarkup) return;
+
+    const day = days.find(d => d.id === editingMarkup.dayId);
+    const item = day?.items.find(i => i.id === editingMarkup.itemId);
+    
+    if (!item) return;
+
+    // Validate one more time before saving
+    const validation = await validateMarkup(item.type, editingMarkup.newMarkup, item.markup_type);
+    
+    if (!validation.isValid) {
+      setEditingMarkup(prev => prev ? {
+        ...prev,
+        validationError: createMarkupValidationError(
+          item.type,
+          editingMarkup.newMarkup,
+          validation.minimumMarkup
+        )
+      } : null);
+      return;
+    }
+
+    // Update the item markup via the callback
+    await onUpdateItem(editingMarkup.dayId, editingMarkup.itemId, { 
+      markup: editingMarkup.newMarkup 
+    });
+    
+    setEditingMarkup(null);
+  };
+
+  const handleCancelMarkupEdit = () => {
+    setEditingMarkup(null);
   };
 
   return (
@@ -500,10 +584,58 @@ export function TripItinerarySection({
                                   ${item.cost.toFixed(2)}
                                 </p>
                               )}
-                              {item.markup > 0 && (
-                                <p className="text-xs text-green-600">
-                                  +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
-                                </p>
+                              {/* Markup editing interface */}
+                              {editingMarkup?.itemId === item.id ? (
+                                <div className="space-y-2">
+                                  <div className="flex items-center space-x-2">
+                                    <input
+                                      type="number"
+                                      value={editingMarkup.newMarkup}
+                                      onChange={(e) => handleMarkupChange(Number(e.target.value))}
+                                      className={`w-16 px-2 py-1 text-xs border rounded ${
+                                        editingMarkup.validationError 
+                                          ? 'border-red-300 bg-red-50' 
+                                          : 'border-gray-300'
+                                      }`}
+                                      step="0.1"
+                                      min="0"
+                                    />
+                                    <span className="text-xs text-gray-600">
+                                      {item.markup_type === 'percentage' ? '%' : '$'} markup
+                                    </span>
+                                    <button
+                                      onClick={handleSaveMarkup}
+                                      disabled={!!editingMarkup.validationError}
+                                      className="p-1 text-green-600 hover:text-green-700 disabled:text-gray-400"
+                                    >
+                                      <Check className="h-3 w-3" />
+                                    </button>
+                                    <button
+                                      onClick={handleCancelMarkupEdit}
+                                      className="p-1 text-red-600 hover:text-red-700"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                  {editingMarkup.validationError && (
+                                    <p className="text-xs text-red-600 bg-red-50 p-2 rounded">
+                                      {editingMarkup.validationError.message}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1">
+                                  <p className={`text-xs ${item.markup > 0 ? 'text-green-600' : 'text-gray-500'}`}>
+                                    +{item.markup}{item.markup_type === 'percentage' ? '%' : '$'} markup
+                                  </p>
+                                  <button
+                                    onClick={() => handleStartMarkupEdit(item, day.id)}
+                                    className="p-1 text-gray-400 hover:text-gray-600"
+                                    title="Edit markup"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                </div>
                               )}
                               <p className="text-xs font-semibold text-indigo-600">
                                 Final: ${calculateItemPriceUnified(item).toFixed(2)}

@@ -3,6 +3,7 @@ import { X, Search, Building, Loader, AlertCircle, Globe, Database } from 'lucid
 import { supabase } from '../../../lib/supabase';
 import { providerFactory } from '../../../lib/providers/ProviderFactory';
 import { ProviderError } from '../../../types/providers';
+import { getDefaultMarkupForNewItem } from '../../../utils/markupUtils';
 
 interface HotelSearchModalProps {
   isOpen: boolean;
@@ -329,24 +330,27 @@ export function HotelSearchModal({
     return matchesSearch && matchesHotelName && matchesCountry;
   });
 
-  const handleHotelSelect = (hotel: HotelRate) => {
-    // Calculate total stay cost
+  const handleHotelSelect = async (hotel: HotelRate) => {
+    const numberOfNights = calculateNights(checkInDate, checkOutDate);
     const totalStayCost = hotel.cost * numberOfNights;
     
-    // Debug logging for rate key preservation
-    console.log('=== HotelSearchModal: Hotel Selection Debug ===');
-    console.log('Original hotel object:', hotel);
-    console.log('Hotel details:', hotel.details);
+    console.log('Selected hotel:', hotel);
+    console.log('Number of nights:', numberOfNights);
+    console.log('Per-night cost:', hotel.cost);
+    console.log('Total stay cost:', totalStayCost);
     console.log('Rate key from hotel.details:', hotel.details?.rateKey);
     console.log('Booking available:', hotel.details?.bookingAvailable);
     console.log('Source:', hotel.details?.source);
+    
+    // Get default markup for hotels
+    const defaultMarkup = await getDefaultMarkupForNewItem('Hotel');
     
     const hotelItem = {
       id: hotel.id,
       name: hotel.description,
       cost: totalStayCost, // Store total stay cost, not per-night
-      markup: 0,
-      markup_type: 'percentage' as const,
+      markup: defaultMarkup.markup,
+      markup_type: defaultMarkup.markup_type,
       quantity: 1, // Hotels are typically quantity 1 for the entire stay
       details: {
         description: hotel.description,

@@ -3,6 +3,7 @@ import { Search, Plus, FileText, Calendar, Filter, X, ChevronDown, RefreshCw, Ma
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleOAuth } from '../hooks/useGoogleOAuth';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface Customer {
   id: number;
@@ -74,9 +75,23 @@ export function CustomerDashboard() {
       setError(null);
 
       console.log('Fetching customers with search term:', searchTerm);
+      
+      // Get current authenticated user for agent filtering
+      const { user } = useAuthContext();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Fetch customers that the agent has access to through quotes or bookings
+      // This query explicitly includes agent context for clarity, though RLS policies will enforce this
       let query = supabase
         .from('customers')
-        .select('*')
+        .select(`
+          *,
+          quotes!inner(agent_id),
+          bookings!inner(agent_id)
+        `)
+        .or(`quotes.agent_id.eq.${user.id},bookings.agent_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
       if (searchTerm) {
@@ -90,8 +105,13 @@ export function CustomerDashboard() {
       if (error) throw error;
       console.log('Customers fetched successfully:', { count: data?.length });
 
-      setCustomers(data || []);
-      await fetchCustomerStats(data || []);
+      // Remove duplicates that might occur from joins
+      const uniqueCustomers = data ? data.filter((customer, index, self) => 
+        index === self.findIndex(c => c.id === customer.id)
+      ) : [];
+
+      setCustomers(uniqueCustomers);
+      await fetchCustomerStats(uniqueCustomers);
       setLastUpdated(new Date());
       setLoading(false);
       setRefreshing(false);
@@ -108,17 +128,26 @@ export function CustomerDashboard() {
 
     console.log('Fetching stats for customers:', customers.length);
 
+    // Get current authenticated user for agent filtering
+    const { user } = useAuthContext();
+    if (!user) {
+      console.warn('User not authenticated, skipping stats fetch');
+      return;
+    }
+
     await Promise.all(
       customers.map(async (customer) => {
         const [bookingsResponse, quotesResponse, emailsResponse] = await Promise.all([
           supabase
             .from('bookings')
             .select('total_price, status')
-            .eq('customer_id', customer.id),
+            .eq('customer_id', customer.id)
+            .eq('agent_id', user.id), // Explicit agent filtering
           supabase
             .from('quotes')
             .select('total_price, status')
             .eq('customer_id', customer.id)
+            .eq('agent_id', user.id) // Explicit agent filtering
             .eq('status', 'Sent'),
           supabase
             .from('email_communications')

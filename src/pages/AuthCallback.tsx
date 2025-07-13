@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { handlePortRedirect } from '../utils/portRedirect';
 
 export function AuthCallback() {
   const navigate = useNavigate();
@@ -9,10 +10,17 @@ export function AuthCallback() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
+        // Handle port redirect first
+        if (handlePortRedirect()) {
+          console.log('🔀 Port redirect handled, stopping callback processing');
+          return;
+        }
+
         console.log('🔄 Processing OAuth callback...', {
           url: window.location.href,
           hash: window.location.hash,
           search: window.location.search,
+          port: window.location.port,
           timestamp: new Date().toISOString()
         });
 

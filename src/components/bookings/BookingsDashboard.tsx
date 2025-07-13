@@ -7,6 +7,7 @@ import { BookingStats } from './BookingStats';
 import { BookingDetails } from './BookingDetails';
 import { BookingConfirmationView } from './BookingConfirmationView';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 export type BookingStatus = 'Confirmed' | 'Cancelled' | 'Completed' | 'Pending' | 'Processing' | 'Failed';
 export type PaymentStatus = 'Unpaid' | 'Partial' | 'Paid';
@@ -67,6 +68,12 @@ export function BookingsDashboard() {
 
   async function fetchBookings() {
     try {
+      // Get current authenticated user for agent filtering
+      const { user } = useAuthContext();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       let query = supabase
         .from('bookings')
         .select(`
@@ -93,6 +100,7 @@ export function BookingsDashboard() {
             error_details
           )
         `)
+        .eq('agent_id', user.id) // Explicit agent filtering
         .gte('travel_start_date', dateRange.start)
         .lte('travel_start_date', dateRange.end)
         .order('travel_start_date', { ascending: true });

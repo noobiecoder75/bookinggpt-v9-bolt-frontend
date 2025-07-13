@@ -129,11 +129,17 @@ export function useAuth(): UseAuthResult {
       setLoading(true);
       setError(null);
 
+      // Get the current URL and replace port if necessary to match expected redirect
+      const currentOrigin = window.location.origin;
+      const redirectUrl = `${currentOrigin}/auth/callback`;
+      
+      console.log('🔧 OAuth redirect URL:', redirectUrl);
+
       // Use popup flow instead of redirect to preserve current page
       const { data, error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           // This will open in a popup window
           queryParams: {
             access_type: 'offline',
@@ -160,20 +166,44 @@ export function useAuth(): UseAuthResult {
           'width=500,height=600,scrollbars=yes,resizable=yes'
         );
 
-        // Monitor popup for completion
+        // Monitor popup for completion and handle cross-origin communication
         const checkClosed = setInterval(() => {
           if (popup?.closed) {
             clearInterval(checkClosed);
-            setLoading(false);
             console.log('🔄 OAuth popup closed, checking session...');
             
             // Check for session after popup closes
             setTimeout(async () => {
-              const { data: sessionData } = await supabase.auth.getSession();
-              if (sessionData.session) {
-                console.log('✅ OAuth session established successfully');
+              try {
+                const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+                if (sessionError) {
+                  console.error('🚨 Session check error:', sessionError);
+                  setError('Authentication failed. Please try again.');
+                } else if (sessionData.session) {
+                  console.log('✅ OAuth session established successfully');
+                  setError(null);
+                } else {
+                  console.warn('⚠️ No session found after OAuth popup closed');
+                  setError('Authentication was not completed. Please try again.');
+                }
+              } catch (err: any) {
+                console.error('🚨 Error checking session:', err);
+                setError('Failed to verify authentication. Please try again.');
+              } finally {
+                setLoading(false);
               }
             }, 1000);
+          } else {
+            // Check if popup URL changed to our callback (handles cross-origin)
+            try {
+              if (popup?.location?.href?.includes('/auth/callback')) {
+                console.log('🔄 Detected callback URL in popup');
+                popup.close();
+                clearInterval(checkClosed);
+              }
+            } catch (e) {
+              // Cross-origin error is expected - popup is on different domain
+            }
           }
         }, 1000);
 
@@ -183,6 +213,7 @@ export function useAuth(): UseAuthResult {
             popup.close();
             clearInterval(checkClosed);
             setLoading(false);
+            setError('OAuth popup timed out. Please try again.');
             console.warn('⚠️ OAuth popup timeout');
           }
         }, 300000); // 5 minute timeout
@@ -191,6 +222,7 @@ export function useAuth(): UseAuthResult {
     } catch (err: any) {
       console.error('🚨 Google sign in failed:', err);
       setError(err.message);
+      setLoading(false);
       throw err;
     }
   }, []);

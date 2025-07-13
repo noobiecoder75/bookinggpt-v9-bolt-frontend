@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Search, MapPin, Loader, AlertCircle, Clock, Users } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
+import { getDefaultMarkupForNewItem } from '../../../utils/markupUtils';
 
 interface ActivitySearchModalProps {
   isOpen: boolean;
@@ -83,13 +84,16 @@ export function ActivitySearchModal({
     return matchesSearch && matchesCategory;
   });
 
-  const handleActivitySelect = (activity: ActivityRate) => {
+  const handleActivitySelect = async (activity: ActivityRate) => {
+    // Get default markup for activities (Tour type)
+    const defaultMarkup = await getDefaultMarkupForNewItem('Tour');
+    
     const activityItem = {
       id: activity.id,
       name: activity.description,
       cost: activity.cost,
-      markup: 0,
-      markup_type: 'percentage' as const,
+      markup: defaultMarkup.markup,
+      markup_type: defaultMarkup.markup_type,
       details: {
         description: activity.description,
         currency: activity.currency,

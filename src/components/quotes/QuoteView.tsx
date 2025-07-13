@@ -16,6 +16,7 @@ import {
   type PricingItem,
   type MarkupStrategy
 } from '../../utils/pricingUtils';
+import { validateMarkup, getAgentMarkupSettings } from '../../utils/markupUtils';
 
 interface Quote {
   id: string;
@@ -313,6 +314,25 @@ export function QuoteView() {
     if (!quote) return;
 
     try {
+      // Validate global markup against minimum requirements for all item types
+      const globalSettings = await getAgentMarkupSettings();
+      const itemTypes = [...new Set(quote.quote_items.map(item => item.item_type))];
+      
+      // Check if the new global markup meets minimum requirements for all item types
+      const validationErrors = [];
+      
+      for (const itemType of itemTypes) {
+        const validation = await validateMarkup(itemType, newMarkup, 'percentage');
+        if (!validation.isValid) {
+          validationErrors.push(`${itemType}: minimum ${validation.minimumMarkup}%`);
+        }
+      }
+      
+      if (validationErrors.length > 0) {
+        alert(`Global markup of ${newMarkup}% is below minimum requirements:\n\n${validationErrors.join('\n')}\n\nPlease set a higher markup or update your global settings.`);
+        return;
+      }
+
       const { error } = await supabase
         .from('quotes')
         .update({ markup: newMarkup })
@@ -324,6 +344,7 @@ export function QuoteView() {
       setIsEditingMarkup(false);
     } catch (error) {
       console.error('Error updating markup:', error);
+      alert('Failed to update markup. Please try again.');
     }
   };
 

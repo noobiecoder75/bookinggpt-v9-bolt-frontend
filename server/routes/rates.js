@@ -3,6 +3,7 @@ import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import { authenticateUser } from '../lib/supabase.js';
 import OpenAI from 'openai';
 import mammoth from 'mammoth';
 import xlsx from 'xlsx';
@@ -218,8 +219,9 @@ function validateRateData(rates) {
 }
 
 // Upload endpoint
-router.post('/upload', async (req, res) => {
+router.post('/upload', authenticateUser, async (req, res) => {
   console.log('=== Upload request received ===');
+  console.log('Authenticated user:', req.user.id);
   
   try {
     // Parse the form data
@@ -296,19 +298,20 @@ router.post('/upload', async (req, res) => {
     validateRateData(ratesData);
     console.log('Step 6 complete: Data validation passed');
 
-    // Get the current user (you might need to implement proper auth here)
-    const agentId = fields.agent_id?.[0] || 'd7bed82f-accb-4bb1-96da-1d59c8725e5c'; // Default for demo
-    console.log('Using agent ID:', agentId);
+    // Use authenticated user's ID instead of form field
+    const agentId = req.user.id;
+    console.log('Using authenticated agent ID:', agentId);
 
     // Prepare data for insertion
     console.log('Step 7: Preparing data for database insertion...');
     const ratesToInsert = ratesData.map(rate => ({
       ...rate,
-      agent_id: agentId,
+      agent_id: agentId, // Use authenticated user's ID
       details: {
         imported_from: file.originalFilename,
         imported_at: new Date().toISOString(),
-        extraction_method: 'ai_powered'
+        extraction_method: 'ai_powered',
+        uploaded_by: req.user.email
       }
     }));
     console.log('Step 7 complete: Data prepared for insertion');

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 import { EmailDetailModal } from '../communications/EmailDetailModal';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 interface StatCardProps {
   title: string;
@@ -124,18 +125,36 @@ export function CustomerProfileView() {
     try {
       setLoading(true);
       
-      // Fetch customer details
-      const { data: customerData, error: customerError } = await supabase
+      // Get current authenticated user for agent filtering
+      const { user } = useAuthContext();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Fetch customer details with agent access verification
+      // First verify the agent has access to this customer through quotes or bookings
+      const { data: accessCheck, error: accessError } = await supabase
         .from('customers')
-        .select('*')
+        .select(`
+          *,
+          quotes!inner(agent_id),
+          bookings!inner(agent_id)
+        `)
         .eq('id', id)
+        .or(`quotes.agent_id.eq.${user.id},bookings.agent_id.eq.${user.id}`)
         .single();
 
-      if (customerError) throw customerError;
-      setCustomer(customerData);
-      setEditedCustomer(customerData);
+      if (accessError) {
+        if (accessError.code === 'PGRST116') {
+          throw new Error('Customer not found or access denied');
+        }
+        throw accessError;
+      }
 
-      // Fetch customer events
+      setCustomer(accessCheck);
+      setEditedCustomer(accessCheck);
+
+      // Fetch customer events with agent filtering
       const { data: eventsData, error: eventsError } = await supabase
         .from('customer_events')
         .select('*')
@@ -145,27 +164,30 @@ export function CustomerProfileView() {
       if (eventsError) throw eventsError;
       setEvents(eventsData);
 
-      // Fetch quotes
+      // Fetch quotes with explicit agent filtering
       const { data: quotesData, error: quotesError } = await supabase
         .from('quotes')
         .select('*')
         .eq('customer_id', id)
+        .eq('agent_id', user.id) // Explicit agent filtering
         .order('created_at', { ascending: false });
 
       if (quotesError) throw quotesError;
       setQuotes(quotesData);
 
-      // Fetch bookings
+      // Fetch bookings with explicit agent filtering
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('*')
         .eq('customer_id', id)
+        .eq('agent_id', user.id) // Explicit agent filtering
         .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
       setBookings(bookingsData);
 
-      // Fetch email communications
+      // Fetch email communications with agent context
+      // Email communications are linked to customers through agent relationships
       const { data: emailsData, error: emailsError } = await supabase
         .from('email_communications')
         .select('*')

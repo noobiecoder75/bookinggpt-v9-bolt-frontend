@@ -13,6 +13,7 @@ import {
   type MarkupStrategy
 } from '../../utils/pricingUtils';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
+import { useAuthContext } from '../../contexts/AuthContext';
 
 interface Quote {
   id: number;
@@ -181,6 +182,12 @@ export function QuotesDashboard() {
       if (showRefreshing) setRefreshing(true);
       setError(null);
 
+      // Get current authenticated user for agent filtering
+      const { user } = useAuthContext();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       const { data, error } = await supabase
         .from('quotes')
         .select(`
@@ -202,6 +209,7 @@ export function QuotesDashboard() {
             details
           )
         `)
+        .eq('agent_id', user.id) // Explicit agent filtering
         .order('created_at', { ascending: false });
 
       if (error) throw error;
