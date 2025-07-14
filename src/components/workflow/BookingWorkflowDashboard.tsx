@@ -244,7 +244,7 @@ export function BookingWorkflowDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Contact</h3>
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">
-                  <strong>Email:</strong> {booking.customer.email}
+                  <strong>Email:</strong> {booking.customer?.email || 'No email'}
                 </p>
                 <p className="text-sm text-gray-600">
                   <strong>Phone:</strong> {booking.customer.phone}

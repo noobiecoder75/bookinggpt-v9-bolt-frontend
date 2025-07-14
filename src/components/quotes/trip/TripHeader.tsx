@@ -280,7 +280,7 @@ This link can be shared with anyone - no login required.`;
                     <p className="text-sm font-medium text-gray-900">
                       {trip.customer?.first_name || 'Unknown'} {trip.customer?.last_name || 'Customer'}
                     </p>
-                    <p className="text-xs text-gray-500">{trip.customer.email}</p>
+                    <p className="text-xs text-gray-500">{trip.customer?.email || 'No email'}</p>
                   </div>
                 </div>
               )}

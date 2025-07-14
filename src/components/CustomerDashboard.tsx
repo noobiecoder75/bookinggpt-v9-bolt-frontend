@@ -549,7 +549,7 @@ export function CustomerDashboard() {
                             {/* Show email only on desktop */}
                             <div className="hidden sm:block mt-1">
                               <div className="flex flex-col sm:flex-row sm:items-center text-sm text-gray-500 space-y-1 sm:space-y-0 sm:space-x-4">
-                                <span className="break-all">{customer.email}</span>
+                                 <span className="break-all">{customer.email || 'No email'}</span>
                                 <span className="hidden sm:inline">•</span>
                                 <span>{customer.phone}</span>
                                 {customer.nationality && (
@@ -601,7 +601,7 @@ export function CustomerDashboard() {
                   <div className="mt-3 sm:hidden">
                     <div className="flex justify-between items-start">
                       <div className="text-xs text-gray-500 space-y-1 flex-1">
-                        <div className="truncate">{customer.email}</div>
+                        <div className="truncate">{customer.email || 'No email'}</div>
                         <div>{customer.phone}</div>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {customer.nationality && (

@@ -108,7 +108,7 @@ export function BookingDetails({ booking, onUpdate }: Props) {
         <div className="space-y-2">
           <div className="flex items-center text-sm">
             <Mail className="h-5 w-5 text-gray-400 mr-2" />
-            <span>{booking.customer.email}</span>
+            <span>{booking.customer?.email || 'No email'}</span>
           </div>
           <div className="flex items-center text-sm">
             <Phone className="h-5 w-5 text-gray-400 mr-2" />

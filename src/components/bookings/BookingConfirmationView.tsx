@@ -365,8 +365,8 @@ export function BookingConfirmationView({ booking, onClose, onUpdate }: Props) {
                       </div>
                       <div className="flex items-center">
                         <Mail className="h-5 w-5 text-gray-400 mr-3" />
-                        <a href={`mailto:${booking.customer.email}`} className="text-indigo-600 hover:text-indigo-800">
-                          {booking.customer.email}
+                        <a href={`mailto:${booking.customer?.email || ''}`} className="text-indigo-600 hover:text-indigo-800">
+                          {booking.customer?.email || 'No email'}
                         </a>
                       </div>
                       <div className="flex items-center">

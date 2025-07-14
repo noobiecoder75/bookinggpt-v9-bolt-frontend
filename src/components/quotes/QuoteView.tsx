@@ -846,7 +846,7 @@ export function QuoteView() {
                 <p className="text-sm font-medium text-gray-900">
                   {quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}
                 </p>
-                <p className="text-sm text-gray-500">{quote.customer.email}</p>
+                <p className="text-sm text-gray-500">{quote.customer?.email || 'No email'}</p>
                 <p className="text-sm text-gray-500">{quote.customer.phone}</p>
               </div>
             </div>

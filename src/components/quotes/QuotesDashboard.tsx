@@ -772,7 +772,7 @@ export function QuotesDashboard() {
                             </div>
                             {/* Show email on mobile */}
                             <div className="mt-1 sm:hidden">
-                              <span className="text-xs text-gray-400">{quote.customer.email}</span>
+                              <span className="text-xs text-gray-400">{quote.customer?.email || 'No email'}</span>
                               {/* Email stats temporarily disabled - needs proper implementation */}
                             </div>
                           </div>

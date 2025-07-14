@@ -77,7 +77,7 @@ export function TeamSettings() {
                     </h3>
                     <div className="flex items-center mt-1">
                       <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                      <p className="text-sm text-gray-600">{member.email}</p>
+                      <p className="text-sm text-gray-600">{member.email || 'No email'}</p>
                     </div>
                   </div>
                 </div>

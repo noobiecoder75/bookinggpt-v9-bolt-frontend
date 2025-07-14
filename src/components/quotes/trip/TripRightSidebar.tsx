@@ -66,7 +66,7 @@ export function TripRightSidebar({
                   <p className="text-sm font-medium text-gray-900">
                     {trip.customer?.first_name || 'Unknown'} {trip.customer?.last_name || 'Customer'}
                   </p>
-                  <p className="text-xs text-gray-600">{trip.customer.email}</p>
+                  <p className="text-xs text-gray-600">{trip.customer?.email || 'No email'}</p>
                   {trip.customer.phone && (
                     <p className="text-xs text-gray-600">{trip.customer.phone}</p>
                   )}
@@ -80,13 +80,13 @@ export function TripRightSidebar({
             {/* Additional Travelers */}
             {travelers.length > 0 && (
               <div className="space-y-2">
-                {travelers.map((traveler) => (
+                {travelers.filter(traveler => traveler && traveler.id).map((traveler) => (
                   <div key={traveler.id} className="flex items-center justify-between p-2 border border-gray-200 rounded-lg">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{traveler.name}</p>
-                      <p className="text-xs text-gray-500">{traveler.email}</p>
+                      <p className="text-sm font-medium text-gray-900">{traveler.name || 'Unknown Traveler'}</p>
+                      <p className="text-xs text-gray-500">{traveler.email || 'No email'}</p>
                     </div>
-                    <span className="text-xs text-gray-500">{traveler.type}</span>
+                    <span className="text-xs text-gray-500">{traveler.type || 'Adult'}</span>
                   </div>
                 ))}
               </div>
