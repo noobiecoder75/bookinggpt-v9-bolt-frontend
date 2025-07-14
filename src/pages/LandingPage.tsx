@@ -22,11 +22,15 @@ import {
   Target,
   Briefcase
 } from 'lucide-react';
+import { SubscriptionModal } from '../components/subscription/SubscriptionModal';
+import toast from 'react-hot-toast';
 
 export function LandingPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'individual' | 'agency'>('individual');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = useState(false);
+  const [selectedTier, setSelectedTier] = useState<'basic' | 'professional' | 'enterprise'>('basic');
 
   const handleSignIn = () => {
     navigate('/login');
@@ -38,6 +42,17 @@ export function LandingPage() {
 
   const handleGetStarted = () => {
     navigate('/signup');
+  };
+
+  const handleSubscribe = (tier: 'basic' | 'professional' | 'enterprise') => {
+    setSelectedTier(tier);
+    setSubscriptionModalOpen(true);
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setSubscriptionModalOpen(false);
+    toast.success('Trial started successfully! Welcome to BookingGPT.');
+    navigate('/dashboard');
   };
 
   return (
@@ -450,13 +465,13 @@ export function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
-            {/* Starter Plan */}
+            {/* Basic Plan */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 relative">
               <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Starter</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">Basic</h3>
                 <p className="text-gray-600 mb-6">Perfect for individual agents</p>
                 <div className="mb-8">
-                  <span className="text-4xl font-bold text-gray-900">$49</span>
+                  <span className="text-4xl font-bold text-gray-900">$99</span>
                   <span className="text-gray-600 ml-2">/month</span>
                 </div>
               </div>
@@ -464,36 +479,28 @@ export function LandingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Up to 1 agent</span>
+                  <span className="text-gray-700">Up to 100 quotes per month</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Unlimited customers</span>
+                  <span className="text-gray-700">Basic customer management</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">AI-powered booking engine</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Payment processing</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Email automation</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Basic reporting</span>
+                  <span className="text-gray-700">AI-powered quote generation</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
                   <span className="text-gray-700">Email support</span>
                 </li>
+                <li className="flex items-start">
+                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Standard reporting</span>
+                </li>
               </ul>
               
               <button
-                onClick={handleGetStarted}
+                onClick={() => handleSubscribe('basic')}
                 className="w-full bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors"
               >
                 Start Free Trial
@@ -512,7 +519,7 @@ export function LandingPage() {
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Professional</h3>
                 <p className="text-gray-600 mb-6">Great for small agencies</p>
                 <div className="mb-8">
-                  <span className="text-4xl font-bold text-gray-900">$149</span>
+                  <span className="text-4xl font-bold text-gray-900">$299</span>
                   <span className="text-gray-600 ml-2">/month</span>
                 </div>
               </div>
@@ -520,15 +527,19 @@ export function LandingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Up to 5 agents</span>
+                  <span className="text-gray-700">Up to 500 quotes per month</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Everything in Starter</span>
+                  <span className="text-gray-700">Advanced customer management</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Team management & permissions</span>
+                  <span className="text-gray-700">Team collaboration tools</span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <span className="text-gray-700">Priority support</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -536,20 +547,12 @@ export function LandingPage() {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Performance tracking</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Priority email support</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Phone support</span>
+                  <span className="text-gray-700">Custom branding</span>
                 </li>
               </ul>
               
               <button
-                onClick={handleGetStarted}
+                onClick={() => handleSubscribe('professional')}
                 className="w-full bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
               >
                 Start Free Trial
@@ -562,7 +565,7 @@ export function LandingPage() {
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Enterprise</h3>
                 <p className="text-gray-600 mb-6">For large agencies</p>
                 <div className="mb-8">
-                  <span className="text-4xl font-bold text-gray-900">$399</span>
+                  <span className="text-4xl font-bold text-gray-900">$999</span>
                   <span className="text-gray-600 ml-2">/month</span>
                 </div>
               </div>
@@ -570,11 +573,11 @@ export function LandingPage() {
               <ul className="space-y-4 mb-8">
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Unlimited agents</span>
+                  <span className="text-gray-700">Unlimited quotes</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Everything in Professional</span>
+                  <span className="text-gray-700">Full team management</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -582,7 +585,7 @@ export function LandingPage() {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Advanced security & compliance</span>
+                  <span className="text-gray-700">Dedicated account manager</span>
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -590,19 +593,15 @@ export function LandingPage() {
                 </li>
                 <li className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">Dedicated account manager</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span className="text-gray-700">24/7 priority support</span>
+                  <span className="text-gray-700">SLA guarantees</span>
                 </li>
               </ul>
               
               <button
-                onClick={handleGetStarted}
+                onClick={() => handleSubscribe('enterprise')}
                 className="w-full bg-gray-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-gray-800 transition-colors"
               >
-                Contact Sales
+                Start Free Trial
               </button>
             </div>
           </div>
@@ -945,6 +944,14 @@ export function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={subscriptionModalOpen}
+        onClose={() => setSubscriptionModalOpen(false)}
+        selectedTier={selectedTier}
+        onSuccess={handleSubscriptionSuccess}
+      />
     </div>
   );
 }
