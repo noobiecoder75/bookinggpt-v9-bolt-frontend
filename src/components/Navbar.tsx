@@ -39,6 +39,8 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
     try {
       await signOut();
       setIsUserMenuOpen(false);
+      // Redirect to main screen after successful sign out
+      navigate('/');
     } catch (error) {
       console.error('Sign out error:', error);
     }
