@@ -9,7 +9,7 @@ interface KanbanQuote {
   status: 'Draft' | 'Sent' | 'Expired' | 'Converted' | 'Published';
   total_price: number;
   created_at: string;
-  customer: {
+  customer?: {
     id: number;
     first_name: string;
     last_name: string;
@@ -235,7 +235,7 @@ export const KanbanBoard: React.FC<{
                                   {quote.quote_reference || `${quote.customer?.first_name || 'Unknown'} ${quote.customer?.last_name || 'Customer'}`}
                                 </div>
                                 <div className="text-xs text-gray-500 truncate">
-                                  {quote.customer.first_name} {quote.customer.last_name}
+                                  {quote.customer?.first_name || 'Unknown'} {quote.customer?.last_name || 'Customer'}
                                 </div>
                                 <div className="text-xs text-gray-400">
                                   {new Date(quote.created_at).toLocaleDateString()}
