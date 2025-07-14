@@ -127,28 +127,41 @@ export function CustomerProfileView() {
         throw new Error('User not authenticated');
       }
       
-      // Fetch customer details with agent access verification
-      // First verify the agent has access to this customer through quotes or bookings
-      const { data: accessCheck, error: accessError } = await supabase
+      // Fetch customer details - simplified approach
+      const { data: customerData, error: customerError } = await supabase
         .from('customers')
-        .select(`
-          *,
-          quotes!inner(agent_id),
-          bookings!inner(agent_id)
-        `)
+        .select('*')
         .eq('id', id)
-        .or(`quotes.agent_id.eq.${user.id},bookings.agent_id.eq.${user.id}`)
         .single();
 
-      if (accessError) {
-        if (accessError.code === 'PGRST116') {
-          throw new Error('Customer not found or access denied');
+      if (customerError) {
+        if (customerError.code === 'PGRST116') {
+          throw new Error('Customer not found');
         }
-        throw accessError;
+        throw customerError;
       }
 
-      setCustomer(accessCheck);
-      setEditedCustomer(accessCheck);
+      // Verify agent has access to this customer through quotes or bookings
+      const { data: quoteAccess } = await supabase
+        .from('quotes')
+        .select('id')
+        .eq('customer_id', id)
+        .eq('agent_id', user.id)
+        .limit(1);
+
+      const { data: bookingAccess } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('customer_id', id)
+        .eq('agent_id', user.id)
+        .limit(1);
+
+      if (!quoteAccess?.length && !bookingAccess?.length) {
+        throw new Error('Access denied - no associated quotes or bookings');
+      }
+
+      setCustomer(customerData);
+      setEditedCustomer(customerData);
 
       // Fetch customer events with agent filtering
       const { data: eventsData, error: eventsError } = await supabase
@@ -186,7 +199,7 @@ export function CustomerProfileView() {
       // Email communications are linked to customers through agent relationships
       const { data: emailsData, error: emailsError } = await supabase
         .from('email_communications')
-        .select('id, email_type, subject, status, sent_at, opened_at, body, recipients')
+        .select('id, customer_id, email_type, subject, status, sent_at, opened_at, body, recipients')
         .eq('customer_id', id)
         .or('quote_id.is.null')
         .order('sent_at', { ascending: false });
