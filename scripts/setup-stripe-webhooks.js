@@ -13,6 +13,7 @@ import Stripe from 'stripe';
 import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
+import readline from 'readline';
 import { fileURLToPath } from 'url';
 
 // Get current directory (equivalent to __dirname in CommonJS)
@@ -50,17 +51,17 @@ const REQUIRED_EVENTS = [
 
 // Helper function to get webhook URL
 function getWebhookUrl() {
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const backendUrl = process.env.BACKEND_URL;
   const backendPort = process.env.PORT || '3001';
   
-  // Determine base URL
+  // Use BACKEND_URL if provided, otherwise default to localhost
   let baseUrl;
-  if (frontendUrl.includes('localhost')) {
-    // Development environment
-    baseUrl = `http://localhost:${backendPort}`;
+  if (backendUrl) {
+    // Use explicit backend URL (production or custom)
+    baseUrl = backendUrl.replace(/\/$/, ''); // Remove trailing slash if present
   } else {
-    // Production environment - assume same domain
-    baseUrl = frontendUrl.replace(/:\d+$/, ''); // Remove port if present
+    // Development environment fallback
+    baseUrl = `http://localhost:${backendPort}`;
   }
   
   return `${baseUrl}/api/webhooks/stripe`;

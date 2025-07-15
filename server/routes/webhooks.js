@@ -1,8 +1,9 @@
-const express = require('express');
+import express from 'express';
+import stripe from '../lib/stripe.js';
+import { supabase } from '../lib/supabase.js';
+import subscriptionService from '../services/subscriptionService.js';
+
 const router = express.Router();
-const stripe = require('../lib/stripe');
-const { supabase } = require('../lib/supabase');
-const subscriptionService = require('../services/subscriptionService');
 
 // Middleware to verify Stripe webhook signature
 const verifyWebhookSignature = (req, res, next) => {
@@ -296,4 +297,4 @@ const sendTrialEndingNotification = async (userId, subscription) => {
   }
 };
 
-module.exports = router;
+export default router;

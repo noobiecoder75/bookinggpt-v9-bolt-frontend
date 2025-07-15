@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, User, DollarSign, Mail, Database, Menu, X } from 'lucide-react';
+import { Settings as SettingsIcon, User, DollarSign, Mail, Database, Menu, X, CreditCard } from 'lucide-react';
 import { ProfileSettings } from './ProfileSettings';
 import { RateSettings } from './RateSettings';
 import { TemplateSettings } from './TemplateSettings';
@@ -8,10 +8,12 @@ import { TeamSettings } from './TeamSettings';
 import { GeneralSettings } from './GeneralSettings';
 import { SecuritySettings } from './SecuritySettings';
 import { IntegrationSettings } from './IntegrationSettings';
+import { SubscriptionSettings } from './SubscriptionSettings';
+import { useAdminAccess } from '../../hooks/useAdminAccess';
 
-type SettingsTab = 'general' | 'business' | 'communication' | 'integrations';
+type SettingsTab = 'general' | 'business' | 'communication' | 'integrations' | 'subscription';
 
-const tabs: { id: SettingsTab; name: string; icon: React.ReactNode; description: string }[] = [
+const tabs: { id: SettingsTab; name: string; icon: React.ReactNode; description: string; adminOnly?: boolean }[] = [
   { 
     id: 'general', 
     name: 'General', 
@@ -36,11 +38,19 @@ const tabs: { id: SettingsTab; name: string; icon: React.ReactNode; description:
     icon: <Database className="w-5 h-5" />, 
     description: 'Third-party services and APIs'
   },
+  { 
+    id: 'subscription', 
+    name: 'Subscription', 
+    icon: <CreditCard className="w-5 h-5" />, 
+    description: 'Billing, plans, and usage tracking',
+    adminOnly: true
+  },
 ];
 
 export function SettingsDashboard() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { isAdmin } = useAdminAccess();
 
   const renderContent = () => {
     switch (activeTab) {
@@ -115,6 +125,15 @@ export function SettingsDashboard() {
             </div>
           </div>
         );
+      case 'subscription':
+        return (
+          <div className="space-y-8">
+            <div>
+              <h2 className="text-xl font-semibold bg-gradient-to-r from-slate-900 to-blue-900 bg-clip-text text-transparent mb-6">Subscription & Billing</h2>
+              <SubscriptionSettings />
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -164,7 +183,9 @@ export function SettingsDashboard() {
               isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
             } fixed inset-y-0 left-0 z-50 w-80 bg-white/95 backdrop-blur-md border-r border-white/20 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:col-span-3`}>
               <nav className="space-y-3 p-6">
-                {tabs.map((tab) => (
+                {tabs
+                  .filter(tab => !tab.adminOnly || isAdmin)
+                  .map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => {

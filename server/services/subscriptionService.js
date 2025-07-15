@@ -1,5 +1,5 @@
-const stripe = require('../lib/stripe');
-const { supabase } = require('../lib/supabase');
+import stripe from '../lib/stripe.js';
+import { supabase } from '../lib/supabase.js';
 
 class SubscriptionService {
   
@@ -342,4 +342,4 @@ class SubscriptionService {
   }
 }
 
-module.exports = new SubscriptionService();
+export default new SubscriptionService();

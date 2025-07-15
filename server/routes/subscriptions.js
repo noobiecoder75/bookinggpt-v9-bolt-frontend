@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import subscriptionService from '../services/subscriptionService.js';
+import { supabase } from '../lib/supabase.js';
+
 const router = express.Router();
-const subscriptionService = require('../services/subscriptionService');
-const { supabase } = require('../lib/supabase');
 
 // Middleware to authenticate user
 const authenticateUser = async (req, res, next) => {
@@ -151,7 +152,7 @@ router.post('/update', authenticateUser, async (req, res) => {
     const newPriceId = subscriptionService.getPriceIdForTier(tier);
     
     // Update subscription in Stripe
-    const stripe = require('../lib/stripe');
+    const { default: stripe } = await import('../lib/stripe.js');
     const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
     
     const updatedSubscription = await stripe.subscriptions.update(subscription.stripe_subscription_id, {
@@ -175,4 +176,4 @@ router.post('/update', authenticateUser, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

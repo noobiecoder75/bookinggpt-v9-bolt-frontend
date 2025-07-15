@@ -1,5 +1,5 @@
-const stripe = require('../lib/stripe');
-const { supabase } = require('../lib/supabase');
+import stripe from '../lib/stripe.js';
+import { supabase } from '../lib/supabase.js';
 
 class StripeConnectService {
   
@@ -373,4 +373,4 @@ class StripeConnectService {
   }
 }
 
-module.exports = new StripeConnectService();
+export default new StripeConnectService();

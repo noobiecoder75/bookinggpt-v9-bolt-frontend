@@ -1,19 +1,24 @@
-const dotenv = require('dotenv');
-const path = require('path');
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get current directory (equivalent to __dirname in CommonJS)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Load environment variables from the parent directory (project root)
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 
-const express = require('express');
-const cors = require('cors');
-const ratesRouter = require('./routes/rates.js');
-const hotelbedsRouter = require('./routes/hotelbeds.js');
-const bookingsRouter = require('./routes/bookings.js');
-const duffelRouter = require('./routes/duffel.js');
-const subscriptionsRouter = require('./routes/subscriptions.js');
-const webhooksRouter = require('./routes/webhooks.js');
-const stripeConnectRouter = require('./routes/stripeConnect.js');
-const reconfirmationService = require('./services/reconfirmationService.js');
+import express from 'express';
+import cors from 'cors';
+import ratesRouter from './routes/rates.js';
+import hotelbedsRouter from './routes/hotelbeds.js';
+import bookingsRouter from './routes/bookings.js';
+import duffelRouter from './routes/duffel.js';
+import subscriptionsRouter from './routes/subscriptions.js';
+import webhooksRouter from './routes/webhooks.js';
+import stripeConnectRouter from './routes/stripeConnect.js';
+import reconfirmationService from './services/reconfirmationService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

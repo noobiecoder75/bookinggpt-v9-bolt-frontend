@@ -1,6 +1,6 @@
-const Stripe = require('stripe');
+import Stripe from 'stripe';
 
 // Initialize Stripe with secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-module.exports = stripe;
+export default stripe;

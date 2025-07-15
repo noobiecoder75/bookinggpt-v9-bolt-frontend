@@ -1,7 +1,8 @@
-const express = require('express');
+import express from 'express';
+import stripeConnectService from '../services/stripeConnectService.js';
+import { supabase } from '../lib/supabase.js';
+
 const router = express.Router();
-const stripeConnectService = require('../services/stripeConnectService');
-const { supabase } = require('../lib/supabase');
 
 // Middleware to authenticate user
 const authenticateUser = async (req, res, next) => {
@@ -235,4 +236,4 @@ router.get('/payouts', authenticateUser, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

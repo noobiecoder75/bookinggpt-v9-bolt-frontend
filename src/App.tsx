@@ -1,3 +1,8 @@
+/*
+ * @file App.tsx
+ * @description Main application component for BookingGPT. This file sets up the AuthProvider and routing for the application, and renders various pages such as dashboard, quotes, and more based on user authentication state.
+ */
+
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
@@ -111,7 +116,12 @@ const kanbanStageToStatus = (stage: string) => {
   }
 };
 
-// Protected App Content Component
+/**
+ * AppContent component.
+ * Renders the authenticated routes and main application content based on the user's state.
+ *
+ * @returns {JSX.Element} The authenticated application content.
+ */
 function AppContent() {
   const { user, loading } = useAuthContext();
   const [stats, setStats] = useState<DashboardStats>({
@@ -547,7 +557,12 @@ function AppContent() {
   );
 }
 
-// Main App Component with Auth Provider
+/**
+ * App component.
+ * Wraps the entire application with the AuthProvider and initializes the AppContent.
+ *
+ * @returns {JSX.Element} The rendered App.
+ */
 const App: React.FC = () => {
   console.log('📱 App component initializing...', { timestamp: new Date().toISOString() });
   
