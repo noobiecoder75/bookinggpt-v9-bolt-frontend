@@ -1,8 +1,10 @@
 # Netlify redirects for SPA client-side routing
 # This ensures all routes are handled by the React app
+# Note: API routes are handled by netlify.toml which takes precedence
 
 # Client portal routes
 /client/* /index.html 200
 
 # All other routes (fallback for SPA)
+# This catches non-API routes and serves the React app
 /* /index.html 200 

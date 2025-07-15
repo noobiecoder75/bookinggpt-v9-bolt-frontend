@@ -64,8 +64,22 @@ export const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers
   };
   
-  return fetch(url, {
+  console.log('API call to:', url);
+  
+  const response = await fetch(url, {
     ...options,
     headers: defaultHeaders
   });
+  
+  // Check if we got HTML instead of JSON (routing issue)
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('text/html')) {
+    const htmlContent = await response.text();
+    console.error('API routing error - received HTML instead of JSON:', htmlContent.substring(0, 500));
+    throw new Error(
+      `API routing error: Expected JSON but received HTML. This usually means the API backend is not properly deployed or the routing configuration is incorrect. Check that API_URL environment variable is set correctly.`
+    );
+  }
+  
+  return response;
 };

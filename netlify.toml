@@ -13,16 +13,16 @@
   NODE_VERSION = "18"
 
 # API redirects to backend server (for subscription system)
-# Note: Update the 'to' URL when you deploy your backend to production
+# Uses environment variable for production deployment
 [[redirects]]
   from = "/api/subscriptions/*"
-  to = "http://localhost:3001/api/subscriptions/:splat"
+  to = "${API_URL}/api/subscriptions/:splat"
   status = 200
   force = true
 
 [[redirects]]
   from = "/api/webhooks/*"
-  to = "http://localhost:3001/api/webhooks/:splat"
+  to = "${API_URL}/api/webhooks/:splat"
   status = 200
   force = true
 

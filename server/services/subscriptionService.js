@@ -163,9 +163,27 @@ class SubscriptionService {
         .eq('user_id', userId)
         .single();
       
-      if (error) throw error;
+      // Handle case where no subscription exists (PGRST116 error)
+      if (error && error.code === 'PGRST116') {
+        console.log('No subscription found for user:', userId);
+        return null;
+      }
+      
+      if (error) {
+        console.error('Database error getting subscription:', error);
+        throw error;
+      }
       
       if (subscription) {
+        // Skip Stripe lookup if this is a placeholder subscription
+        if (subscription.stripe_subscription_id === 'sub_temp_placeholder') {
+          console.log('Skipping Stripe lookup for placeholder subscription');
+          return {
+            ...subscription,
+            stripe_data: null
+          };
+        }
+        
         // Get latest subscription from Stripe
         const stripeSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
         
@@ -324,6 +342,7 @@ class SubscriptionService {
       const subscription = await this.getSubscription(userId);
       
       if (!subscription || subscription.status !== 'active') {
+        console.log('No active subscription for user:', userId);
         return false;
       }
       
@@ -334,7 +353,10 @@ class SubscriptionService {
         enterprise: ['quotes', 'bookings', 'advanced_analytics', 'priority_support', 'api_access', 'custom_branding', 'dedicated_support']
       };
       
-      return tierFeatures[subscription.tier]?.includes(feature) || false;
+      const hasAccess = tierFeatures[subscription.tier]?.includes(feature) || false;
+      console.log('Feature access check:', { userId, feature, tier: subscription.tier, hasAccess });
+      
+      return hasAccess;
     } catch (error) {
       console.error('Error checking feature access:', error);
       return false;
