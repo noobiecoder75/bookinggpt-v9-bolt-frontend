@@ -100,43 +100,104 @@ export function SubscriptionSettings() {
     try {
       setLoading(true);
       
+      console.log('🔍 Debug: Starting subscription data fetch...');
+      
       // Get current session from Supabase
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
+      console.log('🔍 Debug: Supabase session check:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        hasAccessToken: !!session?.access_token,
+        sessionError: sessionError?.message,
+        userId: session?.user?.id,
+        email: session?.user?.email
+      });
+      
       if (sessionError || !session) {
+        console.error('🚨 Debug: No session found:', sessionError);
         throw new Error('No active session found');
       }
 
       const token = session.access_token;
+      
+      console.log('🔍 Debug: Token details:', {
+        tokenLength: token?.length,
+        tokenStart: token?.substring(0, 20) + '...',
+        tokenType: typeof token
+      });
+
+      const apiUrl = createApiUrl(API_ENDPOINTS.subscriptions.current);
+      console.log('🔍 Debug: API URL:', apiUrl);
 
       // Fetch current subscription
-      const subResponse = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.current), {
+      console.log('🔍 Debug: Making subscription API call...');
+      const subResponse = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
+      console.log('🔍 Debug: Subscription response:', {
+        status: subResponse.status,
+        statusText: subResponse.statusText,
+        ok: subResponse.ok,
+        contentType: subResponse.headers.get('content-type'),
+        url: subResponse.url
+      });
+
+      // Check if response is HTML instead of JSON
+      const contentType = subResponse.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        console.error('🚨 Debug: Received HTML response instead of JSON!');
+        const htmlText = await subResponse.text();
+        console.error('🚨 Debug: HTML response content (first 500 chars):', htmlText.substring(0, 500));
+        throw new Error('Server returned HTML instead of JSON - check server configuration');
+      }
+
       if (subResponse.ok) {
         const subData = await subResponse.json();
+        console.log('🔍 Debug: Subscription data received:', subData);
         setSubscription(subData.subscription);
       } else if (subResponse.status !== 404) {
+        const errorText = await subResponse.text();
+        console.error('🚨 Debug: Subscription API error:', {
+          status: subResponse.status,
+          errorText
+        });
         throw new Error('Failed to fetch subscription');
+      } else {
+        console.log('🔍 Debug: No subscription found (404)');
       }
 
       // Fetch usage data
-      const usageResponse = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.usage), {
+      const usageUrl = createApiUrl(API_ENDPOINTS.subscriptions.usage);
+      console.log('🔍 Debug: Making usage API call to:', usageUrl);
+      
+      const usageResponse = await fetch(usageUrl, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
+      });
+
+      console.log('🔍 Debug: Usage response:', {
+        status: usageResponse.status,
+        statusText: usageResponse.statusText,
+        ok: usageResponse.ok,
+        contentType: usageResponse.headers.get('content-type')
       });
 
       if (usageResponse.ok) {
         const usageData = await usageResponse.json();
+        console.log('🔍 Debug: Usage data received:', usageData);
         setUsage(usageData.usage);
       }
 
     } catch (err) {
-      console.error('Error fetching subscription data:', err);
+      console.error('🚨 Debug: Error in fetchSubscriptionData:', err);
+      console.error('🚨 Debug: Error stack:', (err as Error)?.stack);
       setError(err instanceof Error ? err.message : 'Failed to load subscription data');
     } finally {
       setLoading(false);
@@ -484,7 +545,7 @@ export function SubscriptionSettings() {
 
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {Object.entries(tierDetails).map(([tierKey, tier]) => (
+                {(Object.entries(tierDetails) as Array<[keyof typeof tierDetails, typeof tierDetails[keyof typeof tierDetails]]>).map(([tierKey, tier]) => (
                   <div 
                     key={tierKey}
                     className={`border rounded-lg p-6 ${
@@ -518,7 +579,7 @@ export function SubscriptionSettings() {
                         </button>
                       ) : (
                         <button
-                          onClick={() => handleUpgrade(tierKey as any)}
+                          onClick={() => handleUpgrade(tierKey)}
                           className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                         >
                           {tierDetails[tierKey].price > currentTier.price ? 'Upgrade' : 'Downgrade'}
