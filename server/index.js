@@ -34,9 +34,21 @@ console.log('DUFFEL_ACCESS_TOKEN:', process.env.DUFFEL_ACCESS_TOKEN ? 'Found' : 
 console.log('STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'Found' : 'Missing');
 console.log('STRIPE_WEBHOOK_SECRET:', process.env.STRIPE_WEBHOOK_SECRET ? 'Found' : 'Missing');
 
-// Middleware
+// Middleware - CORS configuration with environment-based origins
+const allowedOrigins = [
+  'http://localhost:5173', // Vite dev server
+  'http://localhost:3000', // Alternative dev server
+  'https://glittering-peony-560872.netlify.app' // Production Netlify deployment
+];
+
+// Add additional origins from environment variable if provided
+if (process.env.ALLOWED_ORIGINS) {
+  const envOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+  allowedOrigins.push(...envOrigins);
+}
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'], // Vite dev server and potential production
+  origin: allowedOrigins,
   credentials: true
 }));
 

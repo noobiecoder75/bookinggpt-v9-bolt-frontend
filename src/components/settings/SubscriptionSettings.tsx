@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { supabase } from '../../lib/supabase';
+import { createApiUrl, API_ENDPOINTS } from '../../lib/api';
 import toast from 'react-hot-toast';
 
 interface Subscription {
@@ -109,7 +110,7 @@ export function SubscriptionSettings() {
       const token = session.access_token;
 
       // Fetch current subscription
-      const subResponse = await fetch('http://localhost:3001/api/subscriptions/current', {
+      const subResponse = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.current), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -123,7 +124,7 @@ export function SubscriptionSettings() {
       }
 
       // Fetch usage data
-      const usageResponse = await fetch('http://localhost:3001/api/subscriptions/usage', {
+      const usageResponse = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.usage), {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -151,7 +152,7 @@ export function SubscriptionSettings() {
       }
 
       const token = session.access_token;
-      const response = await fetch('http://localhost:3001/api/subscriptions/portal', {
+      const response = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.portal), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +185,7 @@ export function SubscriptionSettings() {
       }
 
       const token = session.access_token;
-      const response = await fetch('http://localhost:3001/api/subscriptions/update', {
+      const response = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.update), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +218,7 @@ export function SubscriptionSettings() {
       }
 
       const token = session.access_token;
-      const response = await fetch('http://localhost:3001/api/subscriptions/cancel', {
+      const response = await fetch(createApiUrl(API_ENDPOINTS.subscriptions.cancel), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -12,7 +12,21 @@
   # Node version for build
   NODE_VERSION = "18"
 
-# API redirects to Netlify Functions
+# API redirects to backend server (for subscription system)
+# Note: Update the 'to' URL when you deploy your backend to production
+[[redirects]]
+  from = "/api/subscriptions/*"
+  to = "http://localhost:3001/api/subscriptions/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/webhooks/*"
+  to = "http://localhost:3001/api/webhooks/:splat"
+  status = 200
+  force = true
+
+# API redirects to Netlify Functions (legacy)
 [[redirects]]
   from = "/api/health"
   to = "/.netlify/functions/health"
