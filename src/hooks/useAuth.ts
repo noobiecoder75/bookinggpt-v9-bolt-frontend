@@ -111,6 +111,32 @@ export function useAuth(): UseAuthResult {
             user_metadata: data.user.user_metadata
           };
           setUser(authUser);
+          
+          // Create trial subscription for new user
+          try {
+            console.log('🔄 Creating trial subscription for new user...');
+            const response = await fetch('/api/subscriptions/create-trial', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+              },
+              body: JSON.stringify({
+                userId: data.user.id,
+                email: data.user.email || email,
+                tier: 'basic'
+              })
+            });
+            
+            if (response.ok) {
+              console.log('✅ Trial subscription created successfully');
+            } else {
+              console.warn('⚠️ Failed to create trial subscription:', await response.text());
+            }
+          } catch (trialError) {
+            console.error('🚨 Error creating trial subscription:', trialError);
+            // Don't throw here - user signup should still succeed even if trial creation fails
+          }
         }
         setError(null);
       }

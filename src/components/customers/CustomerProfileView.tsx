@@ -9,6 +9,7 @@ import {
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 import { EmailDetailModal } from '../communications/EmailDetailModal';
 import { useAuthContext } from '../../contexts/AuthContext';
+import SendEmailButton from '../email/SendEmailButton';
 
 interface StatCardProps {
   title: string;
@@ -352,6 +353,21 @@ export function CustomerProfileView() {
             </div>
           </div>
           <div className="flex space-x-4">
+            <SendEmailButton
+              recipientEmails={[customer.email]}
+              context={{
+                customerId: customer.id,
+                customerName: `${customer.first_name} ${customer.last_name}`,
+                agentName: 'Travel Agent', // You can get this from auth context
+                totalQuotesValue: `$${quotes.reduce((total, quote) => total + quote.total_price, 0).toLocaleString()}`,
+                totalBookingsValue: `$${bookings.reduce((total, booking) => total + booking.total_price, 0).toLocaleString()}`,
+                customerSince: new Date(customer.created_at).toLocaleDateString()
+              }}
+              suggestedTemplate="welcome"
+              buttonVariant="secondary"
+              buttonText="Send Email"
+              className="mr-2"
+            />
             <button
               onClick={() => navigate(`/quotes/new?customer=${customer.id}`)}
               className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"

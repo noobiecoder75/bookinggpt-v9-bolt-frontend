@@ -26,6 +26,27 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
+// Create trial subscription for new users
+router.post('/create-trial', authenticateUser, async (req, res) => {
+  try {
+    const { userId, email, tier = 'basic' } = req.body;
+    
+    // Use the provided userId or fall back to authenticated user
+    const targetUserId = userId || req.user.id;
+    const targetEmail = email || req.user.email;
+    
+    const result = await subscriptionService.createTrialSubscription(targetUserId, targetEmail, tier);
+    
+    res.json({
+      success: true,
+      subscription: result.subscription
+    });
+  } catch (error) {
+    console.error('Error creating trial subscription:', error);
+    res.status(500).json({ error: 'Failed to create trial subscription' });
+  }
+});
+
 // Create new subscription
 router.post('/create', authenticateUser, async (req, res) => {
   try {

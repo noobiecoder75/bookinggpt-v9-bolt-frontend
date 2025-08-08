@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Upload, Plus, Edit2, Trash2, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { Upload, Plus, Edit2, Trash2, CheckCircle, AlertCircle, Loader2, X, UserPlus, Mail, Copy } from 'lucide-react';
 import { RateUploadTest } from './RateUploadTest';
+import { useAdminAccess } from '../../hooks/useAdminAccess';
 
 interface Rate {
   id: number;
@@ -36,6 +37,7 @@ interface UploadStatus {
 }
 
 export function RateSettings() {
+  const { isAdmin } = useAdminAccess();
   const [rates, setRates] = useState<Rate[]>([]);
   const [markupSettings, setMarkupSettings] = useState<AgentMarkupSettings>({
     flight_markup: 10,
@@ -53,6 +55,14 @@ export function RateSettings() {
     importedCount: 0,
   });
   const [savingMarkup, setSavingMarkup] = useState(false);
+  
+  // Invite system state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'regular'>('regular');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRates();
@@ -229,6 +239,54 @@ export function RateSettings() {
       console.error('Delete error:', error);
       alert('Failed to delete rate: ' + error.message);
     }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!inviteEmail.trim()) {
+      setInviteError('Please enter an email address');
+      return;
+    }
+
+    setInviteLoading(true);
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    try {
+      const { data, error } = await supabase.rpc('create_invite', {
+        p_email: inviteEmail.trim(),
+        p_role: inviteRole
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const { invite_token } = data[0];
+        const inviteLink = `${window.location.origin}/signup?invite=${invite_token}`;
+        setGeneratedInviteLink(inviteLink);
+        setInviteSuccess(`Invite created successfully! Share the link below with ${inviteEmail}.`);
+        setInviteEmail('');
+      }
+    } catch (error: any) {
+      console.error('Invite creation error:', error);
+      setInviteError('Failed to create invite: ' + error.message);
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const copyInviteLink = () => {
+    if (generatedInviteLink) {
+      navigator.clipboard.writeText(generatedInviteLink);
+      setInviteSuccess('Invite link copied to clipboard!');
+    }
+  };
+
+  const resetInviteForm = () => {
+    setInviteEmail('');
+    setInviteRole('regular');
+    setInviteError(null);
+    setInviteSuccess(null);
+    setGeneratedInviteLink(null);
   };
 
   return (
@@ -466,6 +524,128 @@ export function RateSettings() {
           </p>
         </div>
       </div>
+
+      {/* Team Invite System */}
+      {isAdmin && (
+        <div className="bg-white border border-gray-200 rounded-md p-6 mb-6">
+          <div className="flex items-center mb-4">
+            <UserPlus className="h-6 w-6 text-indigo-600 mr-3" />
+            <h3 className="text-lg font-medium text-gray-900">Team Invitations</h3>
+          </div>
+          <p className="text-sm text-gray-600 mb-6">
+            Invite team members to join your organization. They'll receive a signup link with their assigned role.
+          </p>
+
+          {/* Invite Form */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="inviteEmail" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    id="inviteEmail"
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="user@company.com"
+                    disabled={inviteLoading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="inviteRole" className="block text-sm font-medium text-gray-700 mb-2">
+                  Role
+                </label>
+                <select
+                  id="inviteRole"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value as 'admin' | 'regular')}
+                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  disabled={inviteLoading}
+                >
+                  <option value="regular">Team Member</option>
+                  <option value="admin">Administrator</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <button
+                onClick={handleCreateInvite}
+                disabled={inviteLoading || !inviteEmail.trim()}
+                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${
+                  inviteLoading || !inviteEmail.trim()
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                {inviteLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <UserPlus className="h-4 w-4 mr-2" />
+                )}
+                {inviteLoading ? 'Creating Invite...' : 'Create Invite'}
+              </button>
+
+              {generatedInviteLink && (
+                <button
+                  onClick={resetInviteForm}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Success Message */}
+          {inviteSuccess && (
+            <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
+                <p className="text-sm text-green-800">{inviteSuccess}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {inviteError && (
+            <div className="mt-4 bg-red-50 border border-red-200 rounded-md p-4">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-600 mr-3" />
+                <p className="text-sm text-red-800">{inviteError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Generated Link */}
+          {generatedInviteLink && (
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-800 mb-2">Invite Link Generated</p>
+                  <div className="bg-white border border-blue-300 rounded-lg p-3 text-sm text-gray-700 font-mono break-all">
+                    {generatedInviteLink}
+                  </div>
+                </div>
+                <button
+                  onClick={copyInviteLink}
+                  className="ml-4 inline-flex items-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-white hover:bg-blue-50"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Rate List */}
       <div className="bg-white shadow overflow-hidden sm:rounded-md">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, Eye, EyeOff, User, Building2, Phone, UserPlus, Check, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { GoogleSignInButton } from './GoogleSignInButton';
@@ -23,8 +23,15 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     lastName: '',
     company: '',
     phone: '',
-    role: 'customer'
+    role: 'admin', // Default to admin
+    inviteToken: ''
   });
+  
+  const [inviteInfo, setInviteInfo] = useState<{
+    email: string;
+    role: 'admin' | 'regular';
+    invitedBy: string;
+  } | null>(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -33,6 +40,23 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const { signUp, error: authError, loading: authLoading } = useAuth();
+
+  // Check for invite token in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('invite');
+    
+    if (token) {
+      setFormData(prev => ({ ...prev, inviteToken: token }));
+      // Validate invite token (in a real app, this would be an API call)
+      // For now, we'll just set some mock data
+      setInviteInfo({
+        email: 'invited@example.com',
+        role: 'regular',
+        invitedBy: 'Admin User'
+      });
+    }
+  }, []);
 
   const validatePassword = (password: string): PasswordStrength => {
     const feedback: string[] = [];
@@ -106,14 +130,18 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     }
 
     try {
+      // Determine final role - invite token overrides default selection
+      const finalRole = inviteInfo ? inviteInfo.role : formData.role;
+      
       // Include additional profile data in user metadata
       const metadata = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         company: formData.company,
         phone: formData.phone,
-        role: formData.role,
-        full_name: `${formData.firstName} ${formData.lastName}`.trim()
+        role: finalRole,
+        full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        invite_token: formData.inviteToken || null
       };
 
       await signUp(formData.email, formData.password, metadata);
@@ -375,23 +403,37 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
               </div>
             </div>
 
-            {/* User Role */}
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                Account Type
-              </label>
-              <select
-                id="role"
-                value={formData.role}
-                onChange={(e) => handleInputChange('role', e.target.value as 'customer' | 'agent' | 'admin')}
-                className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                disabled={isFormLoading}
-              >
-                <option value="customer">Customer</option>
-                <option value="agent">Travel Agent</option>
-                <option value="admin">Administrator</option>
-              </select>
-            </div>
+            {/* Invite Info Display */}
+            {inviteInfo && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-blue-800 mb-2">You've been invited!</h3>
+                <p className="text-sm text-blue-700">
+                  {inviteInfo.invitedBy} has invited you to join as a {inviteInfo.role === 'admin' ? 'Administrator' : 'Team Member'}.
+                </p>
+              </div>
+            )}
+
+            {/* User Role - only show if not invited */}
+            {!inviteInfo && (
+              <div>
+                <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                  Account Type
+                </label>
+                <select
+                  id="role"
+                  value={formData.role}
+                  onChange={(e) => handleInputChange('role', e.target.value as 'admin' | 'regular')}
+                  className="block w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  disabled={isFormLoading}
+                >
+                  <option value="admin">Administrator</option>
+                  <option value="regular">Team Member</option>
+                </select>
+                <p className="mt-1 text-sm text-gray-500">
+                  Administrators have full access to all features and settings.
+                </p>
+              </div>
+            )}
 
             {/* Error Message */}
             {displayError && (

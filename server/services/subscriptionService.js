@@ -3,6 +3,55 @@ import { supabase } from '../lib/supabase.js';
 
 class SubscriptionService {
   
+  // Create a trial subscription for new users
+  async createTrialSubscription(userId, email, tier = 'basic', trialDays = 14) {
+    try {
+      console.log('Creating trial subscription for user:', { userId, email, tier, trialDays });
+      
+      // Check if user already has a subscription
+      const existingSubscription = await this.getSubscription(userId);
+      if (existingSubscription) {
+        console.log('User already has subscription:', existingSubscription.id);
+        return { success: true, subscription: existingSubscription };
+      }
+      
+      // Create trial subscription directly in database (no Stripe for trials)
+      const trialEndDate = new Date();
+      trialEndDate.setDate(trialEndDate.getDate() + trialDays);
+      
+      const { data: subscription, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: userId,
+          stripe_subscription_id: `trial_${userId}`,
+          stripe_customer_id: `trial_customer_${userId}`,
+          tier: tier,
+          status: 'trialing',
+          current_period_start: new Date(),
+          current_period_end: trialEndDate,
+          trial_start: new Date(),
+          trial_end: trialEndDate
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error creating trial subscription:', error);
+        throw error;
+      }
+      
+      // Initialize usage tracking
+      await this.initializeUsageTracking(userId, tier);
+      
+      console.log('Trial subscription created successfully:', subscription.id);
+      return { success: true, subscription };
+      
+    } catch (error) {
+      console.error('Error creating trial subscription:', error);
+      throw error;
+    }
+  }
+  
   // Create a new subscription for an agent
   async createSubscription(userId, email, tier, trialDays = 14) {
     try {
@@ -175,9 +224,23 @@ class SubscriptionService {
       }
       
       if (subscription) {
-        // Skip Stripe lookup if this is a placeholder subscription
-        if (subscription.stripe_subscription_id === 'sub_temp_placeholder') {
-          console.log('Skipping Stripe lookup for placeholder subscription');
+        // Skip Stripe lookup if this is a placeholder subscription or trial
+        if (subscription.stripe_subscription_id === 'sub_temp_placeholder' || 
+            subscription.stripe_subscription_id.startsWith('trial_')) {
+          console.log('Skipping Stripe lookup for placeholder/trial subscription');
+          
+          // Check if trial has expired
+          if (subscription.status === 'trialing' && subscription.trial_end && 
+              new Date(subscription.trial_end) < new Date()) {
+            // Update trial status to expired
+            await supabase
+              .from('subscriptions')
+              .update({ status: 'incomplete_expired' })
+              .eq('user_id', userId);
+            
+            subscription.status = 'incomplete_expired';
+          }
+          
           return {
             ...subscription,
             stripe_data: null
@@ -341,8 +404,8 @@ class SubscriptionService {
     try {
       const subscription = await this.getSubscription(userId);
       
-      if (!subscription || subscription.status !== 'active') {
-        console.log('No active subscription for user:', userId);
+      if (!subscription || (subscription.status !== 'active' && subscription.status !== 'trialing')) {
+        console.log('No active or trial subscription for user:', userId);
         return false;
       }
       
@@ -354,7 +417,7 @@ class SubscriptionService {
       };
       
       const hasAccess = tierFeatures[subscription.tier]?.includes(feature) || false;
-      console.log('Feature access check:', { userId, feature, tier: subscription.tier, hasAccess });
+      console.log('Feature access check:', { userId, feature, tier: subscription.tier, status: subscription.status, hasAccess });
       
       return hasAccess;
     } catch (error) {

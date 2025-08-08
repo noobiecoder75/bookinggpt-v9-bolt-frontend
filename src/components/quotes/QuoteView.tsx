@@ -5,6 +5,7 @@ import { Plane, Building, Calendar, DollarSign, Mail, Download, Clock, Users, Ma
 import { PaymentModal } from './PaymentModal';
 import { useGoogleOAuth } from '../../hooks/useGoogleOAuth';
 import { useAuthContext } from '../../contexts/AuthContext';
+import SendEmailButton from '../email/SendEmailButton';
 import { 
   calculateQuoteTotal, 
   calculateItemPrice, 
@@ -716,14 +717,34 @@ export function QuoteView() {
               <Copy className="h-4 w-4 mr-2" />
               Copy Link
             </button>
+            <SendEmailButton
+              recipientEmails={[quote.customer.email]}
+              context={{
+                customerId: quote.customer_id,
+                quoteId: quote.id,
+                customerName: `${quote.customer.first_name} ${quote.customer.last_name}`,
+                agentName: 'Travel Agent', // You can get this from auth context
+                destination: getTripDestinations(),
+                travelDates: quote.trip_start_date && quote.trip_end_date 
+                  ? `${formatDate(quote.trip_start_date)} - ${formatDate(quote.trip_end_date)}`
+                  : undefined,
+                validityDays: '14',
+                clientPortalUrl: `${window.location.origin}/client/${quote.id}`,
+                quotedAmount: `$${calculateQuoteTotal(quote).total.toFixed(2)}`
+              }}
+              suggestedTemplate="quote"
+              buttonVariant="secondary"
+              buttonText="Send Email"
+              className="mr-2"
+            />
             {isConnected && (
               <button 
                 onClick={() => navigate(`/communications?customer=${quote.customer_id}&email=${encodeURIComponent(quote.customer.email)}&quote=${quote.id}`)}
                 className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                title="Send email to customer"
+                title="Advanced email features"
               >
                 <Mail className="h-4 w-4 mr-2" />
-                Email Customer
+                Advanced Email
               </button>
             )}
             {emails.length > 0 && (

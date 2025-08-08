@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthContext } from '../contexts/AuthContext';
+import { useSubscriptionStatus } from '../hooks/useSubscriptionStatus';
 import {
   Home,
   FileText,
@@ -13,6 +14,8 @@ import {
   Menu,
   X,
   ChevronDown,
+  Crown,
+  Clock,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -24,6 +27,7 @@ interface NavbarProps {
 export function Navbar({ onCreateTrip }: NavbarProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuthContext();
+  const { subscriptionStatus, loading: subscriptionLoading } = useSubscriptionStatus();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
@@ -84,8 +88,31 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
               </div>
             </div>
 
-            {/* Right Side - Create Quote, Notifications and User Menu */}
+            {/* Right Side - Subscription Status, Create Quote, Notifications and User Menu */}
             <div className="flex items-center space-x-3 flex-shrink-0">
+              {/* Subscription Status */}
+              {subscriptionStatus && !subscriptionLoading && (
+                <div className="hidden md:flex items-center space-x-2">
+                  <div
+                    onClick={() => navigate('/settings/subscription')}
+                    className="flex items-center px-3 py-2 text-xs font-medium rounded-lg transition-all duration-200 cursor-pointer hover:bg-white/10 backdrop-blur-sm border border-white/20"
+                  >
+                    <Crown className="w-4 h-4 mr-2 text-yellow-400" />
+                    <div className="flex flex-col">
+                      <span className="text-white capitalize">
+                        {subscriptionStatus.tier}
+                      </span>
+                      {subscriptionStatus.isTrialing && subscriptionStatus.daysRemaining !== undefined && (
+                        <span className="text-white/70 text-xs flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {subscriptionStatus.daysRemaining} days left
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               {/* Prominent Create Quote Button */}
               <button
                 onClick={onCreateTrip}
@@ -158,6 +185,30 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-white/20 bg-gradient-to-b from-slate-900 to-blue-900 backdrop-blur-lg">
             <div className="px-4 pt-4 pb-3 space-y-2">
+              {/* Mobile Subscription Status */}
+              {subscriptionStatus && !subscriptionLoading && (
+                <div
+                  onClick={() => {
+                    navigate('/settings/subscription');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 cursor-pointer hover:bg-white/10 backdrop-blur-sm border border-white/20 mb-3"
+                >
+                  <Crown className="w-5 h-5 mr-3 text-yellow-400" />
+                  <div className="flex flex-col">
+                    <span className="text-white capitalize font-medium">
+                      {subscriptionStatus.tier} Plan
+                    </span>
+                    {subscriptionStatus.isTrialing && subscriptionStatus.daysRemaining !== undefined && (
+                      <span className="text-white/70 text-xs flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {subscriptionStatus.daysRemaining} days left in trial
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Prominent Mobile Create Quote Button */}
               <button
                 onClick={() => {

@@ -91,10 +91,10 @@ export function SubscriptionSettings() {
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    if (!adminLoading && isAdmin) {
+    if (!adminLoading) {
       fetchSubscriptionData();
     }
-  }, [adminLoading, isAdmin]);
+  }, [adminLoading]);
 
   const fetchSubscriptionData = async () => {
     try {
@@ -334,21 +334,8 @@ export function SubscriptionSettings() {
     );
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-        <div className="flex items-center">
-          <AlertCircle className="h-5 w-5 text-yellow-600 mr-3" />
-          <div>
-            <h3 className="text-sm font-medium text-yellow-800">Admin Access Required</h3>
-            <p className="text-sm text-yellow-700 mt-1">
-              Only admin users can access subscription management.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // All authenticated users can view subscription settings
+  // Admin users may have additional management capabilities
 
   if (loading) {
     return (
@@ -383,14 +370,22 @@ export function SubscriptionSettings() {
   if (!subscription) {
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <div className="flex items-center">
-          <CreditCard className="h-5 w-5 text-blue-600 mr-3" />
-          <div>
-            <h3 className="text-sm font-medium text-blue-800">No Active Subscription</h3>
-            <p className="text-sm text-blue-700 mt-1">
-              You don't have an active subscription. Visit the landing page to subscribe.
-            </p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <CreditCard className="h-5 w-5 text-blue-600 mr-3" />
+            <div>
+              <h3 className="text-sm font-medium text-blue-800">No Active Subscription</h3>
+              <p className="text-sm text-blue-700 mt-1">
+                Start your free trial to access all features.
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => setUpgradeModalOpen(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Start Free Trial
+          </button>
         </div>
       </div>
     );
@@ -423,6 +418,27 @@ export function SubscriptionSettings() {
               <span className="text-lg text-gray-500 font-normal">/month</span>
             </div>
             
+            {subscription.status === 'trialing' && subscription.trial_end && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Clock className="h-4 w-4 text-blue-600 mr-2" />
+                    <span className="text-sm text-blue-800">
+                      {new Date(subscription.trial_end) > new Date() 
+                        ? `Trial ends ${new Date(subscription.trial_end).toLocaleDateString()}`
+                        : 'Trial expired - upgrade to continue'
+                      }
+                    </span>
+                  </div>
+                  {new Date(subscription.trial_end) > new Date() && (
+                    <div className="text-xs text-blue-700">
+                      {Math.ceil((new Date(subscription.trial_end).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days left
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {subscription.trial_end && new Date(subscription.trial_end) > new Date() && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
                 <div className="flex items-center">
@@ -456,28 +472,40 @@ export function SubscriptionSettings() {
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handleBillingPortal}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Billing Portal
-            </button>
-            <button
-              onClick={() => setUpgradeModalOpen(true)}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <ArrowUp className="h-4 w-4 mr-2" />
-              Upgrade Plan
-            </button>
-            {subscription.status === 'active' && !subscription.cancel_at_period_end && (
+            {subscription.status === 'trialing' ? (
               <button
-                onClick={() => setCancelModalOpen(true)}
-                className="flex items-center px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition-colors"
+                onClick={() => setUpgradeModalOpen(true)}
+                className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
               >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Cancel Plan
+                <ArrowUp className="h-4 w-4 mr-2" />
+                {new Date(subscription.trial_end || '') > new Date() ? 'Upgrade Now' : 'Activate Plan'}
               </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleBillingPortal}
+                  className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Billing Portal
+                </button>
+                <button
+                  onClick={() => setUpgradeModalOpen(true)}
+                  className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <ArrowUp className="h-4 w-4 mr-2" />
+                  Upgrade Plan
+                </button>
+                {subscription.status === 'active' && !subscription.cancel_at_period_end && (
+                  <button
+                    onClick={() => setCancelModalOpen(true)}
+                    className="flex items-center px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition-colors"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Cancel Plan
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

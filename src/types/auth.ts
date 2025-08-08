@@ -3,7 +3,7 @@ export interface UserProfile {
   last_name?: string;
   company?: string;
   phone?: string;
-  role?: 'customer' | 'agent' | 'admin';
+  role?: 'admin' | 'regular';
   avatar_url?: string;
 }
 
@@ -15,7 +15,8 @@ export interface SignupFormData {
   lastName: string;
   company?: string;
   phone?: string;
-  role: 'customer' | 'agent' | 'admin';
+  role: 'admin' | 'regular';
+  inviteToken?: string;
 }
 
 export interface ExtendedUser {

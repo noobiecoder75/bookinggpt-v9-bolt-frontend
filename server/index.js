@@ -18,6 +18,7 @@ import duffelRouter from './routes/duffel.js';
 import subscriptionsRouter from './routes/subscriptions.js';
 import webhooksRouter from './routes/webhooks.js';
 import stripeConnectRouter from './routes/stripeConnect.js';
+import emailTemplatesRouter from './routes/emailTemplates.js';
 import reconfirmationService from './services/reconfirmationService.js';
 
 const app = express();
@@ -65,6 +66,7 @@ app.use('/api/bookings', bookingsRouter);
 app.use('/api/duffel', duffelRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/stripe-connect', stripeConnectRouter);
+app.use('/api/email-templates', emailTemplatesRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
