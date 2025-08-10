@@ -1,16 +1,10 @@
 import express from 'express';
-import { createClient } from '@supabase/supabase-js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateUser, supabase } from '../lib/supabase.js';
 
 const router = express.Router();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 // Get all templates for a user
-router.get('/templates', authenticateToken, async (req, res) => {
+router.get('/templates', authenticateUser, async (req, res) => {
   try {
     const { category, is_active } = req.query;
     
@@ -41,7 +35,7 @@ router.get('/templates', authenticateToken, async (req, res) => {
 });
 
 // Get a single template
-router.get('/templates/:id', authenticateToken, async (req, res) => {
+router.get('/templates/:id', authenticateUser, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('email_templates')
@@ -64,7 +58,7 @@ router.get('/templates/:id', authenticateToken, async (req, res) => {
 });
 
 // Create a new template
-router.post('/templates', authenticateToken, async (req, res) => {
+router.post('/templates', authenticateUser, async (req, res) => {
   try {
     const {
       template_key,
@@ -105,7 +99,7 @@ router.post('/templates', authenticateToken, async (req, res) => {
 });
 
 // Update a template
-router.put('/templates/:id', authenticateToken, async (req, res) => {
+router.put('/templates/:id', authenticateUser, async (req, res) => {
   try {
     const {
       name,
@@ -149,7 +143,7 @@ router.put('/templates/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete a template
-router.delete('/templates/:id', authenticateToken, async (req, res) => {
+router.delete('/templates/:id', authenticateUser, async (req, res) => {
   try {
     const { error } = await supabase
       .from('email_templates')
@@ -167,7 +161,7 @@ router.delete('/templates/:id', authenticateToken, async (req, res) => {
 });
 
 // Get template history
-router.get('/templates/:id/history', authenticateToken, async (req, res) => {
+router.get('/templates/:id/history', authenticateUser, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('email_template_history')
@@ -186,7 +180,7 @@ router.get('/templates/:id/history', authenticateToken, async (req, res) => {
 });
 
 // Restore template from history
-router.post('/templates/:id/restore/:historyId', authenticateToken, async (req, res) => {
+router.post('/templates/:id/restore/:historyId', authenticateUser, async (req, res) => {
   try {
     // Get the history entry
     const { data: historyData, error: historyError } = await supabase
@@ -227,7 +221,7 @@ router.post('/templates/:id/restore/:historyId', authenticateToken, async (req, 
 });
 
 // Duplicate a template
-router.post('/templates/:id/duplicate', authenticateToken, async (req, res) => {
+router.post('/templates/:id/duplicate', authenticateUser, async (req, res) => {
   try {
     // Get the original template
     const { data: originalTemplate, error: fetchError } = await supabase
@@ -272,7 +266,7 @@ router.post('/templates/:id/duplicate', authenticateToken, async (req, res) => {
 });
 
 // Preview template with variables
-router.post('/templates/:id/preview', authenticateToken, async (req, res) => {
+router.post('/templates/:id/preview', authenticateUser, async (req, res) => {
   try {
     const { variables } = req.body;
 
@@ -317,7 +311,7 @@ router.post('/templates/:id/preview', authenticateToken, async (req, res) => {
 });
 
 // Get automation rules
-router.get('/automation/rules', authenticateToken, async (req, res) => {
+router.get('/automation/rules', authenticateUser, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('email_automation_rules')
@@ -335,7 +329,7 @@ router.get('/automation/rules', authenticateToken, async (req, res) => {
 });
 
 // Create automation rule
-router.post('/automation/rules', authenticateToken, async (req, res) => {
+router.post('/automation/rules', authenticateUser, async (req, res) => {
   try {
     const {
       name,
@@ -372,7 +366,7 @@ router.post('/automation/rules', authenticateToken, async (req, res) => {
 });
 
 // Update automation rule
-router.put('/automation/rules/:id', authenticateToken, async (req, res) => {
+router.put('/automation/rules/:id', authenticateUser, async (req, res) => {
   try {
     const {
       name,
@@ -414,7 +408,7 @@ router.put('/automation/rules/:id', authenticateToken, async (req, res) => {
 });
 
 // Delete automation rule
-router.delete('/automation/rules/:id', authenticateToken, async (req, res) => {
+router.delete('/automation/rules/:id', authenticateUser, async (req, res) => {
   try {
     const { error } = await supabase
       .from('email_automation_rules')

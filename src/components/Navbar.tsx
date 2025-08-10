@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Crown,
   Clock,
+  Wand2,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -75,6 +76,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
                 </NavLink>
                 <NavLink to="/quotes" icon={<FileText className="w-4 h-4" />}>
                   Quotes
+                </NavLink>
+                <NavLink to="/trip-builder" icon={<Wand2 className="w-4 h-4" />}>
+                  Trip Builder
                 </NavLink>
                 <NavLink to="/bookings" icon={<Calendar className="w-4 h-4" />}>
                   Bookings
@@ -229,6 +233,9 @@ export function Navbar({ onCreateTrip }: NavbarProps) {
               </MobileNavLink>
               <MobileNavLink to="/quotes" icon={<FileText className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Quotes
+              </MobileNavLink>
+              <MobileNavLink to="/trip-builder" icon={<Wand2 className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
+                Trip Builder
               </MobileNavLink>
               <MobileNavLink to="/bookings" icon={<Calendar className="w-5 h-5" />} onClick={() => setIsMobileMenuOpen(false)}>
                 Bookings

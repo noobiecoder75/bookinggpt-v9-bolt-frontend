@@ -13,17 +13,39 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase configuration');
+if (!supabaseUrl) {
+  console.error('Missing VITE_SUPABASE_URL environment variable');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
-  }
-});
+if (!supabaseServiceKey) {
+  console.warn('Missing VITE_SUPABASE_SERVICE_ROLE_KEY environment variable - some features will be limited');
+}
+
+if (!supabaseAnonKey) {
+  console.error('Missing VITE_SUPABASE_ANON_KEY environment variable - user authentication will fail');
+}
+
+// Service role client for admin operations (RLS bypass)
+export const supabase = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
+
+// Anon client for user token validation (respects RLS)
+export const supabaseAuth = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
 
 /**
  * Authentication middleware for server routes
@@ -31,9 +53,17 @@ export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
  */
 export async function authenticateUser(req, res, next) {
   try {
+    console.log('🔐 Authentication middleware called:', {
+      endpoint: req.path,
+      method: req.method,
+      hasAuthHeader: !!req.headers.authorization,
+      timestamp: new Date().toISOString()
+    });
+
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('⚠️ No valid Bearer token provided');
       return res.status(401).json({ 
         error: 'Authentication required',
         message: 'Please provide a valid Bearer token' 
@@ -41,17 +71,47 @@ export async function authenticateUser(req, res, next) {
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔑 Token extracted:', {
+      tokenLength: token.length,
+      tokenStart: token.substring(0, 20) + '...',
+      timestamp: new Date().toISOString()
+    });
     
-    // Verify the JWT token with Supabase
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (!supabaseAuth) {
+      console.error('🚨 Supabase auth client not initialized:', {
+        supabaseUrl: !!supabaseUrl,
+        supabaseAnonKey: !!supabaseAnonKey,
+        timestamp: new Date().toISOString()
+      });
+      return res.status(500).json({ 
+        error: 'Authentication service error',
+        message: 'Please try again later' 
+      });
+    }
+    
+    console.log('🔍 Validating token with Supabase...');
+    
+    // Verify the JWT token with Supabase using anon client
+    const { data: { user }, error } = await supabaseAuth.auth.getUser(token);
     
     if (error || !user) {
-      console.error('Authentication error:', error);
+      console.error('🚨 Token validation failed:', {
+        error: error?.message || 'No error message',
+        errorCode: error?.status || 'No error code',
+        hasUser: !!user,
+        timestamp: new Date().toISOString()
+      });
       return res.status(401).json({ 
         error: 'Invalid authentication token',
         message: 'Please log in again' 
       });
     }
+
+    console.log('✅ Token validation successful:', {
+      userId: user.id,
+      email: user.email,
+      timestamp: new Date().toISOString()
+    });
 
     // Add user context to request
     req.user = {
@@ -139,7 +199,12 @@ export async function verifyCustomerAccess(userId, customerId) {
  * Create a Supabase client with user context for RLS
  */
 export function createUserClient(userToken) {
-  return createClient(supabaseUrl, process.env.VITE_SUPABASE_ANON_KEY, {
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
+  }
+  
+  return createClient(supabaseUrl, anonKey, {
     global: {
       headers: {
         Authorization: `Bearer ${userToken}`

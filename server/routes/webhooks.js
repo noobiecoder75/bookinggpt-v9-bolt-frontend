@@ -7,6 +7,10 @@ const router = express.Router();
 
 // Middleware to verify Stripe webhook signature
 const verifyWebhookSignature = (req, res, next) => {
+  if (!stripe) {
+    return res.status(501).json({ error: 'Stripe webhooks not configured' });
+  }
+  
   const sig = req.headers['stripe-signature'];
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   

@@ -8,9 +8,11 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-ro
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { LandingPage } from './pages/LandingPage';
+import { TripBuilder } from './pages/TripBuilder';
 import { Navbar } from './components/Navbar';
 import { NewQuoteWizard } from './components/quotes/NewQuoteWizard';
-import { TripOverviewRefactored } from './components/quotes/TripOverviewRefactored';
+import { TripCardPlanner } from './components/quotes/trip/TripCardPlanner';
+import { TripOverviewShell } from './components/quotes/trip/TripOverviewShell';
 import { CreateTripDialog } from './components/quotes/CreateTripDialog';
 import { SettingsDashboard } from './components/settings/SettingsDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
@@ -430,13 +432,12 @@ function AppContent() {
                 />
               </div>
             } />
+            {/* Trip Overview and Planning Routes */}
             <Route path="/trips/new" element={
               <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
                 <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
                 <main className="transition-all duration-300">
-                  <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-                    <TripOverviewRefactored />
-                  </div>
+                  <TripOverviewShell />
                 </main>
               </div>
             } />
@@ -444,9 +445,41 @@ function AppContent() {
               <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
                 <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
                 <main className="transition-all duration-300">
-                  <div className="max-w-7xl mx-auto py-4 sm:py-6 px-4 sm:px-6 lg:px-8">
-                    <TripOverviewRefactored />
-                  </div>
+                  <TripOverviewShell />
+                </main>
+              </div>
+            } />
+            <Route path="/trips/:tripId/overview" element={
+              <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+                <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+                <main className="transition-all duration-300">
+                  <TripOverviewShell />
+                </main>
+              </div>
+            } />
+            <Route path="/trips/:tripId/planner" element={
+              <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+                <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+                <main className="transition-all duration-300">
+                  <TripCardPlanner />
+                </main>
+              </div>
+            } />
+            
+            {/* Quote Routes - Also add overview/planner structure */}
+            <Route path="/quotes/:id/overview" element={
+              <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+                <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+                <main className="transition-all duration-300">
+                  <TripOverviewShell />
+                </main>
+              </div>
+            } />
+            <Route path="/quotes/:id/planner" element={
+              <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+                <Navbar onCreateTrip={() => setShowCreateTripDialog(true)} />
+                <main className="transition-all duration-300">
+                  <TripCardPlanner />
                 </main>
               </div>
             } />
@@ -550,6 +583,7 @@ function AppContent() {
                 </main>
               </div>
             } />
+            <Route path="/trip-builder" element={<TripBuilder />} />
           </>
         )}
       </Routes>

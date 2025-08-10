@@ -41,6 +41,64 @@ export function initializeProviders() {
   // Load any saved configurations
   providerFactory.loadConfigurations();
   
+  // Set default providers if none are configured
+  if (!providerFactory.getActiveProvider('hotel')) {
+    const availableHotels = providerFactory.getAvailableHotelProviders();
+    if (availableHotels.length > 0) {
+      console.log(`Setting default hotel provider to: ${availableHotels[0]}`);
+      
+      // Set up default configuration for hotelbeds if it's the default
+      if (availableHotels[0] === 'hotelbeds') {
+        providerFactory.setProviderConfig('hotelbeds', {
+          name: 'hotelbeds',
+          displayName: 'Hotelbeds',
+          enabled: true,
+          credentials: {
+            apiKey: 'demo', // Default fallback credentials
+            secret: 'demo',
+            endpoint: 'http://localhost:3001'
+          },
+          settings: {
+            timeout: 30000,
+            retryAttempts: 1, // Reduce retries for demo mode
+            cacheResults: true,
+            cacheDuration: 60
+          }
+        });
+      }
+      
+      providerFactory.setActiveProvider('hotel', availableHotels[0]);
+    }
+  }
+  
+  if (!providerFactory.getActiveProvider('flight')) {
+    const availableFlights = providerFactory.getAvailableFlightProviders();
+    if (availableFlights.length > 0) {
+      console.log(`Setting default flight provider to: ${availableFlights[0]}`);
+      
+      // Set up default configuration for duffel if it's the default
+      if (availableFlights[0] === 'duffel') {
+        providerFactory.setProviderConfig('duffel', {
+          name: 'duffel',
+          displayName: 'Duffel',
+          enabled: true,
+          credentials: {
+            accessToken: 'demo', // Default fallback credentials
+            endpoint: '/api/duffel'
+          },
+          settings: {
+            timeout: 30000,
+            retryAttempts: 1, // Reduce retries for demo mode
+            cacheResults: true,
+            cacheDuration: 30
+          }
+        });
+      }
+      
+      providerFactory.setActiveProvider('flight', availableFlights[0]);
+    }
+  }
+  
   console.log('Travel API providers initialized successfully');
 }
 

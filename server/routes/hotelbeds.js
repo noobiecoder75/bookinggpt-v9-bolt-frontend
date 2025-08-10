@@ -239,9 +239,26 @@ router.post('/search', authenticateUser, async (req, res) => {
 
     if (!response.ok) {
       console.error('Hotelbeds API Error:', response.status, responseText);
-      return res.status(response.status).json({
-        error: `Hotelbeds API error: ${response.status} - ${responseText}`,
+      
+      // Handle authentication/credential errors specifically
+      if (response.status === 401 || response.status === 403) {
+        return res.status(502).json({
+          error: 'Hotelbeds API authentication failed. Please check your API credentials.',
+          message: 'The Hotelbeds API credentials appear to be invalid or expired.',
+          source: 'hotelbeds',
+          fallback: 'Using local hotel inventory instead.',
+          debug: {
+            status: response.status,
+            hint: response.status === 401 ? 'Invalid API key or signature' : 'Access forbidden'
+          }
+        });
+      }
+      
+      return res.status(response.status >= 500 ? 502 : response.status).json({
+        error: `Hotelbeds API error: ${response.status}`,
+        message: responseText.length > 0 ? responseText.substring(0, 200) : 'Unknown API error',
         source: 'hotelbeds',
+        fallback: 'Using local hotel inventory instead.',
         debug: {
           status: response.status,
           responseText: responseText.substring(0, 200)

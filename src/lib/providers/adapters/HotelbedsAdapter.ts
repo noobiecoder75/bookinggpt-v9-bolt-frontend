@@ -9,6 +9,7 @@ import {
   ProviderConfig,
   ProviderError 
 } from '../../../types/providers';
+import { supabase } from '../../supabase';
 
 export class HotelbedsAdapter implements IHotelProvider {
   public readonly name = 'hotelbeds';
@@ -63,11 +64,19 @@ export class HotelbedsAdapter implements IHotelProvider {
 
       // Test connection through your backend only (no direct external API calls)
       try {
+        // Get current user session for authentication (optional for test endpoint)
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        
+        if (session?.access_token) {
+          headers['Authorization'] = `Bearer ${session.access_token}`;
+        }
+
         const response = await fetch(`${this.baseUrl}/api/hotelbeds/test`, {
           method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           // Add timeout to prevent hanging
           signal: AbortSignal.timeout(10000) // 10 second timeout
         });
@@ -117,6 +126,21 @@ export class HotelbedsAdapter implements IHotelProvider {
         throw new ProviderError('Hotelbeds provider is not properly configured', this.name);
       }
 
+      // Quick check if backend is available (with short timeout)
+      try {
+        const healthCheck = await fetch(`${this.baseUrl}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(2000) // 2 second timeout
+        });
+        
+        if (!healthCheck.ok) {
+          throw new ProviderError(`Backend not available at ${this.baseUrl}`, this.name);
+        }
+      } catch (healthError) {
+        console.warn(`HotelbedsAdapter: Backend health check failed:`, healthError);
+        throw new ProviderError(`Backend not available at ${this.baseUrl}`, this.name);
+      }
+
       // Use your existing API call structure
       const searchPayload = {
         destination: criteria.country || criteria.destination,
@@ -128,10 +152,18 @@ export class HotelbedsAdapter implements IHotelProvider {
 
       console.log('HotelbedsAdapter: Searching with payload:', searchPayload);
 
+      // Get current user session for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new ProviderError('User authentication required', this.name);
+      }
+
       const response = await fetch(`${this.baseUrl}/api/hotelbeds/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(searchPayload)
       });

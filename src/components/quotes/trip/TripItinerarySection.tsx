@@ -325,7 +325,7 @@ export function TripItinerarySection({
   return (
     <div>
       <div className="mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold">Trip Itinerary</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Trip Itinerary</h2>
         <p className="text-sm text-gray-600 mt-1">Drag and drop items between days or add new items to each day</p>
       </div>
 
@@ -346,21 +346,21 @@ export function TripItinerarySection({
               return (
                 <div 
                   key={day.id} 
-                  className={`bg-white rounded-lg shadow-sm border border-gray-200 min-h-[500px] sm:min-h-[600px] flex flex-col flex-shrink-0 transition-all duration-200 w-64 sm:w-72 lg:w-80 ${
-                    dragOverDay === day.id ? 'border-indigo-400 bg-indigo-50 shadow-lg' : ''
+                  className={`bg-white/90 backdrop-blur rounded-xl shadow-sm border border-gray-100 min-h-[500px] sm:min-h-[600px] flex flex-col flex-shrink-0 transition-all duration-200 w-64 sm:w-72 lg:w-80 ${
+                    dragOverDay === day.id ? 'border-indigo-300 bg-indigo-50 shadow-md' : 'hover:shadow'
                   }`}
                   onDragOver={(e) => handleDragOver(e, day.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, day.id)}
                 >
                   {/* Day Header */}
-                  <div className="p-3 sm:p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
-                    <div className="flex justify-between items-start mb-3">
+                  <div className="p-3 sm:p-4 border-b border-gray-100 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-t-xl">
+                    <div className="flex justify-between items-start mb-2">
                       <div>
                         <h3 className="font-semibold text-gray-900 text-sm sm:text-base">{day.name}</h3>
                         <p className="text-xs sm:text-sm text-gray-600">{formattedDate}</p>
                       </div>
-                      <span className="bg-indigo-100 text-indigo-800 text-xs font-medium px-2 py-1 rounded-full">
+                      <span className="bg-indigo-100 text-indigo-800 text-[11px] font-medium px-2 py-0.5 rounded-full">
                         {day.items.length} items
                       </span>
                     </div>
@@ -372,7 +372,7 @@ export function TripItinerarySection({
                           const newMenuState = showAddItemMenu === day.id ? null : day.id;
                           onAddItemMenuToggle(newMenuState);
                         }}
-                        className="add-item-button w-full flex items-center justify-center px-2 sm:px-3 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-md hover:shadow-lg"
+                        className="add-item-button w-full flex items-center justify-center px-2 sm:px-3 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-lg text-xs sm:text-sm font-medium hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-sm hover:shadow"
                       >
                         <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                         Add Item
@@ -381,7 +381,7 @@ export function TripItinerarySection({
                       {/* Dropdown Menu */}
                       {showAddItemMenu === day.id && (
                         <div 
-                          className="dropdown-menu absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50"
+                          className="dropdown-menu absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur rounded-lg shadow-xl border border-gray-100 py-2 z-50"
                           onClick={(e) => {
                             e.stopPropagation();
                           }}
@@ -476,14 +476,14 @@ export function TripItinerarySection({
                       return (
                       <div
                         key={item.id}
-                        className={`bg-gray-50 rounded-lg p-3 border transition-all duration-200 ${
+                        className={`bg-white rounded-lg p-3 border transition-all duration-200 ${
                           isPartOfReturnFlight(item) 
-                            ? 'border-blue-300 bg-blue-50 cursor-not-allowed' 
+                            ? 'border-blue-200 bg-blue-50 cursor-not-allowed' 
                             : isMultiDayHotel(item)
-                            ? 'border-purple-300 bg-purple-50 cursor-not-allowed'
-                            : 'border-gray-200 cursor-move hover:border-indigo-300'
-                        } hover:shadow-sm ${
-                          draggedItem?.item.id === item.id ? 'opacity-50 scale-95' : ''
+                            ? 'border-purple-200 bg-purple-50 cursor-not-allowed'
+                            : 'border-gray-100 cursor-move hover:border-indigo-200'
+                        } hover:shadow ${
+                          draggedItem?.item.id === item.id ? 'opacity-50' : ''
                         }`}
                         draggable={!isPartOfReturnFlight(item) && !isMultiDayHotel(item)}
                         onDragStart={(e) => {
@@ -511,7 +511,7 @@ export function TripItinerarySection({
                                   <div className="h-2 w-2 bg-purple-400 rounded-full"></div>
                                 </div>
                               )}
-                              <span className={`px-2 py-1 text-xs rounded-full font-medium ${
+                              <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${
                                 item.type === 'Flight' ? 'bg-blue-100 text-blue-800' :
                                 item.type === 'Hotel' ? 'bg-green-100 text-green-800' :
                                 item.type === 'Transfer' ? 'bg-yellow-100 text-yellow-800' :
@@ -592,10 +592,10 @@ export function TripItinerarySection({
                                       type="number"
                                       value={editingMarkup.newMarkup}
                                       onChange={(e) => handleMarkupChange(Number(e.target.value))}
-                                      className={`w-16 px-2 py-1 text-xs border rounded ${
+                                      className={`w-16 px-2 py-1 text-xs border rounded-md ${
                                         editingMarkup.validationError 
                                           ? 'border-red-300 bg-red-50' 
-                                          : 'border-gray-300'
+                                          : 'border-gray-200'
                                       }`}
                                       step="0.1"
                                       min="0"
@@ -651,7 +651,7 @@ export function TripItinerarySection({
                                   onRemoveItem(day.id, item.id);
                                 }
                               }}
-                              className="text-red-500 hover:text-red-700 text-xs mt-1 flex items-center"
+                              className="text-red-500 hover:text-red-600 text-xs mt-1 flex items-center"
                               title={
                                 isPartOfReturnFlight(item) 
                                   ? 'Remove both flight segments' 
@@ -680,7 +680,7 @@ export function TripItinerarySection({
           </div>
         </div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+        <div className="text-center py-12 bg-white/90 backdrop-blur rounded-xl border border-gray-100">
           <Calendar className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">No itinerary created yet</h3>
           <p className="mt-2 text-sm text-gray-500">
@@ -699,7 +699,7 @@ export function TripItinerarySection({
 
       {/* Total Price Summary */}
       {days.length > 0 && (
-        <div className="mt-6 bg-white rounded-lg border border-gray-200 p-4">
+        <div className="mt-6 bg-white/90 backdrop-blur rounded-xl border border-gray-100 p-4">
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg font-medium text-gray-900">Trip Total</h3>

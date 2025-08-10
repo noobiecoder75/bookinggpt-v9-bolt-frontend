@@ -218,8 +218,26 @@ export function HotelSearchModal({
     try {
       setSearchingSources(prev => ({ ...prev, hotelbeds: true }));
       
-      // Get the configured hotel provider
-      const hotelProvider = providerFactory.getHotelProvider();
+      // Check if any hotel provider is available
+      const availableProviders = providerFactory.getAvailableHotelProviders();
+      if (availableProviders.length === 0) {
+        console.log('No hotel providers registered, skipping external search');
+        return [];
+      }
+
+      // Try to get the configured hotel provider, fallback to first available
+      let hotelProvider;
+      try {
+        hotelProvider = providerFactory.getHotelProvider();
+      } catch (error) {
+        console.log('No default hotel provider configured, trying first available provider:', availableProviders[0]);
+        try {
+          hotelProvider = providerFactory.getHotelProvider(availableProviders[0]);
+        } catch (fallbackError) {
+          console.log('First available provider not configured, skipping external search');
+          return [];
+        }
+      }
       
       const searchPayload = {
         destination: searchCriteria?.country || destination,
@@ -280,10 +298,10 @@ export function HotelSearchModal({
         fetchProviderHotels()
       ]);
 
-      // Combine results, with local hotels first
-      const combinedHotels = [...localHotels, ...providerHotels];
+      // Combine results, with API hotels first (prioritize live data)
+      const combinedHotels = [...providerHotels, ...localHotels];
       
-      console.log(`Found ${localHotels.length} local hotels and ${providerHotels.length} provider hotels`);
+      console.log(`Found ${providerHotels.length} API hotels and ${localHotels.length} local hotels (API results prioritized)`);
       
       setHotels(combinedHotels);
       

@@ -109,7 +109,27 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
   const testFlightProviderConnection = async () => {
     try {
       console.log('Testing flight provider connection...');
-      const flightProvider = providerFactory.getFlightProvider();
+      
+      // Check if any providers are available
+      const availableProviders = providerFactory.getAvailableFlightProviders();
+      if (availableProviders.length === 0) {
+        alert('No flight providers available. Please configure a flight provider in settings.');
+        return;
+      }
+
+      // Try to get the configured flight provider, fallback to first available
+      let flightProvider;
+      try {
+        flightProvider = providerFactory.getFlightProvider();
+      } catch (error) {
+        console.log('No default flight provider configured, trying first available provider:', availableProviders[0]);
+        try {
+          flightProvider = providerFactory.getFlightProvider(availableProviders[0]);
+        } catch (fallbackError) {
+          alert(`Flight provider ${availableProviders[0]} is not properly configured. Please configure it in settings.`);
+          return;
+        }
+      }
       
       console.log(`Testing ${flightProvider.name} provider...`);
       const success = await flightProvider.testConnection();
@@ -142,8 +162,24 @@ export function FlightSearchModal({ isOpen, onClose, onFlightSelect }: FlightSea
         throw new Error('Please fill in all required fields (origin, destination, and departure date)');
       }
 
-      // Get the configured flight provider
-      const flightProvider = providerFactory.getFlightProvider();
+      // Check if any flight provider is available
+      const availableProviders = providerFactory.getAvailableFlightProviders();
+      if (availableProviders.length === 0) {
+        throw new Error('No flight providers available. Please configure a flight provider in settings.');
+      }
+
+      // Try to get the configured flight provider, fallback to first available
+      let flightProvider;
+      try {
+        flightProvider = providerFactory.getFlightProvider();
+      } catch (error) {
+        console.log('No default flight provider configured, trying first available provider:', availableProviders[0]);
+        try {
+          flightProvider = providerFactory.getFlightProvider(availableProviders[0]);
+        } catch (fallbackError) {
+          throw new Error(`Flight provider ${availableProviders[0]} is not properly configured. Please configure it in settings.`);
+        }
+      }
 
       const searchCriteria = {
         origin: requirements.origin,

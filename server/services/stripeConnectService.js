@@ -5,6 +5,10 @@ class StripeConnectService {
   
   // Create Stripe Connect Express account for agent
   async createConnectAccount(userId, email, businessInfo) {
+    if (!stripe) {
+      throw new Error('Stripe is not configured - cannot create Connect account');
+    }
+    
     try {
       // Create Express account
       const account = await stripe.accounts.create({

@@ -19,6 +19,7 @@ import subscriptionsRouter from './routes/subscriptions.js';
 import webhooksRouter from './routes/webhooks.js';
 import stripeConnectRouter from './routes/stripeConnect.js';
 import emailTemplatesRouter from './routes/emailTemplates.js';
+import tripBuilderRouter from './routes/tripBuilder.js';
 import reconfirmationService from './services/reconfirmationService.js';
 
 const app = express();
@@ -27,6 +28,7 @@ const PORT = process.env.PORT || 3001;
 // Debug: Log environment variables to verify they're loaded
 console.log('Environment check:');
 console.log('VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'Found' : 'Missing');
+console.log('VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? 'Found' : 'Missing');
 console.log('VITE_SUPABASE_SERVICE_ROLE_KEY:', process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ? 'Found' : 'Missing');
 console.log('VITE_OPENAI_API_KEY:', process.env.VITE_OPENAI_API_KEY ? 'Found' : 'Missing');
 console.log('VITE_HOTELBEDS_API_KEY:', process.env.VITE_HOTELBEDS_API_KEY ? 'Found' : 'Missing');
@@ -67,9 +69,14 @@ app.use('/api/duffel', duffelRouter);
 app.use('/api/subscriptions', subscriptionsRouter);
 app.use('/api/stripe-connect', stripeConnectRouter);
 app.use('/api/email-templates', emailTemplatesRouter);
+app.use('/api/trip-builder', tripBuilderRouter);
 
-// Health check endpoint
+// Health check endpoints
 app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is running' });
+});
+
+app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running' });
 });
 
